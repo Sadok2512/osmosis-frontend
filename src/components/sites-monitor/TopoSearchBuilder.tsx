@@ -45,50 +45,27 @@ const TopoCountBadge: React.FC<{ payload: TopoSearchPayload | null }> = ({ paylo
       if (cancelled) return;
       setState(s => ({ ...s, loading: true, error: undefined }));
       try {
-        // No filters → count whole topo
-        const filters = payload?.filters?.filter(f => f.values.length > 0) || [];
+        const filters = (payload?.filters || [])
+          .filter(f => f.values.length > 0)
+          .map(f => ({
+            col: TOPO_DIM_TO_COL[f.field.toLowerCase()] || f.field.toLowerCase(),
+            values: f.values,
+          }))
+          .filter(f => !!f.col);
         const logic = payload?.logic || 'AND';
 
-        // Build a base query that returns minimal columns; cap to 50k rows for safety
-        const LIMIT = 50000;
-        let q: any = supabase.from('topo').select('nom_site,nom_cellule', { count: 'exact' }).limit(LIMIT);
-
-        if (filters.length > 0) {
-          if (logic === 'AND') {
-            for (const f of filters) {
-              const col = TOPO_DIM_TO_COL[f.field.toLowerCase()];
-              if (!col) continue;
-              q = q.in(col, f.values);
-            }
-          } else {
-            // OR: build a single .or() expression
-            const parts: string[] = [];
-            for (const f of filters) {
-              const col = TOPO_DIM_TO_COL[f.field.toLowerCase()];
-              if (!col) continue;
-              const escaped = f.values.map(v => `"${String(v).replace(/"/g, '\\"')}"`).join(',');
-              parts.push(`${col}.in.(${escaped})`);
-            }
-            if (parts.length > 0) q = q.or(parts.join(','));
-          }
-        }
-
-        const { data, count, error } = await q;
+        const { data, error } = await (supabase as any).rpc('topo_perimeter_count', {
+          p_filters: filters,
+          p_logic: logic,
+        });
         if (cancelled) return;
         if (error) {
           setState({ loading: false, sites: 0, cells: 0, truncated: false, error: error.message });
           return;
         }
-        const rows = (data || []) as Array<{ nom_site: string | null; nom_cellule: string | null }>;
-        const siteSet = new Set<string>();
-        for (const r of rows) if (r.nom_site) siteSet.add(r.nom_site);
-        const cellsTotal = typeof count === 'number' ? count : rows.length;
-        setState({
-          loading: false,
-          sites: siteSet.size,
-          cells: cellsTotal,
-          truncated: cellsTotal > rows.length, // sites count is from sampled rows only
-        });
+        const sites = Number((data as any)?.sites ?? 0);
+        const cells = Number((data as any)?.cells ?? 0);
+        setState({ loading: false, sites, cells, truncated: false });
       } catch (e: any) {
         if (cancelled) return;
         setState({ loading: false, sites: 0, cells: 0, truncated: false, error: e?.message || 'erreur' });
