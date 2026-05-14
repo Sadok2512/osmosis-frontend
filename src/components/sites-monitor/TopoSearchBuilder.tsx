@@ -15,9 +15,116 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, X, Loader2, ChevronDown, Check } from 'lucide-react';
+import { Search, Plus, X, Loader2, ChevronDown, Check, Radio, Antenna } from 'lucide-react';
 import { topoApi } from '@/lib/localDb';
+import { supabase } from '@/integrations/supabase/client';
 import type { TopoSearchPayload, TopoSearchOperator, TopoSearchFilter } from './CreateViewModal';
+
+// Map Topology Search dimension keys → Supabase `topo` columns (lowercase keys)
+const TOPO_DIM_TO_COL: Record<string, string> = {
+  plaque: 'plaque', plaque_site: 'plaque', plaque_cellule: 'plaque',
+  dor: 'dor', region: 'region', zone_arcep: 'zone_arcep',
+  techno: 'techno', bande: 'bande',
+  constructeur: 'constructeur', vendor: 'constructeur',
+  nom_site: 'nom_site', site_name: 'nom_site',
+  nom_cellule: 'nom_cellule', cell_name: 'nom_cellule',
+  code_nidt: 'code_nidt', etat_cellule: 'etat_cellule',
+  hebergeur_leader: 'hebergeur_leader', essentiel: 'essentiel',
+  pci: 'pci', tac: 'tac', lac: 'lac', azimut: 'azimut',
+};
+
+const TopoCountBadge: React.FC<{ payload: TopoSearchPayload | null }> = ({ payload }) => {
+  const [state, setState] = useState<{ loading: boolean; sites: number; cells: number; truncated: boolean; error?: string }>({
+    loading: false, sites: 0, cells: 0, truncated: false,
+  });
+  const payloadKey = useMemo(() => JSON.stringify(payload || null), [payload]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      if (cancelled) return;
+      setState(s => ({ ...s, loading: true, error: undefined }));
+      try {
+        // No filters → count whole topo
+        const filters = payload?.filters?.filter(f => f.values.length > 0) || [];
+        const logic = payload?.logic || 'AND';
+
+        // Build a base query that returns minimal columns; cap to 50k rows for safety
+        const LIMIT = 50000;
+        let q: any = supabase.from('topo').select('nom_site,nom_cellule', { count: 'exact' }).limit(LIMIT);
+
+        if (filters.length > 0) {
+          if (logic === 'AND') {
+            for (const f of filters) {
+              const col = TOPO_DIM_TO_COL[f.field.toLowerCase()];
+              if (!col) continue;
+              q = q.in(col, f.values);
+            }
+          } else {
+            // OR: build a single .or() expression
+            const parts: string[] = [];
+            for (const f of filters) {
+              const col = TOPO_DIM_TO_COL[f.field.toLowerCase()];
+              if (!col) continue;
+              const escaped = f.values.map(v => `"${String(v).replace(/"/g, '\\"')}"`).join(',');
+              parts.push(`${col}.in.(${escaped})`);
+            }
+            if (parts.length > 0) q = q.or(parts.join(','));
+          }
+        }
+
+        const { data, count, error } = await q;
+        if (cancelled) return;
+        if (error) {
+          setState({ loading: false, sites: 0, cells: 0, truncated: false, error: error.message });
+          return;
+        }
+        const rows = (data || []) as Array<{ nom_site: string | null; nom_cellule: string | null }>;
+        const siteSet = new Set<string>();
+        for (const r of rows) if (r.nom_site) siteSet.add(r.nom_site);
+        const cellsTotal = typeof count === 'number' ? count : rows.length;
+        setState({
+          loading: false,
+          sites: siteSet.size,
+          cells: cellsTotal,
+          truncated: cellsTotal > rows.length, // sites count is from sampled rows only
+        });
+      } catch (e: any) {
+        if (cancelled) return;
+        setState({ loading: false, sites: 0, cells: 0, truncated: false, error: e?.message || 'erreur' });
+      }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(handle); };
+  }, [payloadKey]);
+
+  return (
+    <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        Périmètre courant
+      </span>
+      <div className="flex items-center gap-3">
+        {state.loading ? (
+          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Loader2 size={11} className="animate-spin" /> Calcul…
+          </span>
+        ) : state.error ? (
+          <span className="text-[10px] text-destructive">{state.error}</span>
+        ) : (
+          <>
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+              <Radio size={12} className="text-primary" />
+              {state.sites.toLocaleString('fr-FR')}{state.truncated ? '+' : ''} sites
+            </span>
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+              <Antenna size={12} className="text-primary" />
+              {state.cells.toLocaleString('fr-FR')} cellules
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const parseValuesText = (text: string): string[] =>
   text.split(',').map(s => s.trim()).filter(Boolean);
@@ -462,6 +569,8 @@ export const TopoSearchBuilder: React.FC<TopoSearchBuilderProps> = ({ value, onC
           <Plus size={12} />
           Ajouter un filtre
         </button>
+
+        <TopoCountBadge payload={value || null} />
       </div>
     </div>
   );
