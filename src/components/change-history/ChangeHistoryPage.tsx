@@ -390,20 +390,20 @@ const ChangeHistoryPage: React.FC = () => {
         </header>
 
         {/* ----- KPI strip ----- */}
-        <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
+        <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {KPIS.map((k, i) => {
             const Icon = k.icon;
             return (
-              <div key={k.label} className={`${CARD} px-6 py-6 flex flex-col items-center text-center`}>
-                <div className="flex items-center justify-center gap-3 w-full">
-                  <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${k.accent} ring-1 ring-[#eef2f8] flex items-center justify-center`}>
-                    <Icon className="w-5 h-5 text-slate-700" />
+              <div key={k.label} className={`${CARD} px-3 py-3 flex flex-col items-center text-center`}>
+                <div className="flex items-center justify-center gap-2 w-full">
+                  <div className={`w-7 h-7 rounded-md bg-gradient-to-br ${k.accent} ring-1 ring-[#eef2f8] flex items-center justify-center`}>
+                    <Icon className="w-3.5 h-3.5 text-slate-700" />
                   </div>
                   <Sparkline seed={i + 1} color={k.trendColor.includes("rose") ? "#f43f5e" : k.trendColor.includes("amber") ? "#f59e0b" : "#10b981"} />
                 </div>
-                <div className="mt-4 text-[12px] font-semibold uppercase tracking-wide text-slate-500">{k.label}</div>
-                <div className="mt-1 text-[36px] font-bold tracking-tight text-slate-900 tabular-nums leading-none">{k.value}</div>
-                <div className={`mt-2 text-[12px] font-medium ${k.trendColor}`}>{k.trend}</div>
+                <div className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{k.label}</div>
+                <div className="mt-0.5 text-[20px] font-bold tracking-tight text-slate-900 tabular-nums leading-none">{k.value}</div>
+                <div className={`mt-1 text-[10px] font-medium ${k.trendColor}`}>{k.trend}</div>
               </div>
             );
           })}
