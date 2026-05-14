@@ -2070,6 +2070,12 @@ export type Database = {
           similarity: number
         }[]
       }
+      topo_distinct_values: {
+        Args: { p_col: string; p_limit?: number; p_search?: string }
+        Returns: {
+          value: string
+        }[]
+      }
       topo_inventory_stats: { Args: never; Returns: Json }
       topo_perimeter_count: {
         Args: { p_filters?: Json; p_logic?: string }
