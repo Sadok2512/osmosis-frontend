@@ -1341,10 +1341,10 @@ const SEV_STYLES: Record<Severity, {
 };
 
 const STATUS_STYLES: Record<ResultStatus, { dot: string; chip: string; label: string }> = {
-  open:          { dot: 'bg-rose-500',    chip: 'bg-rose-50 text-rose-700',         label: 'OPEN' },
-  acknowledged:  { dot: 'bg-amber-500',   chip: 'bg-amber-50 text-amber-700',       label: 'ACK' },
-  resolved:      { dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700',   label: 'RESOLVED' },
-  ignored:       { dot: 'bg-slate-400',   chip: 'bg-slate-100 text-slate-600',      label: 'IGNORED' },
+  open:          { dot: 'bg-pink-500',    chip: 'bg-pink-50 text-pink-700 ring-1 ring-pink-200',          label: 'OPEN' },
+  acknowledged:  { dot: 'bg-slate-400',   chip: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200',      label: 'PENDING' },
+  resolved:      { dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200', label: 'CLOSED' },
+  ignored:       { dot: 'bg-slate-400',   chip: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200',      label: 'PENDING' },
 };
 
 function ResultsTable({
