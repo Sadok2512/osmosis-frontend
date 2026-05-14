@@ -40,7 +40,7 @@ import RawDataView from './RawDataView';
 import MapView from './MapView';
 
 type ViewMode = 'distribution' | 'raw' | 'map';
-type ExplorerModule = 'parameter-hub' | 'topology' | 'change-history' | 'alarms' | 'neighbors';
+type ExplorerModule = 'parameter-hub' | 'topology' | 'change-history' | 'neighbors';
 
 const FILTER_DIMS: {
   key: keyof Omit<ParameterHubFilters, 'parameters'>;
