@@ -167,10 +167,9 @@ async function _get<T>(path: string): Promise<T> {
 async function _post<T>(path: string, body: unknown): Promise<T> {
   const url = getApiUrl(`alarms${path}`);
   const r = await fetch(url, {
-    method:      'POST',
-    headers:     getApiHeaders(),
-    credentials: 'include',
-    body:        JSON.stringify(body),
+    method:  'POST',
+    headers: getApiHeaders(),
+    body:    JSON.stringify(body),
   });
   if (!r.ok) throw new Error(`POST ${url} failed (${r.status})`);
   return r.json() as Promise<T>;
