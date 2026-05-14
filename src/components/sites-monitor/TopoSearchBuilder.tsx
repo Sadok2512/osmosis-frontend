@@ -76,30 +76,36 @@ const TopoCountBadge: React.FC<{ payload: TopoSearchPayload | null }> = ({ paylo
 
   const filterCount = (payload?.filters || []).filter(f => f.values.length > 0).length;
   return (
-    <div className="mt-3 inline-flex w-fit items-center gap-2 rounded-full border border-border bg-muted/30 px-3 py-1 text-[11px] text-muted-foreground">
+    <div className="mt-3 inline-flex w-fit items-center gap-3 rounded-full border border-border bg-background/60 px-3 py-1 text-[11px] text-muted-foreground shadow-sm">
       <span className="flex items-center gap-1.5">
         <Antenna size={12} className="text-muted-foreground" />
         <span className="font-semibold text-foreground">{filterCount}</span>
         <span>topology filter{filterCount > 1 ? 's' : ''}</span>
       </span>
-      <span className="text-border">·</span>
       {state.loading ? (
-        <span className="flex items-center gap-1.5">
-          <Loader2 size={11} className="animate-spin" /> Calcul…
-        </span>
+        <>
+          <span className="h-3 w-px bg-border" />
+          <span className="flex items-center gap-1.5">
+            <Loader2 size={11} className="animate-spin" /> Calcul…
+          </span>
+        </>
       ) : state.error ? (
-        <span className="text-destructive">{state.error}</span>
+        <>
+          <span className="h-3 w-px bg-border" />
+          <span className="text-destructive">{state.error}</span>
+        </>
       ) : (
         <>
+          <span className="h-3 w-px bg-border" />
           <span className="flex items-center gap-1">
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
               {state.cells.toLocaleString('fr-FR')}
             </span>
             <span>cells</span>
           </span>
-          <span className="text-border">·</span>
+          <span className="h-3 w-px bg-border" />
           <span className="flex items-center gap-1">
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="font-semibold text-foreground tabular-nums">
               {state.sites.toLocaleString('fr-FR')}{state.truncated ? '+' : ''}
             </span>
             <span>sites</span>
