@@ -18,6 +18,7 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
 
 type Severity = "Critical" | "Major" | "Minor" | "Warning" | "Cleared";
 type Status = "Active" | "Acknowledged" | "Cleared";
@@ -147,7 +148,7 @@ const AlarmCenterPage: React.FC = () => {
       const { fetchAlarms } = await import('@/services/alarmService');
       const dr = dateRangeRef.current;
       const live = await fetchAlarms({
-        limit:     200,
+        limit:     2000,
         date_from: dr.from,
         date_to:   dr.to + 'T23:59:59',
       });
@@ -188,6 +189,7 @@ const AlarmCenterPage: React.FC = () => {
     return () => window.clearInterval(id);
   }, [loadAlarms, dateRange.from, dateRange.to]);
   const [aiOn, setAiOn] = useState(true);
+  const [applyFlash, setApplyFlash] = useState(false);
   const [selectedId, setSelectedId] = useState<string>(alarms[0]?.id);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
@@ -517,10 +519,48 @@ const AlarmCenterPage: React.FC = () => {
           </FilterGroup>
 
           <div className="space-y-2 pt-2">
-            <button className="w-full h-10 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 text-white text-[12px] font-semibold shadow-[0_4px_12px_rgba(37,99,235,0.25)] hover:shadow-[0_6px_18px_rgba(37,99,235,0.35)] transition-all">
-              Apply Filters
+            <button
+              onClick={async () => {
+                setApplyFlash(true);
+                window.setTimeout(() => setApplyFlash(false), 450);
+                setPage(1);
+                await loadAlarms();
+                toast.success(`Filters applied — ${filtered.length.toLocaleString('fr-FR')} alarms match`);
+              }}
+              disabled={alarmsLoading}
+              className={[
+                "w-full h-10 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 text-white text-[12px] font-semibold",
+                "shadow-[0_4px_12px_rgba(37,99,235,0.25)] hover:shadow-[0_6px_18px_rgba(37,99,235,0.35)]",
+                "transition-all duration-150 active:scale-[0.97] active:shadow-[0_2px_6px_rgba(37,99,235,0.45)]",
+                "disabled:opacity-60",
+                applyFlash ? "ring-4 ring-blue-300/60 brightness-110" : "",
+              ].join(" ")}
+            >
+              {alarmsLoading ? (
+                <span className="inline-flex items-center justify-center gap-1.5">
+                  <RefreshCw size={13} className="animate-spin" /> Refreshing…
+                </span>
+              ) : (
+                'Apply Filters'
+              )}
             </button>
-            <button className="w-full h-10 rounded-full border border-[#e8edf5] bg-white text-[12px] font-medium text-slate-600 hover:bg-slate-50 transition">
+            <button
+              onClick={() => {
+                setSearch("");
+                setFilters({
+                  severity: new Set<Severity>(["Critical", "Major", "Minor", "Warning"]),
+                  tech:     new Set<Tech>(["4G LTE", "5G NR"]),
+                  vendor:   new Set<Vendor>(["Ericsson", "Nokia", "Huawei"]),
+                  region:   "All",
+                  site:     "All",
+                  type:     "All",
+                  status:   new Set<Status>(["Active", "Acknowledged"]),
+                });
+                setPage(1);
+                toast.message('Filters reset');
+              }}
+              className="w-full h-10 rounded-full border border-[#e8edf5] bg-white text-[12px] font-medium text-slate-600 hover:bg-slate-50 transition active:scale-[0.97] active:bg-slate-100"
+            >
               Reset
             </button>
           </div>
