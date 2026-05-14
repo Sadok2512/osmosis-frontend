@@ -2278,6 +2278,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   // Create filter state for dashboard creation
   const [createFilters, setCreateFilters] = useState<DashboardSiteFilters>({});
+  // Conditions list driving the embedded ViewFilterBuilder (Topology Search) in the Create Dashboard modal.
+  const [createConditions, setCreateConditions] = useState<ViewFilterCondition[]>([]);
 
   const extractScope = (db: any): SiteScope | null => {
     const s = getDashboardSettings(db);
