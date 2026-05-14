@@ -152,8 +152,21 @@ export const dashboardsApi = {
     // Primary source = VPS parser (RAN_OP). Fall back to Supabase if VPS is unavailable.
     try {
       const url = parserUrl('/dashboards/');
-      const resp = await fetch(url, { headers: getVpsProxyHeaders() });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      // Retry on transient 503 BOOT_ERROR (edge function cold start)
+      const maxRetries = 3;
+      let resp: Response | null = null;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        resp = await fetch(url, { headers: getVpsProxyHeaders() });
+        if (resp.ok) break;
+        if (attempt < maxRetries && (resp.status === 502 || resp.status === 503 || resp.status === 504)) {
+          const delay = backoffDelay(attempt);
+          console.warn(`[Dashboards] VPS ${resp.status} on attempt ${attempt + 1}, retrying in ${delay}ms...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        break;
+      }
+      if (!resp || !resp.ok) throw new Error(`HTTP ${resp?.status ?? 'no-response'}`);
       const json = await resp.json();
       const items = Array.isArray(json) ? json : (Array.isArray(json?.items) ? json.items : null);
       if (!items) throw new Error('Unexpected VPS dashboards payload');
