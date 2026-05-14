@@ -8486,6 +8486,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           url={(TILE_URLS[mapLayer] || TILE_URLS.light).url}
           attribution={(TILE_URLS[mapLayer] || TILE_URLS.light).attribution}
         />
+        <Buildings3DLayer />
         {/* Visual Coverage adapter — bridges the drop-in JS module
             (src/coverage/) to react-leaflet. Owns its own L.geoJSON layer,
             tooltips, panel; React just passes the bbox + enabled flag. */}
