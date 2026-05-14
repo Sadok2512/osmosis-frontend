@@ -76,31 +76,57 @@ function fuzzyMatch(text: string, query: string): boolean {
 
 // ── Props ──
 interface ViewFilterBuilderProps {
-  /** Initial conditions (for editing existing view) */
+  /** Initial conditions (uncontrolled). Ignored when `value` is provided. */
   initialConditions?: ViewFilterCondition[];
+  /** Controlled value — when provided, parent owns the conditions state. */
+  value?: ViewFilterCondition[];
+  /** Called on every conditions change (controlled mode + uncontrolled syncing). */
+  onChange?: (conditions: ViewFilterCondition[]) => void;
   /** Known values per dimension from backend filter defs */
   backendFilterDefs?: { id: string; label: string; values: string[] }[];
-  /** View name */
-  viewName: string;
-  onViewNameChange: (name: string) => void;
-  /** Save callback */
-  onSave: (conditions: ViewFilterCondition[]) => void;
-  /** Cancel callback */
-  onCancel: () => void;
+  /** Display mode. `embedded` hides the view name input and save/cancel actions. */
+  mode?: 'standalone' | 'embedded';
+  /** View name (standalone only) */
+  viewName?: string;
+  onViewNameChange?: (name: string) => void;
+  /** Save callback (standalone only) */
+  onSave?: (conditions: ViewFilterCondition[]) => void;
+  /** Cancel callback (standalone only) */
+  onCancel?: () => void;
   /** Is saving */
   saving?: boolean;
+  /** Force-hide the view name input even in standalone mode. */
+  hideViewName?: boolean;
+  /** Force-hide the save/cancel action row. */
+  hideSaveAction?: boolean;
 }
 
 export const ViewFilterBuilder: React.FC<ViewFilterBuilderProps> = ({
   initialConditions = [],
+  value,
+  onChange,
   backendFilterDefs = [],
+  mode = 'standalone',
   viewName,
   onViewNameChange,
   onSave,
   onCancel,
   saving,
+  hideViewName,
+  hideSaveAction,
 }) => {
-  const [conditions, setConditions] = useState<ViewFilterCondition[]>(initialConditions);
+  const isControlled = Array.isArray(value);
+  const [internalConditions, setInternalConditions] = useState<ViewFilterCondition[]>(initialConditions);
+  const conditions = isControlled ? (value as ViewFilterCondition[]) : internalConditions;
+  const setConditions = (updater: ViewFilterCondition[] | ((prev: ViewFilterCondition[]) => ViewFilterCondition[])) => {
+    const next = typeof updater === 'function'
+      ? (updater as (p: ViewFilterCondition[]) => ViewFilterCondition[])(conditions)
+      : updater;
+    if (!isControlled) setInternalConditions(next);
+    onChange?.(next);
+  };
+  const showViewName = !hideViewName && mode !== 'embedded';
+  const showSaveAction = !hideSaveAction && mode !== 'embedded';
   const [showDimPicker, setShowDimPicker] = useState(false);
   const [dimSearch, setDimSearch] = useState('');
   const [editingConditionId, setEditingConditionId] = useState<string | null>(null);
