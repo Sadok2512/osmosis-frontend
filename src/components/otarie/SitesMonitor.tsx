@@ -3214,15 +3214,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Close = deactivate (if active), collapse, AND unload from list
-                          if (isActive) {
-                            onActiveDashboardIdChange(null);
-                            onActiveViewIdChange(null);
-                            onDashboardActiveChange?.(false, null, null);
-                          }
-                          setEditingDashboardId(null);
-                          setExpandedDashboardId(null);
-                          removeLoadedId(db.id);
+                          // Close = delete dashboard from sidebar
+                          handleDeleteDashboard(db.id);
                         }}
                         className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted"
                       >
