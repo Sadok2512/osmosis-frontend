@@ -301,6 +301,41 @@ const ChangeHistoryPage: React.FC = () => {
           })}
         </section>
 
+        {/* ----- Map panel ----- */}
+        {showMap && (
+          <section
+            className={
+              mapFullscreen
+                ? "fixed inset-0 z-[1000] bg-white p-4 flex flex-col"
+                : `${CARD} p-4`
+            }
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-blue-600" />
+                <span className="text-[14px] font-semibold text-slate-900">Network Change Map</span>
+                <span className="text-[12px] text-slate-500">— {ROWS.length} changes</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setMapFullscreen((v) => !v)}
+                  className="h-8 px-3 rounded-full border border-[#e7edf5] bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-50 transition inline-flex items-center gap-1.5"
+                >
+                  {mapFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                  {mapFullscreen ? "Exit" : "Fullscreen"}
+                </button>
+                <button
+                  onClick={() => { setMapFullscreen(false); setShowMap(false); }}
+                  className="h-8 px-3 rounded-full border border-[#e7edf5] bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-50 transition inline-flex items-center gap-1.5"
+                >
+                  <X className="w-3.5 h-3.5" /> Close
+                </button>
+              </div>
+            </div>
+            <ChangeMap rows={ROWS} fullscreen={mapFullscreen} />
+          </section>
+        )}
+
         {/* ----- Body grid ----- */}
         <section className="grid grid-cols-12 gap-4">
           {/* Filters */}
