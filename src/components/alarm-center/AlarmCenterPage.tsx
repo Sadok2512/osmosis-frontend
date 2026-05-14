@@ -869,6 +869,12 @@ const SitesMiniMap: React.FC<{
       zoom: 6,
       zoomControl: true,
       attributionControl: false,
+      scrollWheelZoom: false, // let page scroll; user can zoom with +/- buttons or ctrl+wheel
+    });
+    // Enable wheel zoom only when Ctrl/Cmd is held
+    map.getContainer().addEventListener("wheel", (e) => {
+      if (e.ctrlKey || e.metaKey) map.scrollWheelZoom.enable();
+      else map.scrollWheelZoom.disable();
     });
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
