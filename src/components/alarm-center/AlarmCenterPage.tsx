@@ -287,21 +287,39 @@ const AlarmCenterPage: React.FC = () => {
 
       {/* MAP PANEL — visible when Show Map is toggled */}
       {showMap && (
-        <div className={`${CARD} px-5 py-4 animate-in fade-in duration-300`}>
+        <div
+          className={
+            mapFullscreen
+              ? "fixed inset-0 z-[1000] bg-white p-4 flex flex-col animate-in fade-in duration-200"
+              : `${CARD} px-5 py-4 animate-in fade-in duration-300`
+          }
+        >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <MapPin size={14} className="text-blue-600" strokeWidth={2} />
               <span className="text-[14px] font-semibold text-slate-900">Network Alarm Map</span>
               <span className="text-[11px] text-slate-500 font-medium">— {topSites.length} impacted sites</span>
             </div>
-            <button
-              onClick={() => setShowMap(false)}
-              className="text-[11px] font-medium text-slate-500 hover:text-slate-700 transition"
-            >
-              Close ✕
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMapFullscreen((v) => !v)}
+                className="flex items-center gap-1 text-[11px] font-medium text-slate-600 hover:text-slate-900 transition px-2 py-1 rounded ring-1 ring-slate-200"
+                title={mapFullscreen ? "Exit fullscreen" : "Fullscreen"}
+              >
+                {mapFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+                {mapFullscreen ? "Exit" : "Fullscreen"}
+              </button>
+              <button
+                onClick={() => { setMapFullscreen(false); setShowMap(false); }}
+                className="text-[11px] font-medium text-slate-500 hover:text-slate-700 transition"
+              >
+                Close ✕
+              </button>
+            </div>
           </div>
-          <SitesMiniMap sites={topSites} />
+          <div className={mapFullscreen ? "flex-1 min-h-0" : ""}>
+            <SitesMiniMap sites={topSites} fullscreen={mapFullscreen} />
+          </div>
         </div>
       )}
 
