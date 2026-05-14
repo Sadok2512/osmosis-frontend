@@ -24,6 +24,7 @@ import {
   Minimize2,
   X,
 } from "lucide-react";
+import { getStoredSession } from "@/services/adminAuth";
 
 /* ------------------------------------------------------------------ */
 /* Design tokens — aligned with Network Explorer / Parameter Hub      */
@@ -318,6 +319,9 @@ const ChangeHistoryPage: React.FC = () => {
   const [showMap, setShowMap] = useState(false);
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const [paramFullscreen, setParamFullscreen] = useState(false);
+  const currentUser = getStoredSession();
+  const username = currentUser?.username || "Guest";
+  const initials = username.slice(0, 2).toUpperCase();
 
   const toggleRow = (id: string) => {
     setCheckedRows((prev) => {
@@ -378,8 +382,11 @@ const ChangeHistoryPage: React.FC = () => {
               </span>
               Live
             </span>
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-white text-[11px] font-semibold flex items-center justify-center shadow-sm">
-              NC
+            <div className="flex items-center gap-2 pl-1">
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-white text-[11px] font-semibold flex items-center justify-center shadow-sm">
+                {initials}
+              </div>
+              <span className="text-[13px] font-medium text-slate-700">{username}</span>
             </div>
           </div>
         </header>
