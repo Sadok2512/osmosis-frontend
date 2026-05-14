@@ -38,6 +38,8 @@ import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
 import { ProgressiveFilterBuilder } from './ProgressiveFilterBuilder';
 import { InlineSimTab } from './SitesMonitorHelpers';
 import { ViewFilterBuilder, ViewFilterCondition, conditionsToSiteFilters, siteFiltersToConditions } from '@/components/sites-monitor/ViewFilterBuilder';
+import { TopoSearchBuilder } from '@/components/sites-monitor/TopoSearchBuilder';
+import type { TopoSearchPayload } from '@/components/sites-monitor/CreateViewModal';
 import SiteChangesPanel from './SiteChangesPanel';
 import { siteMatchesViewConditions, hasAnyCellLevelCondition } from '@/lib/viewFilterHelpers';
 import { CreateViewModal, ViewConfig } from '@/components/sites-monitor/CreateViewModal';
