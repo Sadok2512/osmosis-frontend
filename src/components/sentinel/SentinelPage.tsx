@@ -293,6 +293,9 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
           {activeTab === 'ml-detector' && (
             <SentinelMLDetector onOpenRCA={(a) => { setRcaAnomaly(a); setActiveTab('rca'); }} />
           )}
+          {activeTab === 'live-map' && (
+            <SentinelLiveMap date={selectedDate} apiConnected={connectionStatus === 'connected'} />
+          )}
           {activeTab === 'rca' && (
             <SentinelRCA anomaly={rcaAnomaly} onBack={() => setActiveTab('ml-detector')} />
           )}
