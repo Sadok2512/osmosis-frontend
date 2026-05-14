@@ -1,0 +1,556 @@
+import React, { useMemo, useState } from "react";
+import {
+  Search,
+  Calendar,
+  RefreshCw,
+  Download,
+  Filter as FilterIcon,
+  Columns3,
+  LayoutGrid,
+  ChevronLeft,
+  ChevronRight,
+  Activity,
+  AlertTriangle,
+  RotateCcw,
+  Clock3,
+  CircleDot,
+  History,
+  GitCompare,
+  TrendingUp,
+} from "lucide-react";
+
+/* ------------------------------------------------------------------ */
+/* Design tokens — aligned with Network Explorer / Parameter Hub      */
+/* ------------------------------------------------------------------ */
+const PAGE_BG = "bg-[#f6f8fb]";
+const CARD =
+  "bg-white rounded-2xl border border-[#e7edf5] shadow-[0_2px_8px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-[0_4px_14px_rgba(15,23,42,0.06)]";
+const SUBTLE_BORDER = "border-[#eef2f8]";
+
+/* Severity palette */
+const sevDot: Record<string, string> = {
+  Low: "bg-emerald-500",
+  Medium: "bg-amber-500",
+  High: "bg-orange-500",
+  Critical: "bg-rose-500",
+};
+const sevText: Record<string, string> = {
+  Low: "text-emerald-600",
+  Medium: "text-amber-600",
+  High: "text-orange-600",
+  Critical: "text-rose-600",
+};
+const sevPill: Record<string, string> = {
+  Low: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  Medium: "bg-amber-50 text-amber-700 ring-amber-100",
+  High: "bg-orange-50 text-orange-700 ring-orange-100",
+  Critical: "bg-rose-50 text-rose-700 ring-rose-100",
+};
+const statusPill: Record<string, string> = {
+  Passed: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  Failed: "bg-rose-50 text-rose-700 ring-rose-100",
+  Pending: "bg-amber-50 text-amber-700 ring-amber-100",
+};
+
+/* ------------------------------------------------------------------ */
+/* Mock data                                                           */
+/* ------------------------------------------------------------------ */
+type Sev = "Low" | "Medium" | "High" | "Critical";
+type ValStatus = "Passed" | "Failed" | "Pending";
+type Row = {
+  id: string;
+  ts: string;
+  network: string;
+  dr: string;
+  plaque: string;
+  site: string;
+  cell: string;
+  vendor: string;
+  tech: string;
+  param: string;
+  oldVal: string;
+  newVal: string;
+  delta: string;
+  changedBy: string;
+  type: string;
+  risk: Sev;
+  status: ValStatus;
+};
+
+const KPIS = [
+  { label: "Total Changes", value: "12,842", trend: "+18% vs last 7 days", trendColor: "text-emerald-600", icon: Activity, accent: "from-blue-500/10 to-indigo-500/10" },
+  { label: "Changes Today", value: "1,248", trend: "+15% vs yesterday", trendColor: "text-emerald-600", icon: TrendingUp, accent: "from-sky-500/10 to-cyan-500/10" },
+  { label: "Critical Changes", value: "320", trend: "+12% vs yesterday", trendColor: "text-rose-600", icon: AlertTriangle, accent: "from-rose-500/10 to-orange-500/10" },
+  { label: "Impacted Sites", value: "532", trend: "+8% vs yesterday", trendColor: "text-emerald-600", icon: CircleDot, accent: "from-amber-500/10 to-yellow-500/10" },
+  { label: "Impacted Cells", value: "2,654", trend: "+9% vs yesterday", trendColor: "text-emerald-600", icon: LayoutGrid, accent: "from-violet-500/10 to-fuchsia-500/10" },
+  { label: "Rollbacks", value: "87", trend: "+5% vs yesterday", trendColor: "text-emerald-600", icon: RotateCcw, accent: "from-pink-500/10 to-rose-500/10" },
+  { label: "Pending Validation", value: "312", trend: "−3% vs yesterday", trendColor: "text-amber-600", icon: Clock3, accent: "from-amber-500/10 to-orange-500/10" },
+];
+
+const ROWS: Row[] = [
+  { id: "CHG-20260512-107685", ts: "12/05/2026 21:04:15", network: "RAN LTE", dr: "DR Nord", plaque: "REIMS", site: "SITE_008", cell: "CELL_LTE_01", vendor: "Ericsson", tech: "4G LTE", param: "electricalTilt", oldVal: "2.0°", newVal: "3.5°", delta: "+1.5°", changedBy: "SON", type: "Update", risk: "High", status: "Failed" },
+  { id: "CHG-20260512-107684", ts: "11/05/2026 16:40:22", network: "RAN LTE", dr: "DR Paris Sud", plaque: "Nantes", site: "SITE_221", cell: "CELL_LTE_07", vendor: "Nokia", tech: "4G LTE", param: "pMax", oldVal: "460", newVal: "477", delta: "+17", changedBy: "OPTIMUS_AI", type: "Update", risk: "High", status: "Failed" },
+  { id: "CHG-20260512-107683", ts: "11/05/2026 16:18:05", network: "RAN LTE", dr: "DR Ouest", plaque: "Nantes", site: "SITE_221", cell: "CELL_LTE_07", vendor: "Nokia", tech: "4G LTE", param: "qRxLevMin", oldVal: "−112", newVal: "−108", delta: "+4", changedBy: "NOC User", type: "Update", risk: "Medium", status: "Passed" },
+  { id: "CHG-20260512-107682", ts: "11/05/2026 12:05:11", network: "RAN 5G", dr: "DR Sud", plaque: "Marseille", site: "SITE_338", cell: "NR_CELL_02", vendor: "Ericsson", tech: "5G NR", param: "txPower", oldVal: "30", newVal: "34", delta: "+4", changedBy: "SON", type: "Update", risk: "Medium", status: "Passed" },
+  { id: "CHG-20260512-107681", ts: "10/05/2026 09:33:11", network: "RAN LTE", dr: "DR Nord", plaque: "Lille", site: "SITE_120", cell: "CELL_LTE_03", vendor: "Huawei", tech: "4G LTE", param: "pci", oldVal: "43", newVal: "46", delta: "+3", changedBy: "OPTIMUS_AI", type: "Update", risk: "High", status: "Failed" },
+  { id: "CHG-20260512-107680", ts: "10/05/2026 22:19:43", network: "RAN LTE", dr: "DR Paris", plaque: "Paris North", site: "SITE_091", cell: "CELL_LTE_05", vendor: "Ericsson", tech: "4G LTE", param: "ssbPower", oldVal: "26", newVal: "28", delta: "+2", changedBy: "NOC User", type: "Update", risk: "Low", status: "Passed" },
+  { id: "CHG-20260512-107679", ts: "10/05/2026 14:25:08", network: "RAN 5G", dr: "DR Ouest", plaque: "Rennes", site: "SITE_177", cell: "NR_CELL_01", vendor: "Nokia", tech: "5G NR", param: "handoverMargin", oldVal: "6", newVal: "8", delta: "+2", changedBy: "SON", type: "Update", risk: "Medium", status: "Passed" },
+];
+
+const FILTERS: { label: string; opts: string[] }[] = [
+  { label: "Network", opts: ["All Networks", "RAN LTE", "RAN 5G", "RAN UMTS"] },
+  { label: "DR", opts: ["All DR", "DR Nord", "DR Sud", "DR Ouest", "DR Paris"] },
+  { label: "Plaque", opts: ["All Plaques", "Reims", "Lille", "Paris", "Nantes"] },
+  { label: "Region", opts: ["All Regions", "Île-de-France", "PACA", "Hauts-de-France"] },
+  { label: "Site", opts: ["All Sites"] },
+  { label: "Cell", opts: ["All Cells"] },
+  { label: "Vendor", opts: ["All Vendors", "Ericsson", "Nokia", "Huawei"] },
+  { label: "Technology", opts: ["All Technologies", "2G", "3G", "4G LTE", "5G NR"] },
+  { label: "Parameter Family", opts: ["All Parameter Families", "RF", "Mobility", "Power"] },
+  { label: "Parameter Name", opts: ["All Parameters"] },
+  { label: "Change Type", opts: ["All Types", "Update", "Create", "Delete"] },
+  { label: "Changed By", opts: ["All Users", "SON", "OPTIMUS_AI", "NOC User"] },
+  { label: "Risk Level", opts: ["All Risk Levels", "Low", "Medium", "High", "Critical"] },
+  { label: "Validation Status", opts: ["All Status", "Passed", "Failed", "Pending"] },
+];
+
+/* Deterministic sparkline generator for KPI cards */
+const Sparkline: React.FC<{ seed: number; color: string }> = ({ seed, color }) => {
+  const points = useMemo(() => {
+    const arr: number[] = [];
+    let v = 50;
+    for (let i = 0; i < 22; i++) {
+      v += ((Math.sin(seed + i * 0.7) + Math.cos(seed * 1.3 + i)) * 6);
+      arr.push(Math.max(8, Math.min(54, v)));
+    }
+    return arr;
+  }, [seed]);
+  const w = 96;
+  const h = 28;
+  const step = w / (points.length - 1);
+  const d = points
+    .map((p, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${(h - (p / 60) * h).toFixed(1)}`)
+    .join(" ");
+  return (
+    <svg width={w} height={h} className="overflow-visible">
+      <path d={d} fill="none" stroke={color} strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+};
+
+/* Activity timeline — stacked bars */
+const TimelineChart: React.FC = () => {
+  const days = ["27 Apr", "28 Apr", "29 Apr", "30 Apr", "02 May", "03 May", "04 May", "05 May", "06 May", "07 May", "08 May", "09 May", "10 May", "11 May", "12 May"];
+  const series = useMemo(
+    () =>
+      days.map((_, i) => {
+        const seed = i * 1.7;
+        return {
+          low: 80 + Math.abs(Math.sin(seed)) * 90,
+          medium: 110 + Math.abs(Math.cos(seed * 0.8)) * 130,
+          high: 60 + Math.abs(Math.sin(seed + 1)) * 220,
+          critical: 20 + Math.abs(Math.cos(seed * 1.4)) * (i > 5 && i < 9 ? 360 : 80),
+        };
+      }),
+    [],
+  );
+  const max = 1600;
+  return (
+    <div className="px-2 pt-2">
+      <div className="flex items-end gap-3 h-[180px]">
+        {series.map((s, i) => {
+          const total = s.low + s.medium + s.high + s.critical;
+          const scale = (v: number) => `${(v / max) * 100}%`;
+          return (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1.5 group">
+              <div className="w-full flex flex-col-reverse rounded-md overflow-hidden h-full bg-[#f6f8fb] ring-1 ring-[#eef2f8] transition-all group-hover:ring-blue-200">
+                <div style={{ height: scale(s.low) }} className="bg-emerald-400/80" />
+                <div style={{ height: scale(s.medium) }} className="bg-amber-400/80" />
+                <div style={{ height: scale(s.high) }} className="bg-orange-500/80" />
+                <div style={{ height: scale(s.critical) }} className="bg-rose-500/85" />
+              </div>
+              <span className="text-[10px] font-medium text-slate-500 tracking-tight">{days[i]}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+/* Tiny line chart for parameter history detail panel */
+const ParamLineChart: React.FC = () => {
+  const w = 360, h = 130;
+  const tilt = [2, 2, 2, 2.1, 2, 2, 2, 2, 2, 2, 2, 3.5, 3.5];
+  const tput = [180, 175, 178, 182, 176, 174, 178, 175, 173, 170, 168, 120, 118];
+  const xs = (i: number) => (i / (tilt.length - 1)) * (w - 24) + 12;
+  const ys1 = (v: number) => h - 16 - ((v - 1.5) / 3) * (h - 32);
+  const ys2 = (v: number) => h - 16 - ((v - 100) / 110) * (h - 32);
+  const path1 = tilt.map((v, i) => `${i === 0 ? "M" : "L"}${xs(i).toFixed(1)},${ys1(v).toFixed(1)}`).join(" ");
+  const path2 = tput.map((v, i) => `${i === 0 ? "M" : "L"}${xs(i).toFixed(1)},${ys2(v).toFixed(1)}`).join(" ");
+  return (
+    <svg width="100%" viewBox={`0 0 ${w} ${h}`} className="overflow-visible">
+      {[0.25, 0.5, 0.75].map((p) => (
+        <line key={p} x1={12} x2={w - 12} y1={p * h} y2={p * h} stroke="#eef2f8" strokeWidth={1} />
+      ))}
+      <line x1={xs(11)} x2={xs(11)} y1={6} y2={h - 16} stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={1} />
+      <text x={xs(11) + 4} y={14} className="fill-slate-500" fontSize="9">Change 21:04</text>
+      <path d={path1} stroke="#2563eb" strokeWidth={1.6} fill="none" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={path2} stroke="#10b981" strokeWidth={1.6} fill="none" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/* Page                                                                */
+/* ------------------------------------------------------------------ */
+const ChangeHistoryPage: React.FC = () => {
+  const [selected, setSelected] = useState<string>(ROWS[0].id);
+  const [checkedRows, setCheckedRows] = useState<Set<string>>(new Set([ROWS[0].id]));
+
+  const toggleRow = (id: string) => {
+    setCheckedRows((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const detail = ROWS.find((r) => r.id === selected) || ROWS[0];
+
+  return (
+    <div className={`${PAGE_BG} min-h-full font-[Inter,'SF_Pro_Display',ui-sans-serif,system-ui] text-slate-800 antialiased`}>
+      <div className="px-6 lg:px-8 py-6 space-y-5">
+        {/* ----- Header ----- */}
+        <header className={`${CARD} px-6 py-5`}>
+          <div className="flex flex-wrap items-center gap-4 justify-between">
+            <div>
+              <h1 className="text-[30px] font-semibold tracking-tight text-slate-900 leading-tight">
+                Change History
+              </h1>
+              <p className="text-[13px] font-medium text-slate-500 mt-1">
+                Track network parameter modifications and configuration evolution.
+              </p>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by site, cell, parameter, user…"
+                  className="h-9 w-[280px] pl-9 pr-3 rounded-full border border-[#e7edf5] bg-white text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition"
+                />
+              </div>
+              <button className="h-9 inline-flex items-center gap-2 px-3.5 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
+                <Calendar className="w-4 h-4 text-slate-500" />
+                06/12/2026 00:00 – 12/05/2026 23:59
+              </button>
+              <button className="h-9 inline-flex items-center gap-2 px-3.5 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
+                <RefreshCw className="w-4 h-4 text-slate-500" /> Refresh
+              </button>
+              <button className="h-9 inline-flex items-center gap-2 px-3.5 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
+                <Download className="w-4 h-4 text-slate-500" /> Export
+              </button>
+              <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-600">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                Live
+              </span>
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-white text-[11px] font-semibold flex items-center justify-center shadow-sm">
+                NC
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* ----- KPI strip ----- */}
+        <section className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+          {KPIS.map((k, i) => {
+            const Icon = k.icon;
+            return (
+              <div key={k.label} className={`${CARD} px-4 py-3.5`}>
+                <div className="flex items-start justify-between">
+                  <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${k.accent} ring-1 ring-[#eef2f8] flex items-center justify-center`}>
+                    <Icon className="w-3.5 h-3.5 text-slate-700" />
+                  </div>
+                  <Sparkline seed={i + 1} color={k.trendColor.includes("rose") ? "#f43f5e" : k.trendColor.includes("amber") ? "#f59e0b" : "#10b981"} />
+                </div>
+                <div className="mt-2 text-[11px] font-medium uppercase tracking-wide text-slate-500">{k.label}</div>
+                <div className="mt-0.5 text-[26px] font-bold tracking-tight text-slate-900 tabular-nums leading-none">{k.value}</div>
+                <div className={`mt-1.5 text-[11px] font-medium ${k.trendColor}`}>{k.trend}</div>
+              </div>
+            );
+          })}
+        </section>
+
+        {/* ----- Body grid ----- */}
+        <section className="grid grid-cols-12 gap-4">
+          {/* Filters */}
+          <aside className={`${CARD} col-span-12 lg:col-span-2 px-4 py-4 self-start`}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[13px] font-semibold text-slate-800">Filters</h3>
+              <button className="text-[11px] font-medium text-blue-600 hover:text-blue-700">Reset</button>
+            </div>
+            <div className="space-y-2.5">
+              {FILTERS.map((f) => (
+                <div key={f.label}>
+                  <label className="block text-[11px] font-medium text-slate-500 mb-1">{f.label}</label>
+                  <select className="w-full h-8 rounded-lg border border-[#e7edf5] bg-white text-[12px] text-slate-700 px-2.5 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition">
+                    {f.opts.map((o) => (
+                      <option key={o}>{o}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+              <div>
+                <label className="block text-[11px] font-medium text-slate-500 mb-1">Date Range</label>
+                <input className="w-full h-8 rounded-lg border border-[#e7edf5] bg-white text-[12px] text-slate-700 px-2.5 mb-1.5" defaultValue="06/12/2026 00:00" />
+                <input className="w-full h-8 rounded-lg border border-[#e7edf5] bg-white text-[12px] text-slate-700 px-2.5" defaultValue="12/05/2026 23:59" />
+              </div>
+              <div className="pt-1 flex gap-2">
+                <button className="flex-1 h-8 rounded-full text-[12px] font-medium text-white bg-gradient-to-r from-[#2563eb] to-[#3b82f6] hover:from-[#1d4ed8] hover:to-[#2563eb] shadow-sm hover:shadow transition">
+                  Apply Filters
+                </button>
+                <button className="h-8 px-3 rounded-full text-[12px] font-medium text-slate-600 bg-white border border-[#e7edf5] hover:bg-slate-50">
+                  Reset
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          {/* Center — timeline + map + table */}
+          <div className="col-span-12 lg:col-span-7 space-y-4">
+            <div className={`${CARD} px-5 py-4`}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-[16px] font-semibold text-slate-800">Change Activity Timeline</h3>
+                <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500">
+                  {(["Low", "Medium", "High", "Critical"] as Sev[]).map((s) => (
+                    <span key={s} className="inline-flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-sm ${sevDot[s]}`} />
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <TimelineChart />
+            </div>
+
+            <div className={`${CARD} px-5 py-4`}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[16px] font-semibold text-slate-800">Change Map</h3>
+                <button className="text-[11px] font-medium text-blue-600 hover:text-blue-700">Open full map</button>
+              </div>
+              <div className="relative h-[260px] rounded-xl overflow-hidden bg-gradient-to-br from-sky-50 via-white to-slate-50 ring-1 ring-[#eef2f8]">
+                <svg viewBox="0 0 600 260" className="w-full h-full">
+                  <path d="M120,40 C200,20 320,30 460,60 C500,80 520,140 480,200 C400,240 240,235 160,200 C100,170 80,80 120,40 Z" fill="#e0f2fe" stroke="#bae6fd" />
+                </svg>
+                {[
+                  { x: "18%", y: "35%", n: 12, c: "bg-emerald-500" },
+                  { x: "26%", y: "48%", n: 77, c: "bg-orange-500" },
+                  { x: "35%", y: "62%", n: 15, c: "bg-emerald-500" },
+                  { x: "44%", y: "30%", n: 41, c: "bg-rose-500" },
+                  { x: "52%", y: "70%", n: 67, c: "bg-rose-500" },
+                  { x: "60%", y: "55%", n: 5, c: "bg-emerald-500" },
+                  { x: "68%", y: "40%", n: 8, c: "bg-emerald-500" },
+                  { x: "70%", y: "65%", n: 10, c: "bg-amber-500" },
+                  { x: "74%", y: "30%", n: 9, c: "bg-emerald-500" },
+                ].map((m, i) => (
+                  <div
+                    key={i}
+                    className={`absolute -translate-x-1/2 -translate-y-1/2 ${m.c} text-white text-[11px] font-semibold w-8 h-8 rounded-full flex items-center justify-center shadow-md ring-2 ring-white transition-transform hover:scale-110`}
+                    style={{ left: m.x, top: m.y }}
+                  >
+                    {m.n}
+                  </div>
+                ))}
+                <div className="absolute top-3 right-3 flex flex-col bg-white rounded-lg ring-1 ring-[#e7edf5] shadow-sm">
+                  <button className="px-2 py-1 text-slate-600 hover:bg-slate-50">+</button>
+                  <div className="h-px bg-[#eef2f8]" />
+                  <button className="px-2 py-1 text-slate-600 hover:bg-slate-50">−</button>
+                </div>
+              </div>
+            </div>
+
+            <div className={`${CARD} overflow-hidden`}>
+              <div className="px-5 py-4 flex items-center justify-between border-b border-[#eef2f8]">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-[16px] font-semibold text-slate-800">Changes</h3>
+                  <span className="text-[12px] text-slate-500">({ROWS.length.toLocaleString()})</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button className="h-8 px-3 inline-flex items-center gap-1.5 rounded-full border border-[#e7edf5] bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-50">
+                    Bulk Actions
+                  </button>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <input className="h-8 pl-8 pr-3 rounded-full border border-[#e7edf5] bg-white text-[12px] text-slate-700 placeholder:text-slate-400 w-[220px]" placeholder="Search in table" />
+                  </div>
+                  <button className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-[#e7edf5] bg-white text-slate-500 hover:bg-slate-50"><FilterIcon className="w-3.5 h-3.5" /></button>
+                  <button className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-[#e7edf5] bg-white text-slate-500 hover:bg-slate-50"><Download className="w-3.5 h-3.5" /></button>
+                  <button className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-[#e7edf5] bg-white text-slate-500 hover:bg-slate-50"><Columns3 className="w-3.5 h-3.5" /></button>
+                  <button className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-[#e7edf5] bg-white text-slate-500 hover:bg-slate-50"><LayoutGrid className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[13px]">
+                  <thead>
+                    <tr className="text-[11px] font-medium uppercase tracking-wider text-slate-500 bg-[#fafbfd]">
+                      {["", "Date / Time", "Network", "DR", "Plaque", "Site", "Cell", "Vendor", "Tech", "Parameter", "Old", "New", "Δ", "Changed By", "Type", "Risk", "Validation"].map((h, i) => (
+                        <th key={i} className="text-left font-medium px-3 py-2.5 whitespace-nowrap border-b border-[#eef2f8]">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ROWS.map((r) => {
+                      const isSel = selected === r.id;
+                      return (
+                        <tr
+                          key={r.id}
+                          onClick={() => setSelected(r.id)}
+                          className={`cursor-pointer border-b border-[#f1f5fb] transition-colors ${isSel ? "bg-blue-50/40" : "hover:bg-slate-50/60"}`}
+                        >
+                          <td className="px-3 py-2.5">
+                            <input
+                              type="checkbox"
+                              checked={checkedRows.has(r.id)}
+                              onChange={(e) => { e.stopPropagation(); toggleRow(r.id); }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-200"
+                            />
+                          </td>
+                          <td className="px-3 py-2.5 text-slate-700 tabular-nums whitespace-nowrap">{r.ts}</td>
+                          <td className="px-3 py-2.5 text-slate-600">{r.network}</td>
+                          <td className="px-3 py-2.5 text-slate-600">{r.dr}</td>
+                          <td className="px-3 py-2.5 text-slate-600">{r.plaque}</td>
+                          <td className="px-3 py-2.5 text-slate-700 font-medium">{r.site}</td>
+                          <td className="px-3 py-2.5 text-slate-600">{r.cell}</td>
+                          <td className="px-3 py-2.5 text-slate-600">{r.vendor}</td>
+                          <td className="px-3 py-2.5 text-slate-600">{r.tech}</td>
+                          <td className="px-3 py-2.5 text-slate-700 font-medium">{r.param}</td>
+                          <td className="px-3 py-2.5 text-slate-500 tabular-nums">{r.oldVal}</td>
+                          <td className="px-3 py-2.5 text-slate-700 tabular-nums font-medium">{r.newVal}</td>
+                          <td className="px-3 py-2.5 tabular-nums font-medium text-blue-600">{r.delta}</td>
+                          <td className="px-3 py-2.5 text-slate-600">{r.changedBy}</td>
+                          <td className="px-3 py-2.5 text-slate-600">{r.type}</td>
+                          <td className="px-3 py-2.5">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset ${sevPill[r.risk]}`}>{r.risk}</span>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset ${statusPill[r.status]}`}>{r.status}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-5 py-3 flex items-center justify-between text-[12px] text-slate-500 border-t border-[#eef2f8]">
+                <span>Showing 1 to 7 of 12,842 entries</span>
+                <div className="flex items-center gap-1">
+                  <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-slate-100"><ChevronLeft className="w-3.5 h-3.5" /></button>
+                  {[1, 2, 3, 4, 5].map((p) => (
+                    <button key={p} className={`h-7 min-w-[28px] px-2 rounded-md text-[12px] font-medium ${p === 1 ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{p}</button>
+                  ))}
+                  <span className="px-1 text-slate-400">…</span>
+                  <button className="h-7 px-2 rounded-md text-[12px] font-medium text-slate-600 hover:bg-slate-100">1835</button>
+                  <button className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-slate-100"><ChevronRight className="w-3.5 h-3.5" /></button>
+                </div>
+                <select className="h-7 rounded-md border border-[#e7edf5] bg-white text-[12px] text-slate-600 px-2">
+                  <option>50 per page</option>
+                  <option>100 per page</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Right — details */}
+          <aside className="col-span-12 lg:col-span-3 space-y-4">
+            <div className={`${CARD} px-5 py-4`}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[16px] font-semibold text-slate-800">Change Details</h3>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset ${sevPill[detail.risk]}`}>{detail.risk}</span>
+              </div>
+              <dl className="space-y-2 text-[12px]">
+                {[
+                  ["Change ID", detail.id],
+                  ["Parameter", detail.param],
+                  ["Parameter Family", "RF"],
+                  ["Site / Cell", `${detail.site} / ${detail.cell}`],
+                  ["Vendor / Tech", `${detail.vendor} / ${detail.tech}`],
+                  ["Old Value", detail.oldVal],
+                  ["New Value", detail.newVal],
+                  ["Delta", detail.delta],
+                  ["Changed By", detail.changedBy],
+                  ["Source System", "SON Engine"],
+                  ["Timestamp", detail.ts],
+                  ["Risk Level", detail.risk],
+                  ["Validation Status", detail.status],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between gap-3 py-1 border-b border-[#f1f5fb] last:border-0">
+                    <dt className="text-[11px] font-medium text-slate-500">{k}</dt>
+                    <dd className={`text-[12px] font-medium tabular-nums ${k === "New Value" || k === "Delta" ? "text-rose-600" : k === "Risk Level" ? sevText[detail.risk] : k === "Validation Status" ? (detail.status === "Failed" ? "text-rose-600" : "text-emerald-600") : "text-slate-700"}`}>
+                      {v}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+
+            <div className={`${CARD} px-5 py-4`}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[14px] font-semibold text-slate-800">Parameter History <span className="text-[11px] font-normal text-slate-500">({detail.param})</span></h3>
+              </div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="inline-flex rounded-full bg-[#f6f8fb] ring-1 ring-[#eef2f8] p-0.5 text-[11px] font-medium">
+                  {["24H", "7D", "14D", "30D"].map((p, i) => (
+                    <button key={p} className={`px-2.5 py-1 rounded-full transition ${i === 1 ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>{p}</button>
+                  ))}
+                </div>
+                <select className="h-7 rounded-full border border-[#e7edf5] bg-white text-[11px] text-slate-600 px-2.5">
+                  <option>Overlay: Throughput</option>
+                </select>
+              </div>
+              <ParamLineChart />
+              <div className="flex items-center gap-4 text-[11px] font-medium text-slate-500 mt-2">
+                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-0.5 bg-blue-600" />electricalTilt (°)</span>
+                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-0.5 bg-emerald-500" />Throughput (Mbps)</span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 mt-3">
+                <button className="h-8 rounded-full text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 inline-flex items-center justify-center gap-1"><GitCompare className="w-3 h-3" /> Compare</button>
+                <button className="h-8 rounded-full text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 inline-flex items-center justify-center gap-1"><RotateCcw className="w-3 h-3" /> Rollback</button>
+                <button className="h-8 rounded-full text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 inline-flex items-center justify-center gap-1"><Download className="w-3 h-3" /> Export</button>
+              </div>
+            </div>
+
+            <div className={`${CARD} px-5 py-4`}>
+              <div className="flex items-center gap-4 text-[12px] font-medium border-b border-[#eef2f8] pb-2 mb-3">
+                <span className="text-blue-600 border-b-2 border-blue-600 pb-2 -mb-2">Impact Summary</span>
+                <span className="text-slate-500 hover:text-slate-700 cursor-pointer">Related Alarms</span>
+                <span className="text-slate-500 hover:text-slate-700 cursor-pointer">Impacted Neighbors</span>
+                <span className="text-slate-500 hover:text-slate-700 cursor-pointer">Validation</span>
+              </div>
+              <ul className="space-y-2 text-[12px]">
+                {[
+                  ["Throughput", "−32%", "text-rose-600"],
+                  ["SINR", "−4.6 dB", "text-rose-600"],
+                  ["DCR", "+10%", "text-rose-600"],
+                  ["CSSR", "+2%", "text-emerald-600"],
+                  ["PRB Utilization", "+8%", "text-emerald-600"],
+                ].map(([k, v, c]) => (
+                  <li key={k} className="flex items-center justify-between py-1 border-b border-[#f1f5fb] last:border-0">
+                    <span className="text-slate-600">{k}</span>
+                    <span className={`font-semibold tabular-nums ${c}`}>{v}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </aside>
+        </section>
+      </div>
+    </div>
+  );
+};
+
+export default ChangeHistoryPage;
