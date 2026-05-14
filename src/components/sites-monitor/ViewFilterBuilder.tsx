@@ -76,31 +76,57 @@ function fuzzyMatch(text: string, query: string): boolean {
 
 // ── Props ──
 interface ViewFilterBuilderProps {
-  /** Initial conditions (for editing existing view) */
+  /** Initial conditions (uncontrolled). Ignored when `value` is provided. */
   initialConditions?: ViewFilterCondition[];
+  /** Controlled value — when provided, parent owns the conditions state. */
+  value?: ViewFilterCondition[];
+  /** Called on every conditions change (controlled mode + uncontrolled syncing). */
+  onChange?: (conditions: ViewFilterCondition[]) => void;
   /** Known values per dimension from backend filter defs */
   backendFilterDefs?: { id: string; label: string; values: string[] }[];
-  /** View name */
-  viewName: string;
-  onViewNameChange: (name: string) => void;
-  /** Save callback */
-  onSave: (conditions: ViewFilterCondition[]) => void;
-  /** Cancel callback */
-  onCancel: () => void;
+  /** Display mode. `embedded` hides the view name input and save/cancel actions. */
+  mode?: 'standalone' | 'embedded';
+  /** View name (standalone only) */
+  viewName?: string;
+  onViewNameChange?: (name: string) => void;
+  /** Save callback (standalone only) */
+  onSave?: (conditions: ViewFilterCondition[]) => void;
+  /** Cancel callback (standalone only) */
+  onCancel?: () => void;
   /** Is saving */
   saving?: boolean;
+  /** Force-hide the view name input even in standalone mode. */
+  hideViewName?: boolean;
+  /** Force-hide the save/cancel action row. */
+  hideSaveAction?: boolean;
 }
 
 export const ViewFilterBuilder: React.FC<ViewFilterBuilderProps> = ({
   initialConditions = [],
+  value,
+  onChange,
   backendFilterDefs = [],
+  mode = 'standalone',
   viewName,
   onViewNameChange,
   onSave,
   onCancel,
   saving,
+  hideViewName,
+  hideSaveAction,
 }) => {
-  const [conditions, setConditions] = useState<ViewFilterCondition[]>(initialConditions);
+  const isControlled = Array.isArray(value);
+  const [internalConditions, setInternalConditions] = useState<ViewFilterCondition[]>(initialConditions);
+  const conditions = isControlled ? (value as ViewFilterCondition[]) : internalConditions;
+  const setConditions = (updater: ViewFilterCondition[] | ((prev: ViewFilterCondition[]) => ViewFilterCondition[])) => {
+    const next = typeof updater === 'function'
+      ? (updater as (p: ViewFilterCondition[]) => ViewFilterCondition[])(conditions)
+      : updater;
+    if (!isControlled) setInternalConditions(next);
+    onChange?.(next);
+  };
+  const showViewName = !hideViewName && mode !== 'embedded';
+  const showSaveAction = !hideSaveAction && mode !== 'embedded';
   const [showDimPicker, setShowDimPicker] = useState(false);
   const [dimSearch, setDimSearch] = useState('');
   const [editingConditionId, setEditingConditionId] = useState<string | null>(null);
@@ -164,16 +190,18 @@ export const ViewFilterBuilder: React.FC<ViewFilterBuilderProps> = ({
 
   return (
     <div className="space-y-3">
-      {/* View name input */}
-      <div className="flex items-center gap-2">
-        <input
-          autoFocus
-          value={viewName}
-          onChange={e => onViewNameChange(e.target.value)}
-          placeholder="Nom de la vue..."
-          className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-[12px] font-semibold text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-        />
-      </div>
+      {/* View name input (standalone only) */}
+      {showViewName && (
+        <div className="flex items-center gap-2">
+          <input
+            autoFocus
+            value={viewName ?? ''}
+            onChange={e => onViewNameChange?.(e.target.value)}
+            placeholder="Nom de la vue..."
+            className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-[12px] font-semibold text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+          />
+        </div>
+      )}
 
       {/* Active conditions */}
       {conditions.length > 0 && (
@@ -252,27 +280,29 @@ export const ViewFilterBuilder: React.FC<ViewFilterBuilderProps> = ({
         </button>
       )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 pt-1">
-        <button
-          onClick={() => onSave(conditions)}
-          disabled={saving || !viewName.trim()}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
-        >
-          {saving ? (
-            <div className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-          ) : (
-            <Save size={12} />
-          )}
-          Sauvegarder la vue
-        </button>
-        <button
-          onClick={onCancel}
-          className="px-4 py-2.5 rounded-lg text-[10px] font-bold text-muted-foreground hover:text-foreground border border-border hover:border-primary/30 transition-all"
-        >
-          Annuler
-        </button>
-      </div>
+      {/* Actions (standalone only) */}
+      {showSaveAction && (
+        <div className="flex items-center gap-2 pt-1">
+          <button
+            onClick={() => onSave?.(conditions)}
+            disabled={saving || !(viewName ?? '').trim()}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            {saving ? (
+              <div className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+            ) : (
+              <Save size={12} />
+            )}
+            Sauvegarder la vue
+          </button>
+          <button
+            onClick={onCancel}
+            className="px-4 py-2.5 rounded-lg text-[10px] font-bold text-muted-foreground hover:text-foreground border border-border hover:border-primary/30 transition-all"
+          >
+            Annuler
+          </button>
+        </div>
+      )}
     </div>
   );
 };

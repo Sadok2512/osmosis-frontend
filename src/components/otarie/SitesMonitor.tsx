@@ -2278,6 +2278,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   // Create filter state for dashboard creation
   const [createFilters, setCreateFilters] = useState<DashboardSiteFilters>({});
+  // Conditions list driving the embedded ViewFilterBuilder (Topology Search) in the Create Dashboard modal.
+  const [createConditions, setCreateConditions] = useState<ViewFilterCondition[]>([]);
 
   const extractScope = (db: any): SiteScope | null => {
     const s = getDashboardSettings(db);
@@ -2505,7 +2507,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       });
       setNewDashName('');
       setShowCreateDash(false);
-      setCreateFilters({});
+      setCreateFilters({}); setCreateConditions([]);
       await fetchAll();
       setExpandedDashboardId(id);
       // Auto-activate newly created dashboard
@@ -2800,7 +2802,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
       {/* Create dashboard popup */}
       {showCreateDash && (
-        <Dialog open={true} onOpenChange={(open) => { if (!open) { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); } }}>
+        <Dialog open={true} onOpenChange={(open) => { if (!open) { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); setCreateConditions([]); } }}>
           <DialogContent className="sm:max-w-[1100px] w-[95vw] max-h-[92vh] overflow-visible p-0 gap-0 flex flex-col">
             <DialogHeader className="px-12 pt-12 pb-6 shrink-0">
               <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
@@ -2826,19 +2828,28 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 />
               </div>
 
-              {/* Progressive filter builder */}
-              {filterDimensions.length > 0 && (
-                <ProgressiveFilterBuilder
-                  dimensions={filterDimensions}
-                  filters={createFilters}
-                  onChange={setCreateFilters}
-                />
-              )}
+              {/* Topology Search builder (embedded — same component as the standalone Topology Search) */}
+              <div>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-3">Topology Search</label>
+                <div className="rounded-2xl border border-border bg-muted/20 p-5">
+                  <ViewFilterBuilder
+                    mode="embedded"
+                    hideViewName
+                    hideSaveAction
+                    backendFilterDefs={backendFilterDefs}
+                    value={createConditions}
+                    onChange={(conds) => {
+                      setCreateConditions(conds);
+                      setCreateFilters(conditionsToSiteFilters(conds) as DashboardSiteFilters);
+                    }}
+                  />
+                </div>
+              </div>
 
               {/* Buttons */}
               <div className="flex gap-6">
                 <button
-                  onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); }}
+                  onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); setCreateConditions([]); }}
                   className="flex-1 py-5 rounded-2xl border border-border text-base font-bold text-muted-foreground hover:bg-muted transition-colors"
                 >
                   Annuler
