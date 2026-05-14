@@ -32,11 +32,10 @@ export interface TaggedLink {
 
 const STORAGE_KEY = 'osmosis_tagged_links';
 
-function scopedKey(dashboardId?: string | null): string {
-  // No active dashboard → use a global fallback key so links still persist
-  // (matches the custom points / tagged sites behaviour).
-  if (!dashboardId) return `${STORAGE_KEY}__global`;
-  return `${STORAGE_KEY}__db_${dashboardId}`;
+function scopedKey(_dashboardId?: string | null): string {
+  // Tagged links are now fully decoupled from the active dashboard:
+  // a single global scope keeps them visible across dashboard switches.
+  return `${STORAGE_KEY}__global`;
 }
 
 export function loadTaggedLinks(dashboardId?: string | null): TaggedLink[] {

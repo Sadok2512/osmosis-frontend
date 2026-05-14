@@ -965,11 +965,11 @@ const CUSTOM_POINTS_KEY = 'osmosis_custom_points';
 const TAGGED_SITES_KEY = 'osmosis_tagged_sites';
 const TAGGED_POLYGONS_KEY = 'osmosis_tagged_polygons';
 
-function scopedStorageKey(base: string, dashboardId?: string | null): string | null {
-  // When no dashboard is active (non-dashboard mode), fall back to a global scope
-  // so tagging / custom points / polygons still persist.
-  if (!dashboardId) return `${base}__global`;
-  return `${base}__db_${dashboardId}`;
+function scopedStorageKey(base: string, _dashboardId?: string | null): string | null {
+  // Tagged objects (sites / custom points / polygons / links) are now fully
+  // decoupled from the active dashboard: they live in a single global scope
+  // and survive dashboard switches, deletions and reloads.
+  return `${base}__global`;
 }
 
 function loadCustomPoints(dashboardId?: string | null): CustomMapPoint[] {
