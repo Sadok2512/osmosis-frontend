@@ -379,12 +379,23 @@ export function toMlDetectorPayload(payload: DetectorPayload, meta: DetectorSave
   };
 }
 
-export async function listDetectorPayloads(): Promise<{ items: MlDetectorRow[]; total: number }> {
-  const raw = await getJson<{ items?: MlDetectorRow[]; total?: number; profiles?: MlDetectorRow[]; count?: number }>(DETECTORS_PATH);
-  return {
-    items: raw.items ?? raw.profiles ?? [],
-    total: raw.total ?? raw.count ?? 0,
-  };
+export async function listDetectorPayloads(): Promise<{ items: MlDetectorRow[]; total: number; error?: string }> {
+  try {
+    const raw = await getJson<{ items?: MlDetectorRow[]; total?: number; profiles?: MlDetectorRow[]; count?: number }>(DETECTORS_PATH);
+    return {
+      items: raw.items ?? raw.profiles ?? [],
+      total: raw.total ?? raw.count ?? 0,
+    };
+  } catch (err) {
+    // ml-engine /profiles can return 500 (DB not migrated) or HTML (route missing).
+    // Degrade gracefully so the ODCC console still renders.
+    const message = err instanceof Error ? err.message : String(err);
+    if (/non-JSON|malformed JSON|failed \(404\)|failed \(500\)|failed \(502\)|failed \(503\)/.test(message)) {
+      console.warn('[odcc] listDetectorPayloads fallback:', message);
+      return { items: [], total: 0, error: 'backend_unavailable' };
+    }
+    throw err;
+  }
 }
 
 export async function createDetectorPayloadForBackend(payload: DetectorPayload, meta: DetectorSaveMeta): Promise<MlDetectorRow> {
