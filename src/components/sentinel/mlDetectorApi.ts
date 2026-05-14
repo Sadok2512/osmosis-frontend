@@ -61,6 +61,21 @@ export interface RunNowResponse {
 // it is, prepend the path there inside apiConfig.ts, not here.
 const ML_PREFIX = '';
 
+async function _safeJson<T>(r: Response, path: string, method = 'GET'): Promise<T> {
+  const ct = r.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    const preview = (await r.text().catch(() => '')).slice(0, 120);
+    console.warn(`[ml-engine] ${method} ${path} → non-JSON (${ct || 'no content-type'}): ${preview}`);
+    return {} as T;
+  }
+  try {
+    return (await r.json()) as T;
+  } catch (e) {
+    console.warn(`[ml-engine] ${method} ${path} → JSON parse failed:`, e);
+    return {} as T;
+  }
+}
+
 async function _get<T>(path: string, params?: Record<string, string>): Promise<T> {
   const url = getVpsProxyUrl('ml', `${ML_PREFIX}${path}`, params);
   try {
@@ -69,7 +84,7 @@ async function _get<T>(path: string, params?: Record<string, string>): Promise<T
       console.warn(`[ml-engine] ${path} → ${r.status} (returning empty fallback)`);
       return {} as T;
     }
-    return r.json() as Promise<T>;
+    return _safeJson<T>(r, path, 'GET');
   } catch (e) {
     console.warn(`[ml-engine] ${path} unreachable:`, e);
     return {} as T;
@@ -84,7 +99,7 @@ async function _post<T>(path: string): Promise<T> {
       console.warn(`[ml-engine] POST ${path} → ${r.status}`);
       return {} as T;
     }
-    return r.json() as Promise<T>;
+    return _safeJson<T>(r, path, 'POST');
   } catch (e) {
     console.warn(`[ml-engine] POST ${path} unreachable:`, e);
     return {} as T;
