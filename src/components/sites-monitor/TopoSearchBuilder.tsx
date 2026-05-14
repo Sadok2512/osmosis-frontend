@@ -97,31 +97,38 @@ const TopoCountBadge: React.FC<{ payload: TopoSearchPayload | null }> = ({ paylo
     return () => { cancelled = true; clearTimeout(handle); };
   }, [payloadKey]);
 
+  const filterCount = (payload?.filters || []).filter(f => f.values.length > 0).length;
   return (
-    <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
-      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-        Périmètre courant
+    <div className="mt-3 inline-flex w-fit items-center gap-2 rounded-full border border-border bg-muted/30 px-3 py-1 text-[11px] text-muted-foreground">
+      <span className="flex items-center gap-1.5">
+        <Antenna size={12} className="text-muted-foreground" />
+        <span className="font-semibold text-foreground">{filterCount}</span>
+        <span>topology filter{filterCount > 1 ? 's' : ''}</span>
       </span>
-      <div className="flex items-center gap-3">
-        {state.loading ? (
-          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Loader2 size={11} className="animate-spin" /> Calcul…
+      <span className="text-border">·</span>
+      {state.loading ? (
+        <span className="flex items-center gap-1.5">
+          <Loader2 size={11} className="animate-spin" /> Calcul…
+        </span>
+      ) : state.error ? (
+        <span className="text-destructive">{state.error}</span>
+      ) : (
+        <>
+          <span className="flex items-center gap-1">
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+              {state.cells.toLocaleString('fr-FR')}
+            </span>
+            <span>cells</span>
           </span>
-        ) : state.error ? (
-          <span className="text-[10px] text-destructive">{state.error}</span>
-        ) : (
-          <>
-            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
-              <Radio size={12} className="text-primary" />
-              {state.sites.toLocaleString('fr-FR')}{state.truncated ? '+' : ''} sites
+          <span className="text-border">·</span>
+          <span className="flex items-center gap-1">
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+              {state.sites.toLocaleString('fr-FR')}{state.truncated ? '+' : ''}
             </span>
-            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
-              <Antenna size={12} className="text-primary" />
-              {state.cells.toLocaleString('fr-FR')} cellules
-            </span>
-          </>
-        )}
-      </div>
+            <span>sites</span>
+          </span>
+        </>
+      )}
     </div>
   );
 };
