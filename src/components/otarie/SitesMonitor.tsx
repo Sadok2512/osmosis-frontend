@@ -8162,7 +8162,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     el.scrollBy({ left: dir === 'left' ? -250 : 250, behavior: 'smooth' });
   }, []);
 
-  const handleSiteClick = async (site: SiteSummary) => {
+  const handleSiteClick = async (site: SiteSummary, opts?: { skipFly?: boolean }) => {
     // Disable site selection while the polygon drawing tool is active
     // (avoid stealing clicks meant to add polygon vertices)
     if (activeMapTool === 'polygon') return;
@@ -8174,7 +8174,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     // ── Immediately fly to site & select it (don't wait for cells) ──
     setSelectedSiteSnapshot(site);
-    setFlyTarget(site.coordinates);
+    // skipFly: when invoked from the Tagged list, keep the current map view
+    // so the user stays in the zone they're inspecting.
+    if (!opts?.skipFly) setFlyTarget(site.coordinates);
     // Clear any stale detail from a previous site and show loading state immediately
     // (prevents the "No site details available" flash that required a second click)
     setSiteDetail(null);
@@ -8195,7 +8197,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // clicking the search result kept the map at the current overview zoom
     // (7-13) and only a dot rendered. Force zoom >= 15 so per-cell sectors
     // appear, and tag the site so it stays highlighted on subsequent pans.
-    if (isSearchActive && site.coordinates) {
+    if (isSearchActive && site.coordinates && !opts?.skipFly) {
       const m = (window as any).__siteMonitorMap as L.Map | undefined;
       if (m) {
         m.flyTo(site.coordinates, Math.max(m.getZoom(), 15), { duration: 0.8 });
@@ -13389,7 +13391,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           }`}
                         >
                           <button
-                            onClick={() => { handleSiteClick(site); }}
+                            onClick={() => { handleSiteClick(site, { skipFly: true }); }}
                             onMouseEnter={() => setHoveredSiteId(site.site_id)}
                             onMouseLeave={() => setHoveredSiteId(null)}
                             className="w-full text-left px-4 py-3.5 flex items-center gap-3"
