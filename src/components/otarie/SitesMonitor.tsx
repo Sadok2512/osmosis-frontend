@@ -2492,7 +2492,16 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   }, [createFilters]);
 
   const handleCreateDashboardWithFilters = async () => {
-    if (!newDashName.trim()) return;
+    const trimmedName = newDashName.trim();
+    if (!trimmedName) return;
+    // Verify name uniqueness against existing (non-archived) dashboards
+    const nameExists = dashboards.some(
+      d => !d.is_archived && String(d.name || '').trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (nameExists) {
+      window.alert(`Un dashboard nommé "${trimmedName}" existe déjà. Veuillez choisir un autre nom.`);
+      return;
+    }
     setCreatingDash(true);
     const id = crypto.randomUUID();
     // Build a legacy scope for backward compat
