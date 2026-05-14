@@ -2820,35 +2820,24 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       {/* Create dashboard popup */}
       {showCreateDash && (
         <Dialog open={true} onOpenChange={(open) => { if (!open) { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); setCreateConditions([]); } }}>
-          <DialogContent className="sm:max-w-[1100px] w-[95vw] max-h-[92vh] overflow-visible p-0 gap-0 flex flex-col">
-            <DialogHeader className="px-12 pt-12 pb-6 shrink-0">
-              <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
-                <Plus size={28} className="text-primary" />
+          <DialogContent className="sm:max-w-[760px] w-[95vw] max-h-[88vh] overflow-visible p-0 gap-0 flex flex-col">
+            <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b border-border/60">
+              <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Plus size={18} className="text-primary" />
                 Créer un Dashboard
               </DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground mt-1">
-                Définissez le nom et les filtres de sites pour votre nouveau dashboard.
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                Définissez les filtres topologiques et nommez votre dashboard.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="px-12 pb-12 space-y-8 flex-1 min-h-0 overflow-y-auto overflow-x-visible">
-              {/* Name */}
+            <div className="px-6 py-5 space-y-5 flex-1 min-h-0 overflow-y-auto overflow-x-visible">
+              {/* Topology Search builder — primary action, visually emphasized */}
               <div>
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-3">Nom du dashboard</label>
-                <input
-                  autoFocus
-                  value={newDashName}
-                  onChange={e => setNewDashName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && newDashName.trim()) { handleCreateDashboard(); } }}
-                  placeholder="Nom du dashboard..."
-                  className="w-full bg-muted border border-border rounded-2xl px-6 py-5 text-base font-semibold text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary transition-colors"
-                />
-              </div>
-
-              {/* Topology Search builder (embedded — same UI as standalone Topology Search step). */}
-              <div>
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-3">Topology Search</label>
-                <div className="rounded-2xl border border-border bg-muted/20 p-5">
+                <label className="text-[11px] font-semibold text-foreground uppercase tracking-wider block mb-2">
+                  Topology Search
+                </label>
+                <div className="rounded-xl border border-border bg-card shadow-sm p-4">
                   <TopoSearchBuilder
                     value={createTopoPayload}
                     onChange={(payload) => {
@@ -2867,23 +2856,38 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 </div>
               </div>
 
-              {/* Buttons */}
-              <div className="flex gap-6">
-                <button
-                  onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); setCreateConditions([]); setCreateTopoPayload(null); }}
-                  className="flex-1 py-5 rounded-2xl border border-border text-base font-bold text-muted-foreground hover:bg-muted transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={() => { handleCreateDashboard(); }}
-                  disabled={!newDashName.trim() || creatingDash}
-                  className="flex-1 py-5 rounded-2xl bg-primary text-primary-foreground text-base font-bold hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-3 shadow-sm"
-                >
-                  {creatingDash ? <RefreshCw size={20} className="animate-spin" /> : <Plus size={20} />}
-                  {hasAnyCreateFilter ? 'Créer' : 'Créer'}
-                </button>
+              {/* Name — secondary, compact */}
+              <div>
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                  Nom du dashboard
+                </label>
+                <input
+                  autoFocus
+                  value={newDashName}
+                  onChange={e => setNewDashName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && newDashName.trim()) { handleCreateDashboard(); } }}
+                  placeholder="Ex: Monitoring DOR Paris"
+                  className="w-full bg-background border border-input rounded-[10px] px-3.5 h-10 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
+                />
               </div>
+            </div>
+
+            {/* Footer — right-aligned, compact */}
+            <div className="px-6 py-3.5 border-t border-border/60 bg-muted/20 flex items-center justify-end gap-2 shrink-0">
+              <button
+                onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); setCreateConditions([]); setCreateTopoPayload(null); }}
+                className="h-10 px-4 rounded-[10px] border border-border text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => { handleCreateDashboard(); }}
+                disabled={!newDashName.trim() || creatingDash}
+                className="h-10 px-5 rounded-[10px] bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2 shadow-sm"
+              >
+                {creatingDash ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                Créer
+              </button>
             </div>
           </DialogContent>
         </Dialog>
