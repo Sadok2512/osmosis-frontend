@@ -319,6 +319,9 @@ const ChangeHistoryPage: React.FC = () => {
   const [showMap, setShowMap] = useState(false);
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const [paramFullscreen, setParamFullscreen] = useState(false);
+  const currentUser = getStoredSession();
+  const username = currentUser?.username || "Guest";
+  const initials = username.slice(0, 2).toUpperCase();
 
   const toggleRow = (id: string) => {
     setCheckedRows((prev) => {
