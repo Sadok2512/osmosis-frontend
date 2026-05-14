@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import {
   Search,
   Calendar,
@@ -17,6 +19,10 @@ import {
   History,
   GitCompare,
   TrendingUp,
+  MapPin,
+  Maximize2,
+  Minimize2,
+  X,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -200,11 +206,103 @@ const ParamLineChart: React.FC = () => {
 };
 
 /* ------------------------------------------------------------------ */
+/* Map                                                                 */
+/* ------------------------------------------------------------------ */
+const hash = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+};
+const riskColor: Record<Sev, string> = {
+  Low: "#10b981",
+  Medium: "#f59e0b",
+  High: "#f97316",
+  Critical: "#f43f5e",
+};
+const ChangeMap: React.FC<{ rows: Row[]; fullscreen: boolean }> = ({ rows, fullscreen }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const layerRef = useRef<L.LayerGroup | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    const map = L.map(containerRef.current, {
+      center: [46.6, 2.5],
+      zoom: 6,
+      scrollWheelZoom: false,
+      zoomControl: true,
+    });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap",
+      maxZoom: 19,
+    }).addTo(map);
+    layerRef.current = L.layerGroup().addTo(map);
+    mapRef.current = map;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) map.scrollWheelZoom.enable();
+      else map.scrollWheelZoom.disable();
+    };
+    containerRef.current.addEventListener("wheel", onWheel);
+    return () => {
+      containerRef.current?.removeEventListener("wheel", onWheel);
+      map.remove();
+      mapRef.current = null;
+      layerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current || !layerRef.current) return;
+    const lg = layerRef.current;
+    lg.clearLayers();
+    // Bounding box ≈ France
+    const minLat = 43.2, maxLat = 50.8, minLng = -4.5, maxLng = 7.5;
+    rows.forEach((r) => {
+      const h1 = hash(r.site);
+      const h2 = hash(r.site + "_" + r.cell);
+      const lat = minLat + ((h1 % 1000) / 1000) * (maxLat - minLat);
+      const lng = minLng + ((h2 % 1000) / 1000) * (maxLng - minLng);
+      const color = riskColor[r.risk];
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+          <div style="width:18px;height:18px;border-radius:9999px;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25)"></div>
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:1px 5px;font-size:9px;font-weight:600;color:#334155;white-space:nowrap">${r.site}</div>
+        </div>`,
+        iconSize: [60, 30],
+        iconAnchor: [30, 9],
+      });
+      L.marker([lat, lng], { icon })
+        .bindTooltip(`<b>${r.site}</b> · ${r.cell}<br/>${r.param}: ${r.oldVal} → ${r.newVal}<br/>By ${r.changedBy} · ${r.risk}`, { direction: "top" })
+        .addTo(lg);
+    });
+  }, [rows]);
+
+  useEffect(() => {
+    setTimeout(() => mapRef.current?.invalidateSize(), 50);
+  }, [fullscreen]);
+
+  return (
+    <div className={fullscreen ? "flex-1 min-h-0 relative" : "relative"}>
+      <div ref={containerRef} className={`w-full ${fullscreen ? "h-full" : "h-[360px]"} rounded-xl overflow-hidden border border-[#eef2f8]`} />
+      <div className="absolute bottom-3 left-3 z-[400] bg-white/95 backdrop-blur rounded-full px-3 py-1.5 ring-1 ring-[#e7edf5] shadow-sm flex items-center gap-3 text-[11px] font-medium text-slate-600">
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-rose-500" />Critical</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-orange-500" />High</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500" />Medium</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />Low</span>
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 const ChangeHistoryPage: React.FC = () => {
   const [selected, setSelected] = useState<string>(ROWS[0].id);
   const [checkedRows, setCheckedRows] = useState<Set<string>>(new Set([ROWS[0].id]));
+  const [showMap, setShowMap] = useState(false);
+  const [mapFullscreen, setMapFullscreen] = useState(false);
 
   const toggleRow = (id: string) => {
     setCheckedRows((prev) => {
@@ -246,6 +344,16 @@ const ChangeHistoryPage: React.FC = () => {
               <button className="h-9 inline-flex items-center gap-2 px-3.5 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
                 <RefreshCw className="w-4 h-4 text-slate-500" /> Refresh
               </button>
+              <button
+                onClick={() => setShowMap((v) => !v)}
+                className={`h-9 inline-flex items-center gap-2 px-3.5 rounded-full text-[13px] font-medium transition ring-1 ${
+                  showMap
+                    ? "bg-blue-600 text-white ring-blue-600 shadow-[0_2px_8px_rgba(37,99,235,0.25)] hover:bg-blue-700"
+                    : "bg-white text-blue-600 ring-blue-200 hover:bg-blue-50"
+                }`}
+              >
+                <MapPin className="w-4 h-4" /> {showMap ? "Hide Map" : "Show Map"}
+              </button>
               <button className="h-9 inline-flex items-center gap-2 px-3.5 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
                 <Download className="w-4 h-4 text-slate-500" /> Export
               </button>
@@ -282,6 +390,41 @@ const ChangeHistoryPage: React.FC = () => {
             );
           })}
         </section>
+
+        {/* ----- Map panel ----- */}
+        {showMap && (
+          <section
+            className={
+              mapFullscreen
+                ? "fixed inset-0 z-[1000] bg-white p-4 flex flex-col"
+                : `${CARD} p-4`
+            }
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-blue-600" />
+                <span className="text-[14px] font-semibold text-slate-900">Network Change Map</span>
+                <span className="text-[12px] text-slate-500">— {ROWS.length} changes</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setMapFullscreen((v) => !v)}
+                  className="h-8 px-3 rounded-full border border-[#e7edf5] bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-50 transition inline-flex items-center gap-1.5"
+                >
+                  {mapFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                  {mapFullscreen ? "Exit" : "Fullscreen"}
+                </button>
+                <button
+                  onClick={() => { setMapFullscreen(false); setShowMap(false); }}
+                  className="h-8 px-3 rounded-full border border-[#e7edf5] bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-50 transition inline-flex items-center gap-1.5"
+                >
+                  <X className="w-3.5 h-3.5" /> Close
+                </button>
+              </div>
+            </div>
+            <ChangeMap rows={ROWS} fullscreen={mapFullscreen} />
+          </section>
+        )}
 
         {/* ----- Body grid ----- */}
         <section className="grid grid-cols-12 gap-4">
