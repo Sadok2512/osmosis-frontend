@@ -2526,6 +2526,11 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       setShowCreateDash(false);
       setCreateFilters({}); setCreateConditions([]); setCreateTopoPayload(null);
       await fetchAll();
+      // Ensure the freshly-created dashboard is visible in every filter mode
+      // ('loaded' filters by loadedDashIds; 'my' by ownership). Adding it to
+      // loadedDashIds guarantees it shows even if ownership comparison fails
+      // (e.g. anonymous session, username case mismatch).
+      addLoadedId(id);
       setExpandedDashboardId(id);
       // Auto-activate newly created dashboard
       onActiveDashboardIdChange(id);
