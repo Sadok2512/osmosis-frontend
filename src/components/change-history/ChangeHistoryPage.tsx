@@ -643,29 +643,6 @@ const ChangeHistoryPage: React.FC = () => {
                 <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-0.5 bg-blue-600" />{detail.param} ({detail.newVal.replace(/[\d.,+\-−]/g, "").trim() || "value"})</span>
               </div>
             </div>
-
-            <div className={`${CARD} px-5 py-4`}>
-              <div className="flex items-center gap-4 text-[12px] font-medium border-b border-[#eef2f8] pb-2 mb-3">
-                <span className="text-blue-600 border-b-2 border-blue-600 pb-2 -mb-2">Impact Summary</span>
-                <span className="text-slate-500 hover:text-slate-700 cursor-pointer">Related Alarms</span>
-                <span className="text-slate-500 hover:text-slate-700 cursor-pointer">Impacted Neighbors</span>
-                <span className="text-slate-500 hover:text-slate-700 cursor-pointer">Validation</span>
-              </div>
-              <ul className="space-y-2 text-[12px]">
-                {[
-                  ["Throughput", "−32%", "text-rose-600"],
-                  ["SINR", "−4.6 dB", "text-rose-600"],
-                  ["DCR", "+10%", "text-rose-600"],
-                  ["CSSR", "+2%", "text-emerald-600"],
-                  ["PRB Utilization", "+8%", "text-emerald-600"],
-                ].map(([k, v, c]) => (
-                  <li key={k} className="flex items-center justify-between py-1 border-b border-[#f1f5fb] last:border-0">
-                    <span className="text-slate-600">{k}</span>
-                    <span className={`font-semibold tabular-nums ${c}`}>{v}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
           </aside>
         </section>
       </div>
