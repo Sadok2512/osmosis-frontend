@@ -2540,7 +2540,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
       await dashboardsApi.upsert({
         id,
-        name: newDashName.trim(),
+        name: trimmedName,
         description: '',
         is_shared: true,
         dashboard_type: 'map',
