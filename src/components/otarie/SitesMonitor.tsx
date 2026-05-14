@@ -3242,42 +3242,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   const fmt = (n: number | null | undefined) =>
                     n == null ? '—' : n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n);
                   return (
-                    <div className="px-3 pt-1.5 pb-2 space-y-2">
-                      {/* KPI stats */}
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <div className="rounded-lg border border-border bg-muted/30 px-2.5 py-2">
-                          <div className="text-[15px] font-bold text-foreground leading-tight">{fmt(stats?.sites)}</div>
-                          <div className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">Sites</div>
-                        </div>
-                        <div className="rounded-lg border border-border bg-muted/30 px-2.5 py-2">
-                          <div className="text-[15px] font-bold text-foreground leading-tight">{fmt(stats?.cells)}</div>
-                          <div className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">Cells</div>
-                        </div>
-                      </div>
-
-                      {/* Applied filters */}
-                      {filterEntries.length > 0 && (
-                        <div>
-                          <div className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Applied filters</div>
-                          <div className="flex flex-wrap gap-1">
-                            {filterEntries.map(([key, vals]) => {
-                              const text = Array.isArray(vals) ? vals.join(', ') : String(vals);
-                              return (
-                                <span
-                                  key={key}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-semibold max-w-full"
-                                  title={`${key}: ${text}`}
-                                >
-                                  <span className="uppercase opacity-70">{key}</span>
-                                  <span className="truncate max-w-[110px]">{text}</span>
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Add view CTA */}
+                    <div className="px-3 pt-1.5 pb-2">
+                      {/* Add view CTA — primary action, top */}
                       <button
                         onClick={() => { setShowCreateView(db.id); setNewViewName(''); setNewViewFilters({}); }}
                         className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:border-primary/50 hover:bg-primary/10 text-[10px] font-bold text-primary/80 hover:text-primary transition-all"
@@ -3285,6 +3251,48 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         <Plus size={11} />
                         Ajouter une vue
                       </button>
+
+                      {/* Applied filters — secondary, discrete */}
+                      {filterEntries.length > 0 && (
+                        <>
+                          <div className="mt-2.5 pt-2 border-t border-border/40">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/70">Filtres appliqués</div>
+                              <div className="text-[8px] text-muted-foreground/50">{filterEntries.length}</div>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {filterEntries.map(([key, vals]) => {
+                                const text = Array.isArray(vals) ? vals.join(', ') : String(vals);
+                                return (
+                                  <span
+                                    key={key}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground text-[9px] font-medium border border-border/40 max-w-full"
+                                    title={`${key}: ${text}`}
+                                  >
+                                    <span className="uppercase opacity-60">{key}</span>
+                                    <span className="truncate max-w-[110px] text-foreground/80">{text}</span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {/* KPI summary — tertiary, compact */}
+                      <div className="mt-2.5 pt-2 border-t border-border/40">
+                        <div className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/70 mb-1.5">Résumé</div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div className="flex items-baseline justify-between px-2 py-1 rounded bg-muted/20 border border-border/30">
+                            <span className="text-[9px] uppercase tracking-wider text-muted-foreground/70 font-medium">Sites</span>
+                            <span className="text-[12px] font-semibold text-foreground tabular-nums">{fmt(stats?.sites)}</span>
+                          </div>
+                          <div className="flex items-baseline justify-between px-2 py-1 rounded bg-muted/20 border border-border/30">
+                            <span className="text-[9px] uppercase tracking-wider text-muted-foreground/70 font-medium">Cells</span>
+                            <span className="text-[12px] font-semibold text-foreground tabular-nums">{fmt(stats?.cells)}</span>
+                          </div>
+                        </div>
+                      </div>
 
                       {/* Visual Coverage drop-in mount kept hidden so the
                           vanilla module still receives a DOM node and does
