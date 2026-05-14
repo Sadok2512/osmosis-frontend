@@ -14273,14 +14273,60 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                <div style={{ display: inventoryTab === 'dashboard' ? 'contents' : 'none' }}>
                 <DashboardInventoryTab
                   getDashboardStats={(dashboardId) => {
-                    if (dashboardId !== activeDashboardId) return null;
-                    const list = filteredSites;
-                    let cells = 0;
-                    for (const s of list) {
-                      const c = (s as any).cell_count ?? (s as any).nb_cells ?? (Array.isArray((s as any).cells) ? (s as any).cells.length : 0);
-                      cells += Number(c) || 0;
+                    const countCells = (list: any[]) => {
+                      let c = 0;
+                      for (const s of list) {
+                        const v = (s as any).cell_count ?? (s as any).nb_cells ?? (Array.isArray((s as any).cells) ? (s as any).cells.length : 0);
+                        c += Number(v) || 0;
+                      }
+                      return c;
+                    };
+                    // Active dashboard: use the already-filtered list
+                    if (dashboardId === activeDashboardId) {
+                      return { sites: filteredSites.length, cells: countCells(filteredSites) };
                     }
-                    return { sites: list.length, cells };
+                    // Non-active dashboard: derive filters from the dashboard itself
+                    const db = dashboards.find(d => d.id === dashboardId);
+                    if (!db) return null;
+                    const w = Array.isArray((db as any).widgets) ? (db as any).widgets : [];
+                    const meta = w.find((wi: any) => wi?._type === 'dashboard_settings') || {};
+                    let sf: any = meta?.siteFilters && Object.keys(meta.siteFilters).length > 0 ? meta.siteFilters : null;
+                    if (!sf) {
+                      const scope = meta?.siteScope;
+                      if (scope?.type === 'DOR' && scope.value) sf = { dor: [scope.value] };
+                      else if (scope?.type === 'Plaque' && scope.value) sf = { plaque: [scope.value] };
+                    }
+                    if (!sf) {
+                      // Try to infer from name
+                      const name = String((db as any).name || '').toLowerCase();
+                      const dorNames = ['UPR Sud-Ouest','UPR Ile-De-France','UPR Nord-Est','UPR Ouest','UPR Sud-Est'];
+                      for (const dor of dorNames) {
+                        if (name.includes(dor.toLowerCase().replace('upr ',''))) { sf = { dor: [dor] }; break; }
+                      }
+                    }
+                    const matches = (s: any, key: string, vals: any[]) => {
+                      const v = (s as any)[key];
+                      return v != null && vals.map(String).includes(String(v));
+                    };
+                    const matchesCell = (s: any, key: string, vals: any[]) => {
+                      const cells = Array.isArray(s.cells) ? s.cells : [];
+                      if (!cells.length) return true; // unknown — don't exclude
+                      return cells.some((c: any) => vals.map(String).includes(String((c as any)[key])));
+                    };
+                    const filtered = sites.filter(s => {
+                      if (!sf) return true;
+                      for (const [k, vRaw] of Object.entries(sf)) {
+                        const vals = Array.isArray(vRaw) ? vRaw : (vRaw != null ? [vRaw] : []);
+                        if (!vals.length) continue;
+                        if (k === 'dor' || k === 'plaque' || k === 'vendor' || k === 'department' || k === 'zone_arcep') {
+                          if (!matches(s, k, vals)) return false;
+                        } else if (k === 'bande' || k === 'techno') {
+                          if (!matchesCell(s, k, vals)) return false;
+                        }
+                      }
+                      return true;
+                    });
+                    return { sites: filtered.length, cells: countCells(filtered) };
                   }}
                   onApplyView={(settings) => {
                     // Track view activation
