@@ -254,6 +254,16 @@ const ChangeHistoryPage: React.FC = () => {
               <button className="h-9 inline-flex items-center gap-2 px-3.5 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
                 <RefreshCw className="w-4 h-4 text-slate-500" /> Refresh
               </button>
+              <button
+                onClick={() => setShowMap((v) => !v)}
+                className={`h-9 inline-flex items-center gap-2 px-3.5 rounded-full text-[13px] font-medium transition ring-1 ${
+                  showMap
+                    ? "bg-blue-600 text-white ring-blue-600 shadow-[0_2px_8px_rgba(37,99,235,0.25)] hover:bg-blue-700"
+                    : "bg-white text-blue-600 ring-blue-200 hover:bg-blue-50"
+                }`}
+              >
+                <MapPin className="w-4 h-4" /> {showMap ? "Hide Map" : "Show Map"}
+              </button>
               <button className="h-9 inline-flex items-center gap-2 px-3.5 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
                 <Download className="w-4 h-4 text-slate-500" /> Export
               </button>
