@@ -51,7 +51,7 @@ const TopoCountBadge: React.FC<{ payload: TopoSearchPayload | null }> = ({ paylo
 
         // Build a base query that returns minimal columns; cap to 50k rows for safety
         const LIMIT = 50000;
-        let q = supabase.from('topo').select('nom_site,nom_cellule', { count: 'exact' }).limit(LIMIT);
+        let q: any = supabase.from('topo').select('nom_site,nom_cellule', { count: 'exact' }).limit(LIMIT);
 
         if (filters.length > 0) {
           if (logic === 'AND') {
