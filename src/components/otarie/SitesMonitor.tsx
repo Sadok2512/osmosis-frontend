@@ -2212,7 +2212,7 @@ interface DashboardInventoryTabProps {
    *  block on 2026-05-11. */
   onCoveragePanelMount?: (el: HTMLDivElement | null) => void;
   /** Optional stats provider for an active dashboard scope (sites + cells). */
-  getDashboardStats?: (dashboardId: string) => { sites: number; cells: number } | null;
+  getDashboardStats?: (dashboardId: string, siteFilters?: any) => { sites: number; cells: number } | null;
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
@@ -3234,7 +3234,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 )}
                 {/* Operational summary — Stats + Applied filters + Add view */}
                 {isExpanded && (() => {
-                  const stats = getDashboardStats?.(db.id) || null;
+                   const dbFiltersForStats = extractSiteFilters(db);
+                   const stats = getDashboardStats?.(db.id, dbFiltersForStats) || null;
                   const dbFilters = extractSiteFilters(db);
                   const filterEntries = dbFilters
                     ? Object.entries(dbFilters).filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : !!v))
@@ -14272,15 +14273,44 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Dashboard tab ── */}
                <div style={{ display: inventoryTab === 'dashboard' ? 'contents' : 'none' }}>
                 <DashboardInventoryTab
-                  getDashboardStats={(dashboardId) => {
-                    if (dashboardId !== activeDashboardId) return null;
-                    const list = filteredSites;
-                    let cells = 0;
-                    for (const s of list) {
-                      const c = (s as any).cell_count ?? (s as any).nb_cells ?? (Array.isArray((s as any).cells) ? (s as any).cells.length : 0);
-                      cells += Number(c) || 0;
+                  getDashboardStats={(dashboardId, siteFilters) => {
+                    const countCells = (list: any[]) => {
+                      let c = 0;
+                      for (const s of list) {
+                        const v = (s as any).cell_count ?? (s as any).nb_cells ?? (Array.isArray((s as any).cells) ? (s as any).cells.length : 0);
+                        c += Number(v) || 0;
+                      }
+                      return c;
+                    };
+                    // Active dashboard: use the already-filtered list
+                    if (dashboardId === activeDashboardId) {
+                      return { sites: filteredSites.length, cells: countCells(filteredSites) };
                     }
-                    return { sites: list.length, cells };
+                    // Non-active: apply provided siteFilters to the full sites list
+                    const sf: any = siteFilters || null;
+                    const matches = (s: any, key: string, vals: any[]) => {
+                      const v = (s as any)[key];
+                      return v != null && vals.map(String).includes(String(v));
+                    };
+                    const matchesCell = (s: any, key: string, vals: any[]) => {
+                      const cells = Array.isArray(s.cells) ? s.cells : [];
+                      if (!cells.length) return true; // unknown — don't exclude
+                      return cells.some((c: any) => vals.map(String).includes(String((c as any)[key])));
+                    };
+                    const filtered = sites.filter(s => {
+                      if (!sf) return true;
+                      for (const [k, vRaw] of Object.entries(sf)) {
+                        const vals = Array.isArray(vRaw) ? vRaw : (vRaw != null ? [vRaw] : []);
+                        if (!vals.length) continue;
+                        if (k === 'dor' || k === 'plaque' || k === 'vendor' || k === 'department' || k === 'zone_arcep') {
+                          if (!matches(s, k, vals)) return false;
+                        } else if (k === 'bande' || k === 'techno') {
+                          if (!matchesCell(s, k, vals)) return false;
+                        }
+                      }
+                      return true;
+                    });
+                    return { sites: filtered.length, cells: countCells(filtered) };
                   }}
                   onApplyView={(settings) => {
                     // Track view activation
