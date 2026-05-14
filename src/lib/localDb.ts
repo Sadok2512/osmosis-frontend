@@ -1082,8 +1082,53 @@ export const topoApi = {
       if (Object.keys(cleaned).length) qs.set('context', JSON.stringify(cleaned));
     }
     const path = `/topo/filters/values?${qs.toString()}`;
-    const data = await fetchJson<{ values: string[] }>(isLocalExpress() ? localUrl(path.slice(1)) : parserUrl(path));
-    return data?.values || [];
+    let vpsValues: string[] = [];
+    let vpsFailed = false;
+    try {
+      const data = await fetchJson<any>(isLocalExpress() ? localUrl(path.slice(1)) : parserUrl(path));
+      if (data?.unavailable === true) {
+        vpsFailed = true;
+      } else {
+        vpsValues = Array.isArray(data?.values) ? data.values
+          : Array.isArray(data?.items) ? data.items
+          : Array.isArray(data?.data) ? data.data
+          : Array.isArray(data?.rows) ? data.rows
+          : [];
+      }
+    } catch {
+      vpsFailed = true;
+    }
+    if (vpsValues.length > 0) return vpsValues;
+    // ── Supabase topo fallback (VPS timeouts on PLAQUE_SITE etc.) ──
+    const TOPO_COL_MAP: Record<string, string> = {
+      plaque: 'plaque', plaque_site: 'plaque', plaque_cellule: 'plaque',
+      dor: 'dor', region: 'region', zone_arcep: 'zone_arcep',
+      techno: 'techno', bande: 'bande',
+      constructeur: 'constructeur', vendor: 'constructeur',
+      nom_site: 'nom_site', site_name: 'nom_site',
+      nom_cellule: 'nom_cellule', cell_name: 'nom_cellule',
+      code_nidt: 'code_nidt', etat_cellule: 'etat_cellule',
+      hebergeur_leader: 'hebergeur_leader', essentiel: 'essentiel',
+      pci: 'pci', tac: 'tac', lac: 'lac', azimut: 'azimut',
+    };
+    const col = TOPO_COL_MAP[dimension.toLowerCase()];
+    if (!col) return vpsValues;
+    try {
+      let q = supabase.from('topo').select(col).not(col, 'is', null).limit(5000);
+      if (opts?.search) q = q.ilike(col, `%${opts.search}%`);
+      const { data: rows, error } = await q;
+      if (error || !rows) return vpsValues;
+      const set = new Set<string>();
+      for (const r of rows as any[]) {
+        const v = r?.[col];
+        if (v === null || v === undefined || v === '') continue;
+        set.add(String(v));
+      }
+      const out = Array.from(set).sort();
+      return opts?.limit && opts.limit > 0 ? out.slice(0, opts.limit) : out;
+    } catch {
+      return vpsValues;
+    }
   },
 
   /** Fetch sites with dynamic filters: GET /api/v1/topo/sites?dor=X&techno=Y
