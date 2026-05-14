@@ -19,6 +19,7 @@ import { lazy, Suspense } from 'react';
 
 const NetworkTopologyPage = lazy(() => import('../otarie/NetworkTopologyPage'));
 const NeighborExplorer = lazy(() => import('../investigator/NeighborExplorer'));
+const ChangeHistoryPage = lazy(() => import('../change-history/ChangeHistoryPage'));
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
