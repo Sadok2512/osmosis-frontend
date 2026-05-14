@@ -2212,7 +2212,7 @@ interface DashboardInventoryTabProps {
    *  block on 2026-05-11. */
   onCoveragePanelMount?: (el: HTMLDivElement | null) => void;
   /** Optional stats provider for an active dashboard scope (sites + cells). */
-  getDashboardStats?: (dashboardId: string) => { sites: number; cells: number } | null;
+  getDashboardStats?: (dashboardId: string, siteFilters?: any) => { sites: number; cells: number } | null;
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
