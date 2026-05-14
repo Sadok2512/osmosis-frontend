@@ -246,6 +246,18 @@ const AlarmCenterPage: React.FC = () => {
               Live
             </span>
             <span className="text-[12px] font-medium text-slate-500 tabular-nums">{new Date().toLocaleTimeString()}</span>
+            <button
+              onClick={() => setShowMap((v) => !v)}
+              className={`h-9 px-3.5 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5 transition ring-1 ${
+                showMap
+                  ? "bg-blue-600 text-white ring-blue-600 shadow-[0_2px_8px_rgba(37,99,235,0.25)] hover:bg-blue-700"
+                  : "bg-white text-blue-600 ring-blue-200 hover:bg-blue-50"
+              }`}
+              title="Toggle map view"
+            >
+              <MapPin size={14} strokeWidth={2} />
+              {showMap ? "Hide Map" : "Show Map"}
+            </button>
             <button className="h-9 w-9 rounded-full border border-[#e8edf5] bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition flex items-center justify-center" title="Refresh"><RefreshCw size={14} strokeWidth={1.75} /></button>
             <button className="h-9 w-9 rounded-full border border-[#e8edf5] bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition flex items-center justify-center" title="Export"><Download size={14} strokeWidth={1.75} /></button>
           </div>
