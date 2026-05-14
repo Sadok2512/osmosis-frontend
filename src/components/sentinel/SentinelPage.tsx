@@ -19,17 +19,19 @@ import SentinelExplorer from './pages/SentinelExplorer';
 import SentinelMLDetector from './pages/SentinelMLDetector';
 
 import SentinelRCA from './pages/SentinelRCA';
+import SentinelLiveMap from './pages/SentinelLiveMap';
 import SentinelAIPanel from './SentinelAIPanel';
 import { fetchDates } from './sentinelApi';
 import type { MlAnomaly } from './mlDetectorApi';
 import { cn } from '@/lib/utils';
 import { MapPin } from 'lucide-react';
 
-type SentinelTab = 'overview' | 'explorer' | 'ml-detector' | 'rca';
+type SentinelTab = 'overview' | 'explorer' | 'ml-detector' | 'live-map' | 'rca';
 
 const tabs: { id: SentinelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: "Vue d'ensemble", icon: <Shield className="w-4 h-4" /> },
   { id: 'ml-detector', label: 'ML Detector', icon: <Brain className="w-4 h-4" /> },
+  { id: 'live-map', label: 'Live Map', icon: <MapPin className="w-4 h-4" /> },
   { id: 'rca', label: 'RCA', icon: <Sparkles className="w-4 h-4" /> },
 ];
 
@@ -44,7 +46,7 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
   const _initialTab: SentinelTab = (() => {
     if (typeof window === 'undefined') return 'overview';
     const t = new URLSearchParams(window.location.search).get('subtab');
-    const valid: SentinelTab[] = ['overview', 'explorer', 'ml-detector', 'rca'];
+    const valid: SentinelTab[] = ['overview', 'explorer', 'ml-detector', 'live-map', 'rca'];
     return (valid.includes(t as SentinelTab) ? t : 'overview') as SentinelTab;
   })();
   const [activeTab, setActiveTab] = useState<SentinelTab>(_initialTab);
@@ -290,6 +292,9 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
           )}
           {activeTab === 'ml-detector' && (
             <SentinelMLDetector onOpenRCA={(a) => { setRcaAnomaly(a); setActiveTab('rca'); }} />
+          )}
+          {activeTab === 'live-map' && (
+            <SentinelLiveMap date={selectedDate} apiConnected={connectionStatus === 'connected'} />
           )}
           {activeTab === 'rca' && (
             <SentinelRCA anomaly={rcaAnomaly} onBack={() => setActiveTab('ml-detector')} />
