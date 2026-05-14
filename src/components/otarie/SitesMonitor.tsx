@@ -2836,7 +2836,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               </DialogDescription>
             </DialogHeader>
 
-            <div className="px-6 py-5 space-y-5 flex-1 min-h-0 overflow-y-auto overflow-x-visible">
+            <div className="px-6 py-5 space-y-5 flex-1 min-h-[480px] overflow-y-auto overflow-x-visible">
               {/* Topology Search builder — primary action, visually emphasized */}
               <div>
                 <label className="text-[11px] font-semibold text-foreground uppercase tracking-wider block mb-2">
