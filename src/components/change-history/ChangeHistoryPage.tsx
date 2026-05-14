@@ -199,12 +199,9 @@ const TimelineChart: React.FC<{ rows: Row[] }> = ({ rows }) => {
 const ParamLineChart: React.FC = () => {
   const w = 360, h = 130;
   const tilt = [2, 2, 2, 2.1, 2, 2, 2, 2, 2, 2, 2, 3.5, 3.5];
-  const tput = [180, 175, 178, 182, 176, 174, 178, 175, 173, 170, 168, 120, 118];
   const xs = (i: number) => (i / (tilt.length - 1)) * (w - 24) + 12;
   const ys1 = (v: number) => h - 16 - ((v - 1.5) / 3) * (h - 32);
-  const ys2 = (v: number) => h - 16 - ((v - 100) / 110) * (h - 32);
   const path1 = tilt.map((v, i) => `${i === 0 ? "M" : "L"}${xs(i).toFixed(1)},${ys1(v).toFixed(1)}`).join(" ");
-  const path2 = tput.map((v, i) => `${i === 0 ? "M" : "L"}${xs(i).toFixed(1)},${ys2(v).toFixed(1)}`).join(" ");
   return (
     <svg width="100%" viewBox={`0 0 ${w} ${h}`} className="overflow-visible">
       {[0.25, 0.5, 0.75].map((p) => (
@@ -213,7 +210,6 @@ const ParamLineChart: React.FC = () => {
       <line x1={xs(11)} x2={xs(11)} y1={6} y2={h - 16} stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={1} />
       <text x={xs(11) + 4} y={14} className="fill-slate-500" fontSize="9">Change 21:04</text>
       <path d={path1} stroke="#2563eb" strokeWidth={1.6} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-      <path d={path2} stroke="#10b981" strokeWidth={1.6} fill="none" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 };
@@ -321,6 +317,7 @@ const ChangeHistoryPage: React.FC = () => {
   const [checkedRows, setCheckedRows] = useState<Set<string>>(new Set([ROWS[0].id]));
   const [showMap, setShowMap] = useState(false);
   const [mapFullscreen, setMapFullscreen] = useState(false);
+  const [paramFullscreen, setParamFullscreen] = useState(false);
 
   const toggleRow = (id: string) => {
     setCheckedRows((prev) => {
@@ -621,9 +618,16 @@ const ChangeHistoryPage: React.FC = () => {
               </dl>
             </div>
 
-            <div className={`${CARD} px-5 py-4`}>
+            <div className={paramFullscreen ? "fixed inset-0 z-[1000] bg-white p-6 flex flex-col" : `${CARD} px-5 py-4`}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-[14px] font-semibold text-slate-800">Parameter History <span className="text-[11px] font-normal text-slate-500">({detail.param})</span></h3>
+                <button
+                  onClick={() => setParamFullscreen((v) => !v)}
+                  className="h-7 px-2.5 inline-flex items-center gap-1 rounded-full border border-[#e7edf5] bg-white text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  {paramFullscreen ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+                  {paramFullscreen ? "Exit" : "Fullscreen"}
+                </button>
               </div>
               <div className="flex items-center justify-between mb-2">
                 <div className="inline-flex rounded-full bg-[#f6f8fb] ring-1 ring-[#eef2f8] p-0.5 text-[11px] font-medium">
@@ -631,19 +635,12 @@ const ChangeHistoryPage: React.FC = () => {
                     <button key={p} className={`px-2.5 py-1 rounded-full transition ${i === 1 ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>{p}</button>
                   ))}
                 </div>
-                <select className="h-7 rounded-full border border-[#e7edf5] bg-white text-[11px] text-slate-600 px-2.5">
-                  <option>Overlay: Throughput</option>
-                </select>
               </div>
-              <ParamLineChart />
+              <div className={paramFullscreen ? "flex-1 flex items-center justify-center" : ""}>
+                <ParamLineChart />
+              </div>
               <div className="flex items-center gap-4 text-[11px] font-medium text-slate-500 mt-2">
-                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-0.5 bg-blue-600" />electricalTilt (°)</span>
-                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-0.5 bg-emerald-500" />Throughput (Mbps)</span>
-              </div>
-              <div className="grid grid-cols-3 gap-1.5 mt-3">
-                <button className="h-8 rounded-full text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 inline-flex items-center justify-center gap-1"><GitCompare className="w-3 h-3" /> Compare</button>
-                <button className="h-8 rounded-full text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 inline-flex items-center justify-center gap-1"><RotateCcw className="w-3 h-3" /> Rollback</button>
-                <button className="h-8 rounded-full text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 inline-flex items-center justify-center gap-1"><Download className="w-3 h-3" /> Export</button>
+                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-0.5 bg-blue-600" />{detail.param} ({detail.newVal.replace(/[\d.,+\-−]/g, "").trim() || "value"})</span>
               </div>
             </div>
 
