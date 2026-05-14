@@ -5249,6 +5249,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setInventoryTab('sites');
     }
   }, [noDashboardMode, dashboardActive, inventoryTab]);
+
+  // When a dashboard becomes active, automatically turn OFF "Mode sans dashboard".
+  useEffect(() => {
+    if (dashboardActive && noDashboardMode) setNoDashboardMode(false);
+  }, [dashboardActive, noDashboardMode]);
   const [activeSiteScope, setActiveSiteScope] = useState<SiteScope | null>(null);
   const [activeDashboardFilters, setActiveDashboardFilters] = useState<DashboardSiteFilters | null>(null);
   const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
