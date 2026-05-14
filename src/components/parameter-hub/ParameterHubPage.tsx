@@ -197,7 +197,7 @@ const ParameterHubPage: React.FC = () => {
               { key: 'parameter-hub' as const, label: 'Parameter Hub', icon: Sliders },
               { key: 'neighbors' as const, label: 'Neighbors', icon: Network },
               { key: 'change-history' as const, label: 'Change History', icon: History },
-              { key: 'alarms' as const, label: 'Alarms', icon: Bell },
+              
             ].map((m) => {
               const Icon = m.icon;
               const active = activeModule === m.key;
