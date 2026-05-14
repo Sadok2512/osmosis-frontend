@@ -26,11 +26,12 @@ import type { MlAnomaly } from './mlDetectorApi';
 import { cn } from '@/lib/utils';
 import { MapPin } from 'lucide-react';
 
-type SentinelTab = 'overview' | 'explorer' | 'ml-detector' | 'rca';
+type SentinelTab = 'overview' | 'explorer' | 'ml-detector' | 'live-map' | 'rca';
 
 const tabs: { id: SentinelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: "Vue d'ensemble", icon: <Shield className="w-4 h-4" /> },
   { id: 'ml-detector', label: 'ML Detector', icon: <Brain className="w-4 h-4" /> },
+  { id: 'live-map', label: 'Live Map', icon: <MapPin className="w-4 h-4" /> },
   { id: 'rca', label: 'RCA', icon: <Sparkles className="w-4 h-4" /> },
 ];
 
