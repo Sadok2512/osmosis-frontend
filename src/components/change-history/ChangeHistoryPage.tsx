@@ -211,6 +211,8 @@ const ParamLineChart: React.FC = () => {
 const ChangeHistoryPage: React.FC = () => {
   const [selected, setSelected] = useState<string>(ROWS[0].id);
   const [checkedRows, setCheckedRows] = useState<Set<string>>(new Set([ROWS[0].id]));
+  const [showMap, setShowMap] = useState(false);
+  const [mapFullscreen, setMapFullscreen] = useState(false);
 
   const toggleRow = (id: string) => {
     setCheckedRows((prev) => {
