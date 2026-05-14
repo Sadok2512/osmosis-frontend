@@ -205,7 +205,7 @@ const AlarmCenterPage: React.FC = () => {
 
   return (
     <div
-      className="space-y-5 p-5 min-h-full"
+      className="h-full overflow-y-auto space-y-5 p-5"
       style={{ background: "#f6f8fb", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" }}
     >
       {/* HEADER */}
