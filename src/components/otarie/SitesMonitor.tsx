@@ -2497,6 +2497,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         }
         continue;
       }
+      if (k === 'topo_search') {
+        const ts = v as TopoSearchPayload | undefined;
+        if (ts && Array.isArray(ts.filters) && ts.filters.length > 0) {
+          (cleanFilters as any).topo_search = ts;
+        }
+        continue;
+      }
       if (Array.isArray(v) && v.length > 0) (cleanFilters as any)[k] = v;
     }
     try {
