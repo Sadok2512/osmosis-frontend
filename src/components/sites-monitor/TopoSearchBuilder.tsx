@@ -569,6 +569,8 @@ export const TopoSearchBuilder: React.FC<TopoSearchBuilderProps> = ({ value, onC
           <Plus size={12} />
           Ajouter un filtre
         </button>
+
+        <TopoCountBadge payload={value || null} />
       </div>
     </div>
   );
