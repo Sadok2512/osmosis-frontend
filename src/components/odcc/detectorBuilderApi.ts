@@ -418,5 +418,17 @@ export async function listDetectorAnomalies(opts: {
   if (opts.dateTo) params.set('date_to', opts.dateTo);
   params.set('page', String(opts.page ?? 1));
   params.set('limit', String(opts.limit ?? 100));
-  return getJson<{ items: MlAnomalyRow[]; total: number; page: number; pages: number; error?: string }>(`anomalies?${params.toString()}`);
+  const page = opts.page ?? 1;
+  try {
+    return await getJson<{ items: MlAnomalyRow[]; total: number; page: number; pages: number; error?: string }>(`anomalies?${params.toString()}`);
+  } catch (err) {
+    // ml-engine /anomalies route not deployed → spa-proxy serves index.html.
+    // Treat as "no anomalies yet" so the console renders instead of crashing.
+    const message = err instanceof Error ? err.message : String(err);
+    if (/non-JSON|malformed JSON|failed \(404\)/.test(message)) {
+      console.warn('[odcc] listDetectorAnomalies fallback:', message);
+      return { items: [], total: 0, page, pages: 0, error: 'backend_unavailable' };
+    }
+    throw err;
+  }
 }
