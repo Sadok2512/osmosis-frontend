@@ -4955,6 +4955,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   };
   const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard' | 'tagged' | 'kpi'>('dashboard');
 
+  // Listen for forced tab switches (e.g. after dashboard deletion to stay on Dashboard tab)
+  useEffect(() => {
+    const handler = () => setInventoryTab('dashboard');
+    window.addEventListener('osmosis:force-dashboard-tab', handler);
+    return () => window.removeEventListener('osmosis:force-dashboard-tab', handler);
+  }, []);
+
   // ── Tagged / pinned sites (scoped per dashboard) ──
   const [taggedSites, setTaggedSites] = useState<SiteSummary[]>([]);
   const [taggedDisplayMode, setTaggedDisplayMode] = useState<'all' | 'tagged-only'>('all');
