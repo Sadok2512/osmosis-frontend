@@ -1,0 +1,10 @@
+CREATE INDEX IF NOT EXISTS idx_topo_lower_plaque ON public.topo (lower(plaque));
+CREATE INDEX IF NOT EXISTS idx_topo_lower_dor ON public.topo (lower(dor));
+CREATE INDEX IF NOT EXISTS idx_topo_lower_region ON public.topo (lower(region));
+CREATE INDEX IF NOT EXISTS idx_topo_lower_zone_arcep ON public.topo (lower(zone_arcep));
+CREATE INDEX IF NOT EXISTS idx_topo_lower_techno ON public.topo (lower(techno));
+CREATE INDEX IF NOT EXISTS idx_topo_lower_bande ON public.topo (lower(bande));
+CREATE INDEX IF NOT EXISTS idx_topo_lower_constructeur ON public.topo (lower(constructeur));
+CREATE INDEX IF NOT EXISTS idx_topo_lower_nom_site ON public.topo (lower(nom_site));
+CREATE INDEX IF NOT EXISTS idx_topo_lower_code_nidt ON public.topo (lower(code_nidt));
+CREATE INDEX IF NOT EXISTS idx_topo_nom_site ON public.topo (nom_site);
