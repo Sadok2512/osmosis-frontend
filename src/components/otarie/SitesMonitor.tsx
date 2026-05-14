@@ -11583,7 +11583,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         return (
                           <button
                             key={band}
-                            disabled={!inScope}
+                            disabled={!inScope && !active}
                             onClick={() => {
                               setEnabledBands(prev => {
                                 const next = new Set(prev);
