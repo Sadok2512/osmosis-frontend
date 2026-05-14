@@ -136,60 +136,57 @@ const AlarmCenterPage: React.FC = () => {
       preset: '7d',
     };
   });
+  // Hoisted fetch — wired to the periodic 30s tick AND to the manual
+  // Refresh button below. useRef holds the current dateRange so the
+  // setInterval closure picks up the latest values without resubscribing.
+  const dateRangeRef = React.useRef(dateRange);
+  React.useEffect(() => { dateRangeRef.current = dateRange; }, [dateRange]);
+  const loadAlarms = React.useCallback(async () => {
+    setAlarmsLoading(true);
+    try {
+      const { fetchAlarms } = await import('@/services/alarmService');
+      const dr = dateRangeRef.current;
+      const live = await fetchAlarms({
+        limit:     200,
+        date_from: dr.from,
+        date_to:   dr.to + 'T23:59:59',
+      });
+      const mapped: Alarm[] = live.map((a) => ({
+        id:               a.id,
+        name:             a.name,
+        severity:         a.severity,
+        site:             a.site,
+        cell:             a.cell,
+        vendor:           a.vendor as any,
+        tech:             '4G LTE' as any,
+        type:             a.type as any,
+        region:           a.region,
+        startTime:        a.startTime,
+        duration:         a.duration,
+        status:           a.status,
+        kpis:             [],
+        rca:              false,
+        probableCause:    a.probableCause,
+        specificProblem:  a.specificProblem,
+        lastOccurrence:   a.startTime,
+        impactedUsers:    0,
+        aiScore:          0,
+      } as Alarm));
+      setAlarms(mapped);
+      setAlarmsError(null);
+    } catch (err: any) {
+      setAlarms([]);                  // honest: no fake fallback
+      setAlarmsError(err?.message || 'Failed to load alarms');
+    } finally {
+      setAlarmsLoading(false);
+    }
+  }, []);
+
   React.useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const { fetchAlarms } = await import('@/services/alarmService');
-        const live = await fetchAlarms({
-          limit:     200,
-          date_from: dateRange.from,
-          date_to:   dateRange.to + 'T23:59:59',
-        });
-        if (cancelled) return;
-        // Map UiAlarm shape onto the local Alarm interface. Drop fields
-        // the backend doesn't emit (rca, kpis, tech) — never lie about
-        // correlation data we don't have.
-        const mapped: Alarm[] = live.map((a) => ({
-          id:               a.id,
-          name:             a.name,
-          severity:         a.severity,
-          site:             a.site,
-          cell:             a.cell,
-          vendor:           a.vendor as any,
-          tech:             '4G LTE' as any,
-          type:             a.type as any,
-          region:           a.region,
-          startTime:        a.startTime,
-          duration:         a.duration,
-          status:           a.status,
-          kpis:             [],
-          rca:              false,
-          probableCause:    a.probableCause,
-          specificProblem:  a.specificProblem,
-          // Fields the mock Alarm interface declares but the backend doesn't
-          // expose yet — fill with neutral defaults so downstream UI code
-          // (selected.impactedUsers.toLocaleString()) doesn't crash on
-          // undefined. Display layers should treat 0/'—' as "unknown".
-          lastOccurrence:   a.startTime,
-          impactedUsers:    0,
-          aiScore:          0,
-        } as Alarm));
-        setAlarms(mapped);
-        setAlarmsError(null);
-      } catch (err: any) {
-        if (!cancelled) {
-          setAlarms([]);              // honest: no fake fallback
-          setAlarmsError(err?.message || 'Failed to load alarms');
-        }
-      } finally {
-        if (!cancelled) setAlarmsLoading(false);
-      }
-    };
-    tick();
-    const id = window.setInterval(tick, 30_000);
-    return () => { cancelled = true; window.clearInterval(id); };
-  }, [dateRange.from, dateRange.to]);
+    void loadAlarms();
+    const id = window.setInterval(() => { void loadAlarms(); }, 30_000);
+    return () => window.clearInterval(id);
+  }, [loadAlarms, dateRange.from, dateRange.to]);
   const [aiOn, setAiOn] = useState(true);
   const [selectedId, setSelectedId] = useState<string>(alarms[0]?.id);
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -371,7 +368,14 @@ const AlarmCenterPage: React.FC = () => {
               <MapPin size={14} strokeWidth={2} />
               {showMap ? "Hide Map" : "Show Map"}
             </button>
-            <button className="h-9 w-9 rounded-full border border-[#e8edf5] bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition flex items-center justify-center" title="Refresh"><RefreshCw size={14} strokeWidth={1.75} /></button>
+            <button
+              onClick={() => loadAlarms()}
+              disabled={alarmsLoading}
+              className="h-9 w-9 rounded-full border border-[#e8edf5] bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition flex items-center justify-center disabled:opacity-50 disabled:cursor-wait"
+              title={alarmsLoading ? 'Refreshing…' : 'Refresh'}
+            >
+              <RefreshCw size={14} strokeWidth={1.75} className={alarmsLoading ? 'animate-spin' : ''} />
+            </button>
             <button className="h-9 w-9 rounded-full border border-[#e8edf5] bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition flex items-center justify-center" title="Export"><Download size={14} strokeWidth={1.75} /></button>
           </div>
         </div>
