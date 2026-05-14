@@ -206,6 +206,96 @@ const ParamLineChart: React.FC = () => {
 };
 
 /* ------------------------------------------------------------------ */
+/* Map                                                                 */
+/* ------------------------------------------------------------------ */
+const hash = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+};
+const riskColor: Record<Sev, string> = {
+  Low: "#10b981",
+  Medium: "#f59e0b",
+  High: "#f97316",
+  Critical: "#f43f5e",
+};
+const ChangeMap: React.FC<{ rows: Row[]; fullscreen: boolean }> = ({ rows, fullscreen }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const layerRef = useRef<L.LayerGroup | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    const map = L.map(containerRef.current, {
+      center: [46.6, 2.5],
+      zoom: 6,
+      scrollWheelZoom: false,
+      zoomControl: true,
+    });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap",
+      maxZoom: 19,
+    }).addTo(map);
+    layerRef.current = L.layerGroup().addTo(map);
+    mapRef.current = map;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) map.scrollWheelZoom.enable();
+      else map.scrollWheelZoom.disable();
+    };
+    containerRef.current.addEventListener("wheel", onWheel);
+    return () => {
+      containerRef.current?.removeEventListener("wheel", onWheel);
+      map.remove();
+      mapRef.current = null;
+      layerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current || !layerRef.current) return;
+    const lg = layerRef.current;
+    lg.clearLayers();
+    // Bounding box ≈ France
+    const minLat = 43.2, maxLat = 50.8, minLng = -4.5, maxLng = 7.5;
+    rows.forEach((r) => {
+      const h1 = hash(r.site);
+      const h2 = hash(r.site + "_" + r.cell);
+      const lat = minLat + ((h1 % 1000) / 1000) * (maxLat - minLat);
+      const lng = minLng + ((h2 % 1000) / 1000) * (maxLng - minLng);
+      const color = riskColor[r.risk];
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+          <div style="width:18px;height:18px;border-radius:9999px;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25)"></div>
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:1px 5px;font-size:9px;font-weight:600;color:#334155;white-space:nowrap">${r.site}</div>
+        </div>`,
+        iconSize: [60, 30],
+        iconAnchor: [30, 9],
+      });
+      L.marker([lat, lng], { icon })
+        .bindTooltip(`<b>${r.site}</b> · ${r.cell}<br/>${r.param}: ${r.oldVal} → ${r.newVal}<br/>By ${r.changedBy} · ${r.risk}`, { direction: "top" })
+        .addTo(lg);
+    });
+  }, [rows]);
+
+  useEffect(() => {
+    setTimeout(() => mapRef.current?.invalidateSize(), 50);
+  }, [fullscreen]);
+
+  return (
+    <div className={fullscreen ? "flex-1 min-h-0 relative" : "relative"}>
+      <div ref={containerRef} className={`w-full ${fullscreen ? "h-full" : "h-[360px]"} rounded-xl overflow-hidden border border-[#eef2f8]`} />
+      <div className="absolute bottom-3 left-3 z-[400] bg-white/95 backdrop-blur rounded-full px-3 py-1.5 ring-1 ring-[#e7edf5] shadow-sm flex items-center gap-3 text-[11px] font-medium text-slate-600">
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-rose-500" />Critical</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-orange-500" />High</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500" />Medium</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />Low</span>
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 const ChangeHistoryPage: React.FC = () => {
