@@ -115,7 +115,54 @@ const STATUS_STYLES: Record<Status, string> = {
 const CARD = "rounded-2xl border border-[#e8edf5] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.04)]";
 
 const AlarmCenterPage: React.FC = () => {
-  const [alarms] = useState<Alarm[]>(() => seedAlarms());
+  // 2026-05-14 — wired to live backend (osmosis-parser /api/v1/alarms),
+  // see services/alarmService.ts for the mock-to-real mapping.
+  // Polling every 30s; falls back to seedAlarms() only if the backend
+  // is unreachable so the UI never goes blank during a parser restart.
+  const [alarms, setAlarms] = useState<Alarm[]>(() => seedAlarms());
+  const [alarmsLoading, setAlarmsLoading] = useState(false);
+  const [alarmsError, setAlarmsError] = useState<string | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const { fetchAlarms } = await import('@/services/alarmService');
+        const live = await fetchAlarms({ limit: 200 });
+        if (cancelled) return;
+        // Map UiAlarm (alarmService) shape onto the local Alarm interface.
+        // Drop honest-mock fields the backend doesn't emit (rca, kpis, tech)
+        // — Sally's red line: never display fake correlation data.
+        const mapped: Alarm[] = live.map((a) => ({
+          id:               a.id,
+          name:             a.name,
+          severity:         a.severity,
+          site:             a.site,
+          cell:             a.cell,
+          vendor:           a.vendor as any,
+          tech:             '4G LTE' as any,   // backend has no tech col yet — neutral default
+          type:             a.type as any,
+          region:           a.region,
+          startTime:        a.startTime,
+          duration:         a.duration,
+          status:           a.status,
+          kpis:             [],                // dropped — never lie about correlation
+          rca:              false,             // dropped — backend RCA not exposed
+          probableCause:    a.probableCause,
+          specificProblem:  a.specificProblem,
+        }));
+        setAlarms(mapped);
+        setAlarmsError(null);
+      } catch (err: any) {
+        if (!cancelled) setAlarmsError(err?.message || 'Failed to load alarms');
+      } finally {
+        if (!cancelled) setAlarmsLoading(false);
+      }
+    };
+    setAlarmsLoading(true);
+    tick();
+    const id = window.setInterval(tick, 30_000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, []);
   const [aiOn, setAiOn] = useState(true);
   const [selectedId, setSelectedId] = useState<string>(alarms[0]?.id);
   const [checked, setChecked] = useState<Set<string>>(new Set());
