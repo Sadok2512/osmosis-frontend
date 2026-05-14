@@ -2211,6 +2211,8 @@ interface DashboardInventoryTabProps {
    *  pill + counters). Replaces the previous 5-prop React-controlled
    *  block on 2026-05-11. */
   onCoveragePanelMount?: (el: HTMLDivElement | null) => void;
+  /** Optional stats provider for an active dashboard scope (sites + cells). */
+  getDashboardStats?: (dashboardId: string) => { sites: number; cells: number } | null;
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
@@ -2222,7 +2224,7 @@ const dedupeAutoFilterDashboards = (items: any[]) => {
   });
 };
 
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, kpiOverlays, onRemoveKpiOverlay, onActivateKpiOverlay, activeKpiOverlayId, resolveKpiLabel, overlayVersion, catalogKpisForModal, noDashboardMode, onToggleNoDashboardMode, onCoveragePanelMount }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, kpiOverlays, onRemoveKpiOverlay, onActivateKpiOverlay, activeKpiOverlayId, resolveKpiLabel, overlayVersion, catalogKpisForModal, noDashboardMode, onToggleNoDashboardMode, onCoveragePanelMount, getDashboardStats }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
@@ -3230,27 +3232,67 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     </div>
                   </div>
                 )}
-                {/* Ajouter une vue — only for active dashboard */}
-                {isExpanded && (
-                  <div className="px-3 pt-1.5 pb-2">
-                    <button
-                      onClick={() => { setShowCreateView(db.id); setNewViewName(''); setNewViewFilters({}); }}
-                      className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:border-primary/50 hover:bg-primary/10 text-[10px] font-bold text-primary/80 hover:text-primary transition-all"
-                    >
-                      <Plus size={11} />
-                      Ajouter une vue
-                    </button>
+                {/* Operational summary — Stats + Applied filters + Add view */}
+                {isExpanded && (() => {
+                  const stats = getDashboardStats?.(db.id) || null;
+                  const dbFilters = extractSiteFilters(db);
+                  const filterEntries = dbFilters
+                    ? Object.entries(dbFilters).filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : !!v))
+                    : [];
+                  const fmt = (n: number | null | undefined) =>
+                    n == null ? '—' : n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n);
+                  return (
+                    <div className="px-3 pt-1.5 pb-2 space-y-2">
+                      {/* KPI stats */}
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div className="rounded-lg border border-border bg-muted/30 px-2.5 py-2">
+                          <div className="text-[15px] font-bold text-foreground leading-tight">{fmt(stats?.sites)}</div>
+                          <div className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">Sites</div>
+                        </div>
+                        <div className="rounded-lg border border-border bg-muted/30 px-2.5 py-2">
+                          <div className="text-[15px] font-bold text-foreground leading-tight">{fmt(stats?.cells)}</div>
+                          <div className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">Cells</div>
+                        </div>
+                      </div>
 
-                    {/* Visual Coverage panel mount — the drop-in module
-                        from src/coverage/ renders its toggle + status pill +
-                        counters here. State lives in the module; React only
-                        provides the DOM node via callback ref. */}
-                    <div
-                      className="mt-2"
-                      ref={onCoveragePanelMount}
-                    />
-                  </div>
-                )}
+                      {/* Applied filters */}
+                      {filterEntries.length > 0 && (
+                        <div>
+                          <div className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Applied filters</div>
+                          <div className="flex flex-wrap gap-1">
+                            {filterEntries.map(([key, vals]) => {
+                              const text = Array.isArray(vals) ? vals.join(', ') : String(vals);
+                              return (
+                                <span
+                                  key={key}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-semibold max-w-full"
+                                  title={`${key}: ${text}`}
+                                >
+                                  <span className="uppercase opacity-70">{key}</span>
+                                  <span className="truncate max-w-[110px]">{text}</span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Add view CTA */}
+                      <button
+                        onClick={() => { setShowCreateView(db.id); setNewViewName(''); setNewViewFilters({}); }}
+                        className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:border-primary/50 hover:bg-primary/10 text-[10px] font-bold text-primary/80 hover:text-primary transition-all"
+                      >
+                        <Plus size={11} />
+                        Ajouter une vue
+                      </button>
+
+                      {/* Visual Coverage drop-in mount kept hidden so the
+                          vanilla module still receives a DOM node and does
+                          not error; UI is intentionally not displayed. */}
+                      <div className="hidden" ref={onCoveragePanelMount} />
+                    </div>
+                  );
+                })()}
                 {/* Create View Modal (2-step) */}
                 <CreateViewModal
                   open={showCreateView === db.id}
@@ -14222,6 +14264,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Dashboard tab ── */}
                <div style={{ display: inventoryTab === 'dashboard' ? 'contents' : 'none' }}>
                 <DashboardInventoryTab
+                  getDashboardStats={(dashboardId) => {
+                    if (dashboardId !== activeDashboardId) return null;
+                    const list = filteredSites;
+                    let cells = 0;
+                    for (const s of list) {
+                      const c = (s as any).cell_count ?? (s as any).nb_cells ?? (Array.isArray((s as any).cells) ? (s as any).cells.length : 0);
+                      cells += Number(c) || 0;
+                    }
+                    return { sites: list.length, cells };
+                  }}
                   onApplyView={(settings) => {
                     // Track view activation
                     if (settings._viewId) {
