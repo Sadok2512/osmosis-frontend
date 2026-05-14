@@ -1399,30 +1399,53 @@ const AnomalyMapInline: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }
     return () => clearTimeout(id);
   }, [height]);
 
-  // Build cell_name → [lat,lng] lookup once.
+  // 2026-05-14: build cell_name → [lat,lng] lookup primarily from the
+  // anomalies themselves (each row now ships latitude/longitude inline,
+  // no need to pre-load 100k topo cells which the LEGACY_CAP=50000 was
+  // silently truncating). Fall back to fetchTopoSites() only if any
+  // anomaly is missing coords.
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const map = new Map<string, [number, number]>();
+      const missing: string[] = [];
+      anomalies.forEach((a: any) => {
+        const lat = Number(a.latitude);
+        const lng = Number(a.longitude);
+        if (Number.isFinite(lat) && Number.isFinite(lng) && a.cell_name) {
+          map.set(String(a.cell_name), [lat, lng]);
+        } else if (a.cell_name) {
+          missing.push(String(a.cell_name));
+        }
+      });
+      if (missing.length === 0) {
+        if (!cancelled) setCoords(map);
+        return;
+      }
       try {
         const sites = await fetchTopoSites();
         if (cancelled) return;
-        const map = new Map<string, [number, number]>();
         sites.forEach((s: any) => {
           const lat = Number(s.latitude);
           const lng = Number(s.longitude);
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
           (s.cells || []).forEach((c: any) => {
             const name = c?.nom_cellule || c?.cell_name;
-            if (name) map.set(String(name), [lat, lng]);
+            if (name && !map.has(String(name))) map.set(String(name), [lat, lng]);
           });
         });
         setCoords(map);
       } catch (e: any) {
-        if (!cancelled) setLoadError(e?.message || 'Failed to load topology');
+        if (!cancelled) {
+          // Keep whatever inline coords we already harvested even if the
+          // fallback fails — better some markers than none.
+          setCoords(map);
+          setLoadError(e?.message || 'Topology fallback failed');
+        }
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [anomalies]);
 
   // Render markers once both map element and coords lookup are ready.
   useEffect(() => {
