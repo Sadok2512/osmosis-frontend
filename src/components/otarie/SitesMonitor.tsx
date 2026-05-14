@@ -38,6 +38,8 @@ import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
 import { ProgressiveFilterBuilder } from './ProgressiveFilterBuilder';
 import { InlineSimTab } from './SitesMonitorHelpers';
 import { ViewFilterBuilder, ViewFilterCondition, conditionsToSiteFilters, siteFiltersToConditions } from '@/components/sites-monitor/ViewFilterBuilder';
+import { TopoSearchBuilder } from '@/components/sites-monitor/TopoSearchBuilder';
+import type { TopoSearchPayload } from '@/components/sites-monitor/CreateViewModal';
 import SiteChangesPanel from './SiteChangesPanel';
 import { siteMatchesViewConditions, hasAnyCellLevelCondition } from '@/lib/viewFilterHelpers';
 import { CreateViewModal, ViewConfig } from '@/components/sites-monitor/CreateViewModal';
@@ -2278,8 +2280,11 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   // Create filter state for dashboard creation
   const [createFilters, setCreateFilters] = useState<DashboardSiteFilters>({});
-  // Conditions list driving the embedded ViewFilterBuilder (Topology Search) in the Create Dashboard modal.
+  // Conditions list driving the embedded ViewFilterBuilder (legacy — still used by view creation flows below).
   const [createConditions, setCreateConditions] = useState<ViewFilterCondition[]>([]);
+  // Topology Search payload for the Create Dashboard modal (replaces the
+  // legacy ViewFilterBuilder embedded UI — same UI as standalone Topology Search).
+  const [createTopoPayload, setCreateTopoPayload] = useState<TopoSearchPayload | null>(null);
 
   const extractScope = (db: any): SiteScope | null => {
     const s = getDashboardSettings(db);
@@ -2460,6 +2465,11 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         if (bag && Object.values(bag).some(arr => Array.isArray(arr) && arr.length > 0)) return true;
         continue;
       }
+      if (k === 'topo_search') {
+        const ts = v as TopoSearchPayload | undefined;
+        if (ts && Array.isArray(ts.filters) && ts.filters.length > 0) return true;
+        continue;
+      }
       if (Array.isArray(v) && v.length > 0) return true;
     }
     return false;
@@ -2492,6 +2502,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         }
         continue;
       }
+      if (k === 'topo_search') {
+        const ts = v as TopoSearchPayload | undefined;
+        if (ts && Array.isArray(ts.filters) && ts.filters.length > 0) {
+          (cleanFilters as any).topo_search = ts;
+        }
+        continue;
+      }
       if (Array.isArray(v) && v.length > 0) (cleanFilters as any)[k] = v;
     }
     try {
@@ -2507,7 +2524,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       });
       setNewDashName('');
       setShowCreateDash(false);
-      setCreateFilters({}); setCreateConditions([]);
+      setCreateFilters({}); setCreateConditions([]); setCreateTopoPayload(null);
       await fetchAll();
       setExpandedDashboardId(id);
       // Auto-activate newly created dashboard
@@ -2828,19 +2845,23 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 />
               </div>
 
-              {/* Topology Search builder (embedded — same component as the standalone Topology Search) */}
+              {/* Topology Search builder (embedded — same UI as standalone Topology Search step). */}
               <div>
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-3">Topology Search</label>
                 <div className="rounded-2xl border border-border bg-muted/20 p-5">
-                  <ViewFilterBuilder
-                    mode="embedded"
-                    hideViewName
-                    hideSaveAction
-                    backendFilterDefs={backendFilterDefs}
-                    value={createConditions}
-                    onChange={(conds) => {
-                      setCreateConditions(conds);
-                      setCreateFilters(conditionsToSiteFilters(conds) as DashboardSiteFilters);
+                  <TopoSearchBuilder
+                    value={createTopoPayload}
+                    onChange={(payload) => {
+                      setCreateTopoPayload(payload);
+                      // Mirror the payload into createFilters.topo_search so the
+                      // existing handleCreateDashboardWithFilters pipeline picks it up
+                      // without needing further changes.
+                      setCreateFilters(prev => {
+                        const next = { ...prev } as DashboardSiteFilters;
+                        if (payload) (next as any).topo_search = payload;
+                        else delete (next as any).topo_search;
+                        return next;
+                      });
                     }}
                   />
                 </div>
@@ -2849,7 +2870,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               {/* Buttons */}
               <div className="flex gap-6">
                 <button
-                  onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); setCreateConditions([]); }}
+                  onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); setCreateConditions([]); setCreateTopoPayload(null); }}
                   className="flex-1 py-5 rounded-2xl border border-border text-base font-bold text-muted-foreground hover:bg-muted transition-colors"
                 >
                   Annuler
