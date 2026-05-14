@@ -24,6 +24,7 @@ import {
   Minimize2,
   X,
 } from "lucide-react";
+import { getStoredSession } from "@/services/adminAuth";
 
 /* ------------------------------------------------------------------ */
 /* Design tokens — aligned with Network Explorer / Parameter Hub      */
