@@ -5662,7 +5662,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (idx >= 0) widgets[idx] = updated; else widgets.push(updated);
     await dashboardsApi.update(dbId, { widgets });
     setDashboardList(prev => prev.map(d => d.id === dbId ? { ...d, widgets } : d));
-    setActiveDashboardId(dbId);
+    // Do NOT auto-activate on save — user must click ACTIF explicitly
+
     setDashboardSaving(false);
     setDashboardSaveFlash(true);
     setTimeout(() => setDashboardSaveFlash(false), 1500);
