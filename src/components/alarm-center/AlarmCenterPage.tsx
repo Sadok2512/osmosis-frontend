@@ -792,4 +792,59 @@ const Donut: React.FC<{ counts: Record<Severity, number> }> = ({ counts }) => {
   );
 };
 
+const SitesMiniMap: React.FC<{ sites: { site: string; region: string; count: number; critical: number; score: number }[] }> = ({ sites }) => {
+  // Deterministic pseudo-positions per site name within a stylized France map box.
+  const hash = (s: string) => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h;
+  };
+  const W = 560, H = 240;
+  return (
+    <div className="relative rounded-xl overflow-hidden border border-[#e7edf5] bg-gradient-to-br from-[#f6f9fd] to-[#eef3fa]" style={{ height: H }}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full block">
+        {/* grid */}
+        <defs>
+          <pattern id="grid-amap" width="28" height="28" patternUnits="userSpaceOnUse">
+            <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#e3eaf5" strokeWidth="0.6" />
+          </pattern>
+        </defs>
+        <rect width={W} height={H} fill="url(#grid-amap)" />
+        {/* stylized country blob */}
+        <path
+          d="M120,40 C200,20 360,28 460,70 C500,110 470,170 410,200 C320,225 200,220 140,180 C90,150 80,80 120,40 Z"
+          fill="#ffffff" stroke="#dbe4f1" strokeWidth="1.2"
+        />
+        {sites.map((s) => {
+          const h = hash(s.site);
+          const x = 130 + (h % 320);
+          const y = 55 + ((h >> 8) % 140);
+          const color = s.critical >= 4 ? "#f43f5e" : s.critical >= 2 ? "#f97316" : "#fbbf24";
+          const r = 6 + Math.min(8, s.score);
+          return (
+            <g key={s.site}>
+              <circle cx={x} cy={y} r={r + 6} fill={color} opacity={0.18}>
+                <animate attributeName="r" values={`${r + 6};${r + 12};${r + 6}`} dur="2.4s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.18;0.05;0.18" dur="2.4s" repeatCount="indefinite" />
+              </circle>
+              <circle cx={x} cy={y} r={r} fill={color} stroke="#fff" strokeWidth="1.6" />
+              <text x={x} y={y + 3} textAnchor="middle" fontSize="9" fontWeight="700" fill="#fff">{s.critical}</text>
+              <text x={x} y={y + r + 11} textAnchor="middle" fontSize="9" fontWeight="600" fill="#475569">{s.site}</text>
+            </g>
+          );
+        })}
+      </svg>
+      <div className="absolute bottom-2 left-2 flex items-center gap-3 rounded-md bg-white/90 backdrop-blur px-2.5 py-1.5 ring-1 ring-[#e7edf5] text-[10px] text-slate-600">
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" /> Critical ≥4</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" /> ≥2</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" /> Low</span>
+      </div>
+      <div className="absolute top-2 right-2 rounded-md bg-white/90 backdrop-blur px-2 py-1 ring-1 ring-[#e7edf5] text-[10px] font-semibold text-slate-700">
+        {sites.length} impacted sites
+      </div>
+    </div>
+  );
+};
+
 export default AlarmCenterPage;
+
