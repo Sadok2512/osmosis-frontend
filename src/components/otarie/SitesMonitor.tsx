@@ -2833,19 +2833,23 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 />
               </div>
 
-              {/* Topology Search builder (embedded — same component as the standalone Topology Search) */}
+              {/* Topology Search builder (embedded — same UI as standalone Topology Search step). */}
               <div>
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-3">Topology Search</label>
                 <div className="rounded-2xl border border-border bg-muted/20 p-5">
-                  <ViewFilterBuilder
-                    mode="embedded"
-                    hideViewName
-                    hideSaveAction
-                    backendFilterDefs={backendFilterDefs}
-                    value={createConditions}
-                    onChange={(conds) => {
-                      setCreateConditions(conds);
-                      setCreateFilters(conditionsToSiteFilters(conds) as DashboardSiteFilters);
+                  <TopoSearchBuilder
+                    value={createTopoPayload}
+                    onChange={(payload) => {
+                      setCreateTopoPayload(payload);
+                      // Mirror the payload into createFilters.topo_search so the
+                      // existing handleCreateDashboardWithFilters pipeline picks it up
+                      // without needing further changes.
+                      setCreateFilters(prev => {
+                        const next = { ...prev } as DashboardSiteFilters;
+                        if (payload) (next as any).topo_search = payload;
+                        else delete (next as any).topo_search;
+                        return next;
+                      });
                     }}
                   />
                 </div>
@@ -2854,7 +2858,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               {/* Buttons */}
               <div className="flex gap-6">
                 <button
-                  onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); setCreateConditions([]); }}
+                  onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); setCreateConditions([]); setCreateTopoPayload(null); }}
                   className="flex-1 py-5 rounded-2xl border border-border text-base font-bold text-muted-foreground hover:bg-muted transition-colors"
                 >
                   Annuler
