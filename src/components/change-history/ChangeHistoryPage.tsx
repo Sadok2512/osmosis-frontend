@@ -478,42 +478,6 @@ const ChangeHistoryPage: React.FC = () => {
               <TimelineChart />
             </div>
 
-            <div className={`${CARD} px-5 py-4`}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[16px] font-semibold text-slate-800">Change Map</h3>
-                <button className="text-[11px] font-medium text-blue-600 hover:text-blue-700">Open full map</button>
-              </div>
-              <div className="relative h-[260px] rounded-xl overflow-hidden bg-gradient-to-br from-sky-50 via-white to-slate-50 ring-1 ring-[#eef2f8]">
-                <svg viewBox="0 0 600 260" className="w-full h-full">
-                  <path d="M120,40 C200,20 320,30 460,60 C500,80 520,140 480,200 C400,240 240,235 160,200 C100,170 80,80 120,40 Z" fill="#e0f2fe" stroke="#bae6fd" />
-                </svg>
-                {[
-                  { x: "18%", y: "35%", n: 12, c: "bg-emerald-500" },
-                  { x: "26%", y: "48%", n: 77, c: "bg-orange-500" },
-                  { x: "35%", y: "62%", n: 15, c: "bg-emerald-500" },
-                  { x: "44%", y: "30%", n: 41, c: "bg-rose-500" },
-                  { x: "52%", y: "70%", n: 67, c: "bg-rose-500" },
-                  { x: "60%", y: "55%", n: 5, c: "bg-emerald-500" },
-                  { x: "68%", y: "40%", n: 8, c: "bg-emerald-500" },
-                  { x: "70%", y: "65%", n: 10, c: "bg-amber-500" },
-                  { x: "74%", y: "30%", n: 9, c: "bg-emerald-500" },
-                ].map((m, i) => (
-                  <div
-                    key={i}
-                    className={`absolute -translate-x-1/2 -translate-y-1/2 ${m.c} text-white text-[11px] font-semibold w-8 h-8 rounded-full flex items-center justify-center shadow-md ring-2 ring-white transition-transform hover:scale-110`}
-                    style={{ left: m.x, top: m.y }}
-                  >
-                    {m.n}
-                  </div>
-                ))}
-                <div className="absolute top-3 right-3 flex flex-col bg-white rounded-lg ring-1 ring-[#e7edf5] shadow-sm">
-                  <button className="px-2 py-1 text-slate-600 hover:bg-slate-50">+</button>
-                  <div className="h-px bg-[#eef2f8]" />
-                  <button className="px-2 py-1 text-slate-600 hover:bg-slate-50">−</button>
-                </div>
-              </div>
-            </div>
-
             <div className={`${CARD} overflow-hidden`}>
               <div className="px-5 py-4 flex items-center justify-between border-b border-[#eef2f8]">
                 <div className="flex items-center gap-3">
