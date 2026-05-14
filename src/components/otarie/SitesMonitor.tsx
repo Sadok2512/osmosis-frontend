@@ -14264,6 +14264,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Dashboard tab ── */}
                <div style={{ display: inventoryTab === 'dashboard' ? 'contents' : 'none' }}>
                 <DashboardInventoryTab
+                  getDashboardStats={(dashboardId) => {
+                    if (dashboardId !== activeDashboardId) return null;
+                    const list = filteredSites;
+                    let cells = 0;
+                    for (const s of list) {
+                      const c = (s as any).cell_count ?? (s as any).nb_cells ?? (Array.isArray((s as any).cells) ? (s as any).cells.length : 0);
+                      cells += Number(c) || 0;
+                    }
+                    return { sites: list.length, cells };
+                  }}
                   onApplyView={(settings) => {
                     // Track view activation
                     if (settings._viewId) {
