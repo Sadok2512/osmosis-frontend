@@ -213,7 +213,6 @@ const ParamLineChart: React.FC = () => {
       <line x1={xs(11)} x2={xs(11)} y1={6} y2={h - 16} stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={1} />
       <text x={xs(11) + 4} y={14} className="fill-slate-500" fontSize="9">Change 21:04</text>
       <path d={path1} stroke="#2563eb" strokeWidth={1.6} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-      <path d={path2} stroke="#10b981" strokeWidth={1.6} fill="none" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 };
