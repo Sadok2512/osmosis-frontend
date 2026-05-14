@@ -281,6 +281,26 @@ const AlarmCenterPage: React.FC = () => {
         ))}
       </div>
 
+      {/* MAP PANEL — visible when Show Map is toggled */}
+      {showMap && (
+        <div className={`${CARD} px-5 py-4 animate-in fade-in duration-300`}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <MapPin size={14} className="text-blue-600" strokeWidth={2} />
+              <span className="text-[14px] font-semibold text-slate-900">Network Alarm Map</span>
+              <span className="text-[11px] text-slate-500 font-medium">— {topSites.length} impacted sites</span>
+            </div>
+            <button
+              onClick={() => setShowMap(false)}
+              className="text-[11px] font-medium text-slate-500 hover:text-slate-700 transition"
+            >
+              Close ✕
+            </button>
+          </div>
+          <SitesMiniMap sites={topSites} />
+        </div>
+      )}
+
       {/* MAIN 3-COL */}
       <div className="grid grid-cols-12 gap-4">
         {/* LEFT — FILTERS */}
