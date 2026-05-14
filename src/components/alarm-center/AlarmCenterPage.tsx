@@ -120,7 +120,7 @@ const AlarmCenterPage: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string>(alarms[0]?.id);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
-  const [showMap, setShowMap] = useState(false);
+  const [showMap, setShowMap] = useState(true);
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const pageSize = 10;
   const [search, setSearch] = useState("");
@@ -403,25 +403,61 @@ const AlarmCenterPage: React.FC = () => {
 
         {/* CENTER */}
         <section className="col-span-7 space-y-4">
-          {/* Density timeline */}
+          {/* Network Explorer : Change History */}
           <div className={`${CARD} px-5 py-4`}>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[14px] font-semibold text-slate-900">Alarm Density Timeline (Today)</span>
-              <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500">
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-amber-400" />Minor</span>
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-orange-500" />Major</span>
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-rose-500" />Critical</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[14px] font-semibold text-slate-900">Network Explorer</span>
+                <span className="text-slate-300">:</span>
+                <span className="text-[13px] font-medium text-slate-600">Change History</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <select className="h-7 rounded-full border border-[#e8edf5] bg-white text-[11px] px-2 text-slate-600">
+                  <option>Last 24h</option><option>Last 7d</option><option>Last 30d</option>
+                </select>
+                <a className="text-[11px] font-medium text-blue-600 hover:text-blue-700 transition cursor-pointer">View all →</a>
               </div>
             </div>
-            <div className="flex items-end gap-[2px] h-24">
-              {Array.from({ length: 96 }).map((_, i) => {
-                const h = 20 + Math.abs(Math.sin(i * 0.4) * 60 + (i > 40 && i < 60 ? 20 : 0));
-                const c = i > 50 && i < 65 ? "bg-rose-500" : i > 35 && i < 70 ? "bg-orange-500" : "bg-amber-400";
-                return <div key={i} className={`flex-1 rounded-[2px] ${c} opacity-90 hover:opacity-100 hover:-translate-y-0.5 transition cursor-pointer`} style={{ height: `${h}%` }} />;
-              })}
-            </div>
-            <div className="flex justify-between text-[10px] font-medium text-slate-400 mt-2 tabular-nums">
-              <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+            <div className="overflow-auto max-h-[260px]">
+              <table className="w-full text-left">
+                <thead className="sticky top-0 bg-[#f9fafc] border-b border-[#eef2f8]">
+                  <tr className="text-[10px] uppercase tracking-[0.06em] text-slate-400">
+                    <th className="px-3 py-2 font-medium">Time</th>
+                    <th className="px-3 py-2 font-medium">Site</th>
+                    <th className="px-3 py-2 font-medium">Cell</th>
+                    <th className="px-3 py-2 font-medium">Change Type</th>
+                    <th className="px-3 py-2 font-medium">User</th>
+                    <th className="px-3 py-2 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[12px]">
+                  {[
+                    { t: "10:42:11", site: "SITE_0013", cell: "CELL_0007", type: "Parameter Update", user: "a.bensaid", status: "Applied" },
+                    { t: "10:18:54", site: "SITE_0026", cell: "CELL_0021", type: "Cell Lock",        user: "n.dupont",  status: "Applied" },
+                    { t: "09:55:02", site: "SITE_0039", cell: "CELL_0044", type: "Neighbor Add",      user: "y.martin",  status: "Pending" },
+                    { t: "09:31:47", site: "SITE_0052", cell: "CELL_0058", type: "Config Push",       user: "s.khelifi", status: "Applied" },
+                    { t: "08:47:22", site: "SITE_0065", cell: "CELL_0066", type: "Cell Unlock",       user: "n.dupont",  status: "Applied" },
+                    { t: "08:12:09", site: "SITE_0013", cell: "CELL_0008", type: "Antenna Tilt",      user: "a.bensaid", status: "Rolled Back" },
+                    { t: "07:58:33", site: "SITE_0039", cell: "CELL_0045", type: "PCI Change",        user: "y.martin",  status: "Applied" },
+                    { t: "07:24:01", site: "SITE_0026", cell: "CELL_0022", type: "Power Adjustment",  user: "s.khelifi", status: "Applied" },
+                  ].map((c, i) => {
+                    const sStyle =
+                      c.status === "Applied" ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                      : c.status === "Pending" ? "bg-amber-50 text-amber-700 ring-amber-100"
+                      : "bg-rose-50 text-rose-700 ring-rose-100";
+                    return (
+                      <tr key={i} className="border-b border-[#f1f5fb] hover:bg-[#f9fbfe] transition">
+                        <td className="px-3 py-2 text-slate-500 tabular-nums">{c.t}</td>
+                        <td className="px-3 py-2 font-medium text-slate-800 tabular-nums">{c.site}</td>
+                        <td className="px-3 py-2 text-slate-600 tabular-nums">{c.cell}</td>
+                        <td className="px-3 py-2 text-slate-700">{c.type}</td>
+                        <td className="px-3 py-2 text-slate-500">{c.user}</td>
+                        <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded-full ring-1 text-[10px] font-semibold ${sStyle}`}>{c.status}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
