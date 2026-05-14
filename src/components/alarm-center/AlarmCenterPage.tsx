@@ -116,6 +116,7 @@ const AlarmCenterPage: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string>(alarms[0]?.id);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
+  const [showMap, setShowMap] = useState(false);
   const pageSize = 10;
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState({
