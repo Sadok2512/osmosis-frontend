@@ -1114,18 +1114,19 @@ export const topoApi = {
     const col = TOPO_COL_MAP[dimension.toLowerCase()];
     if (!col) return vpsValues;
     try {
-      let q = supabase.from('topo').select(col).not(col, 'is', null).limit(5000);
-      if (opts?.search) q = q.ilike(col, `%${opts.search}%`);
-      const { data: rows, error } = await q;
-      if (error || !rows) return vpsValues;
-      const set = new Set<string>();
+      const { data: rows, error } = await (supabase as any).rpc('topo_distinct_values', {
+        p_col: col,
+        p_search: opts?.search || null,
+        p_limit: opts?.limit && opts.limit > 0 ? opts.limit : 10000,
+      });
+      if (error || !Array.isArray(rows)) return vpsValues;
+      const out: string[] = [];
       for (const r of rows as any[]) {
-        const v = r?.[col];
+        const v = r?.value;
         if (v === null || v === undefined || v === '') continue;
-        set.add(String(v));
+        out.push(String(v));
       }
-      const out = Array.from(set).sort();
-      return opts?.limit && opts.limit > 0 ? out.slice(0, opts.limit) : out;
+      return out;
     } catch {
       return vpsValues;
     }
