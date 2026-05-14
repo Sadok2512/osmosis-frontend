@@ -2507,7 +2507,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       });
       setNewDashName('');
       setShowCreateDash(false);
-      setCreateFilters({});
+      setCreateFilters({}); setCreateConditions([]);
       await fetchAll();
       setExpandedDashboardId(id);
       // Auto-activate newly created dashboard
@@ -2802,7 +2802,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
       {/* Create dashboard popup */}
       {showCreateDash && (
-        <Dialog open={true} onOpenChange={(open) => { if (!open) { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); } }}>
+        <Dialog open={true} onOpenChange={(open) => { if (!open) { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); setCreateConditions([]); } }}>
           <DialogContent className="sm:max-w-[1100px] w-[95vw] max-h-[92vh] overflow-visible p-0 gap-0 flex flex-col">
             <DialogHeader className="px-12 pt-12 pb-6 shrink-0">
               <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
@@ -2849,7 +2849,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               {/* Buttons */}
               <div className="flex gap-6">
                 <button
-                  onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); }}
+                  onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); setCreateConditions([]); }}
                   className="flex-1 py-5 rounded-2xl border border-border text-base font-bold text-muted-foreground hover:bg-muted transition-colors"
                 >
                   Annuler
