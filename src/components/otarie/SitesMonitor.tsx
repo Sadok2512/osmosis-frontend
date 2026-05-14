@@ -3181,7 +3181,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 {/* Save/Load/Close + Nested views tree */}
                 {isExpanded && (
                   <div className="px-3 pt-1.5">
-                    <div className="grid grid-cols-2 gap-1.5 mb-2">
+                    <div className="grid grid-cols-3 gap-1.5 mb-2">
                       <button
                         onClick={async () => {
                           if (!onSaveDashboard) return;
@@ -3194,6 +3194,26 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                       >
                         {isSaving ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
                         <span className="uppercase tracking-wider">{savedDashboardId === db.id ? 'Sauvegardé' : 'Save'}</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (isActive) {
+                            onActiveDashboardIdChange(null);
+                            onActiveViewIdChange(null);
+                            onDashboardActiveChange?.(false, null, null);
+                          } else {
+                            activateDashboard(db.id);
+                          }
+                        }}
+                        className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border ${
+                          isActive
+                            ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15'
+                            : 'border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted'
+                        }`}
+                        title={isActive ? 'Masquer les sites sur la carte' : 'Afficher les sites sur la carte'}
+                      >
+                        {isActive ? <Eye size={12} /> : <EyeOff size={12} />}
+                        <span className="uppercase tracking-wider">{isActive ? 'Actif' : 'Activer'}</span>
                       </button>
                       <button
                         onClick={(e) => {
