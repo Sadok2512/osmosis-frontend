@@ -2828,14 +2828,23 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 />
               </div>
 
-              {/* Progressive filter builder */}
-              {filterDimensions.length > 0 && (
-                <ProgressiveFilterBuilder
-                  dimensions={filterDimensions}
-                  filters={createFilters}
-                  onChange={setCreateFilters}
-                />
-              )}
+              {/* Topology Search builder (embedded — same component as the standalone Topology Search) */}
+              <div>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-3">Topology Search</label>
+                <div className="rounded-2xl border border-border bg-muted/20 p-5">
+                  <ViewFilterBuilder
+                    mode="embedded"
+                    hideViewName
+                    hideSaveAction
+                    backendFilterDefs={backendFilterDefs}
+                    value={createConditions}
+                    onChange={(conds) => {
+                      setCreateConditions(conds);
+                      setCreateFilters(conditionsToSiteFilters(conds) as DashboardSiteFilters);
+                    }}
+                  />
+                </div>
+              </div>
 
               {/* Buttons */}
               <div className="flex gap-6">
