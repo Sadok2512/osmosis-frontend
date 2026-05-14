@@ -1341,10 +1341,10 @@ const SEV_STYLES: Record<Severity, {
 };
 
 const STATUS_STYLES: Record<ResultStatus, { dot: string; chip: string; label: string }> = {
-  open:          { dot: 'bg-rose-500',    chip: 'bg-rose-50 text-rose-700',         label: 'OPEN' },
-  acknowledged:  { dot: 'bg-amber-500',   chip: 'bg-amber-50 text-amber-700',       label: 'ACK' },
-  resolved:      { dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700',   label: 'RESOLVED' },
-  ignored:       { dot: 'bg-slate-400',   chip: 'bg-slate-100 text-slate-600',      label: 'IGNORED' },
+  open:          { dot: 'bg-pink-500',    chip: 'bg-pink-50 text-pink-700 ring-1 ring-pink-200',          label: 'OPEN' },
+  acknowledged:  { dot: 'bg-slate-400',   chip: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200',      label: 'PENDING' },
+  resolved:      { dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200', label: 'CLOSED' },
+  ignored:       { dot: 'bg-slate-400',   chip: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200',      label: 'PENDING' },
 };
 
 function ResultsTable({
@@ -1513,59 +1513,120 @@ function ResultsTable({
         </div>
       )}
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-auto">
-          <table className="w-full min-w-[1280px] border-separate border-spacing-0 text-sm">
-            <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
-              <tr className="text-[11px] text-slate-500">
-                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">
-                  <input
-                    type="checkbox"
-                    className="h-3.5 w-3.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                    checked={results.length > 0 && selected.length === results.length}
-                    onChange={toggleAll}
-                  />
-                </th>
-                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Time</th>
-                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Severity</th>
-                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Hierarchy</th>
-                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">NE</th>
-                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">KPI</th>
-                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Value vs threshold</th>
-                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Occurrences</th>
-                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Insights</th>
-                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Status</th>
-                <th className="border-b border-slate-200 px-3 py-2.5 text-right font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="px-6 py-16 text-center">
-                    <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                      <Activity className="h-5 w-5" />
-                    </div>
-                    <p className="text-[13px] font-medium text-slate-700">No detection results</p>
-                    <p className="mt-1 text-[12px] text-slate-500">Run a detector or wait for the next scheduled tick.</p>
-                  </td>
-                </tr>
-              ) : results.map(r => (
-                <ResultRow
-                  key={r.id}
-                  r={r}
-                  alias={aliasByCode.get(r.kpiCode) || r.kpiCode}
-                  kpiColor={colorByCode.get(r.kpiCode) || KPI_PALETTE[0]}
-                  occurrences={stats.occByCode.get(r.kpiCode) || 1}
-                  selected={selected.includes(r.id)}
-                  onToggle={() => toggle(r.id)}
-                  onStatus={(s) => onStatus([r.id], s)}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Table — grouped by NE, KPIs as columns (telecom OSS layout) */}
+      {(() => {
+        const sortedCodes = Array.from(aliasByCode.keys());
+        const kpiColumnCodes = sortedCodes.slice(0, 4);
+
+        // Group results by NE (cellCode || siteCode || neName).
+        type Group = {
+          neKey: string;
+          neLabel: string;
+          neSub: string;
+          plaqueCode: string;
+          hierSub: string;
+          severity: Severity;
+          status: ResultStatus;
+          detectedAt: string;
+          ids: string[];
+          byKpi: Map<string, { value: number; occ: number }>;
+          totalOcc: number;
+        };
+        const groupsMap = new Map<string, Group>();
+        const sevRank: Record<Severity, number> = { critical: 3, major: 2, minor: 1 };
+        for (const r of results) {
+          const neKey = r.cellCode || r.siteCode || r.neName || r.id;
+          let g = groupsMap.get(neKey);
+          if (!g) {
+            g = {
+              neKey,
+              neLabel: r.cellCode || r.siteCode || r.neName || '—',
+              neSub: [r.technology, r.vendor].filter(Boolean).join(' · ') || '—',
+              plaqueCode: r.plaqueCode || '—',
+              hierSub: [r.countryCode, r.departmentCode, r.dorCode].filter(Boolean).join(' / ') || '—',
+              severity: r.severity,
+              status: r.status,
+              detectedAt: r.detectedAt,
+              ids: [],
+              byKpi: new Map(),
+              totalOcc: 0,
+            };
+            groupsMap.set(neKey, g);
+          }
+          g.ids.push(r.id);
+          if (sevRank[r.severity] > sevRank[g.severity]) g.severity = r.severity;
+          if (new Date(r.detectedAt).getTime() > new Date(g.detectedAt).getTime()) g.detectedAt = r.detectedAt;
+          const prev = g.byKpi.get(r.kpiCode);
+          g.byKpi.set(r.kpiCode, {
+            value: r.currentValue,
+            occ: (prev?.occ || 0) + 1,
+          });
+          g.totalOcc += 1;
+        }
+        const groups = Array.from(groupsMap.values());
+        const colCount = 6 + kpiColumnCodes.length + 2; // checkbox+time+sev+hier+ne + kpis + occ+status
+
+        return (
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="overflow-auto">
+              <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-[13px]">
+                <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
+                  <tr className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                    <th className="border-b border-slate-200 px-3 py-2 text-left">
+                      <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                        checked={results.length > 0 && selected.length === results.length}
+                        onChange={toggleAll}
+                      />
+                    </th>
+                    <th className="border-b border-slate-200 px-3 py-2 text-left font-medium">Time</th>
+                    <th className="border-b border-slate-200 px-3 py-2 text-left font-medium">Severity</th>
+                    <th className="border-b border-slate-200 px-3 py-2 text-left font-medium">Hierarchy</th>
+                    <th className="border-b border-slate-200 px-3 py-2 text-left font-medium">NE</th>
+                    {kpiColumnCodes.map((code, i) => (
+                      <th
+                        key={code}
+                        className="w-[180px] border-b border-l border-slate-200 px-3 py-2 text-left font-medium"
+                      >
+                        KPI {i + 1}
+                      </th>
+                    ))}
+                    <th className="border-b border-l border-slate-200 px-3 py-2 text-right font-medium">Occ.</th>
+                    <th className="border-b border-slate-200 px-3 py-2 text-left font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groups.length === 0 ? (
+                    <tr>
+                      <td colSpan={colCount} className="px-6 py-16 text-center">
+                        <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                          <Activity className="h-5 w-5" />
+                        </div>
+                        <p className="text-[13px] font-medium text-slate-700">No detection results</p>
+                        <p className="mt-1 text-[12px] text-slate-500">Run a detector or wait for the next scheduled tick.</p>
+                      </td>
+                    </tr>
+                  ) : groups.map(g => (
+                    <ResultRow
+                      key={g.neKey}
+                      group={g}
+                      kpiColumnCodes={kpiColumnCodes}
+                      selected={g.ids.every(id => selected.includes(id))}
+                      onToggle={() => {
+                        const allSelected = g.ids.every(id => selected.includes(id));
+                        if (allSelected) setSelected(selected.filter(x => !g.ids.includes(x)));
+                        else setSelected(Array.from(new Set([...selected, ...g.ids])));
+                      }}
+                      onStatus={(s) => onStatus(g.ids, s)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -1600,62 +1661,32 @@ function SummaryCard({ icon, label, value, tone, footer }: {
 }
 
 function ResultRow({
-  r, alias, kpiColor, occurrences, selected, onToggle, onStatus,
+  group, kpiColumnCodes, selected, onToggle, onStatus,
 }: {
-  r: DetectionResult;
-  alias: string;
-  kpiColor: typeof KPI_PALETTE[0];
-  occurrences: number;
+  group: {
+    neKey: string;
+    neLabel: string;
+    neSub: string;
+    plaqueCode: string;
+    hierSub: string;
+    severity: Severity;
+    status: ResultStatus;
+    detectedAt: string;
+    ids: string[];
+    byKpi: Map<string, { value: number; occ: number }>;
+    totalOcc: number;
+  };
+  kpiColumnCodes: string[];
   selected: boolean;
   onToggle: () => void;
   onStatus: (s: ResultStatus) => void;
 }) {
-  // Defensive lookups: a stale row from localStorage / an unexpected enum
-  // value from the backend (lowercase mismatch, new tier) would otherwise
-  // crash the whole table — fall back to the most benign tier so the row
-  // still renders, just without the loud accent.
-  const sev = SEV_STYLES[r.severity] || SEV_STYLES.minor;
-  const sts = STATUS_STYLES[r.status] || STATUS_STYLES.open;
-  const dp = deltaPct(r.currentValue, r.threshold);
-  const freq = frequencyTag(occurrences);
-  const FreqIcon = freq.glyph;
-
-  // Bar shows where current value lies relative to the threshold.
-  // Threshold sits at 50%; value bar extends from threshold based on |delta|.
-  const barFill = dp !== null ? Math.min(95, Math.abs(dp)) : 50;
-  const barAbove = dp !== null && dp > 0;
-  const breachExceeded = r.currentValue > r.threshold; // assumes lower_is_better KPIs
-
-  // "Force du signal" — backend `evidence_score` from kpi.ml_anomalies
-  // (Mary's formula: 40·sev + 35·z + 25·recurrence). NULL when ingredients
-  // missing → UI shows "—". NEVER labelled "Confidence" to avoid implying
-  // a probabilistic model (project invariant `no_plausible_on_failure`).
-  const evidenceScore: number | null = (
-    r.evidenceScore !== undefined && r.evidenceScore !== null && Number.isFinite(Number(r.evidenceScore))
-      ? Number(r.evidenceScore)
-      : null
-  );
-  // Impact heuristic: severity + occurrence count
-  const impactScore = (r.severity === 'critical' ? 3 : r.severity === 'major' ? 2 : 1) + Math.min(3, Math.floor(occurrences / 4));
-  const impact: 'Low' | 'Medium' | 'High' | 'Severe' =
-    impactScore >= 6 ? 'Severe' : impactScore >= 4 ? 'High' : impactScore >= 3 ? 'Medium' : 'Low';
-  const impactTone: Record<string, string> = {
-    Low:    'text-slate-600',
-    Medium: 'text-amber-700',
-    High:   'text-orange-700',
-    Severe: 'text-rose-700',
-  };
-  // Trend: up if delta+ and occurrences ≥ 3, down if delta-, flat otherwise
-  const trend: 'up' | 'down' | 'flat' = (dp !== null && occurrences >= 3 && dp > 0) ? 'up' : (dp !== null && dp < 0 ? 'down' : 'flat');
-  const TrendIcon = trend === 'up' ? ArrowUp : trend === 'down' ? ArrowDown : Minus;
-  const trendTone = trend === 'up' ? 'text-rose-600' : trend === 'down' ? 'text-emerald-600' : 'text-slate-400';
+  const sev = SEV_STYLES[group.severity] || SEV_STYLES.minor;
+  const sts = STATUS_STYLES[group.status] || STATUS_STYLES.open;
 
   return (
-    <tr className={cn(
-      'group transition-all hover:bg-teal-50/30',
-      sev.rowAccent,
-    )}>
-      <td className="border-b border-slate-100 px-3 py-3 align-middle">
+    <tr className="group transition-colors hover:bg-slate-50/60">
+      <td className="border-b border-slate-100 px-3 py-2 align-middle">
         <input
           type="checkbox"
           className="h-3.5 w-3.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
@@ -1663,135 +1694,57 @@ function ResultRow({
           onChange={onToggle}
         />
       </td>
-      <td className="border-b border-slate-100 px-3 py-3 align-middle">
-        <div className="flex items-center gap-1.5 text-[12px] text-slate-700">
-          <Clock className="h-3 w-3 text-slate-400" />
-          <span>{formatDate(r.detectedAt)}</span>
-        </div>
+      <td className="border-b border-slate-100 px-3 py-2 align-middle text-[12px] font-normal text-slate-600 tabular-nums">
+        {formatDate(group.detectedAt)}
       </td>
-      <td className="border-b border-slate-100 px-3 py-3 align-middle">
+      <td className="border-b border-slate-100 px-3 py-2 align-middle">
         <span className={cn(
-          'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider',
+          'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide',
           sev.pill,
         )}>
-          {sev.icon}
           {sev.label}
         </span>
       </td>
-      <td className="border-b border-slate-100 px-3 py-3 align-middle">
-        <div className="flex flex-col gap-0.5 text-[11px] leading-tight">
-          <span className="font-medium text-slate-700">{r.plaqueCode || '—'}</span>
-          <span className="font-mono text-[10px] text-slate-400">
-            {[r.countryCode, r.departmentCode, r.dorCode].filter(Boolean).join(' / ') || '—'}
-          </span>
-        </div>
-      </td>
-      <td className="border-b border-slate-100 px-3 py-3 align-middle">
+      <td className="border-b border-slate-100 px-3 py-2 align-middle">
         <div className="leading-tight">
-          <p className="font-mono text-[12px] font-medium text-slate-800">
-            {r.cellCode || r.siteCode || r.neName || '—'}
-          </p>
-          <p className="text-[10px] text-slate-400">{[r.technology, r.vendor].filter(Boolean).join(' · ') || '—'}</p>
+          <p className="text-[12px] font-normal text-slate-700">{group.plaqueCode}</p>
+          <p className="font-mono text-[10px] text-slate-400">{group.hierSub}</p>
         </div>
       </td>
-      <td className="border-b border-slate-100 px-3 py-3 align-middle">
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-sm ring-1',
-            kpiColor.chip,
-            kpiColor.ring,
-            kpiColor.glow,
-          )}
-          title={r.kpiCode}
-        >
-          <span className={cn('h-1.5 w-1.5 rounded-full', kpiColor.dot)} />
-          {alias}
-        </span>
+      <td className="border-b border-slate-100 px-3 py-2 align-middle">
+        <div className="leading-tight">
+          <p className="font-mono text-[12px] font-medium text-slate-800">{group.neLabel}</p>
+          <p className="text-[10px] font-normal text-slate-400">{group.neSub}</p>
+        </div>
       </td>
-      <td className="border-b border-slate-100 px-3 py-3 align-middle">
-        <div className="min-w-[180px]">
-          <div className="flex items-baseline gap-1.5">
-            <span className={cn('text-[14px] font-bold tabular-nums', breachExceeded ? 'text-rose-700' : 'text-slate-800')}>
-              {Number.isFinite(r.currentValue) ? r.currentValue.toLocaleString() : '—'}
-            </span>
-            {dp !== null && (
-              <span className={cn(
-                'text-[10px] font-bold tabular-nums',
-                dp > 0 ? 'text-rose-600' : dp < 0 ? 'text-emerald-600' : 'text-slate-400',
-              )}>
-                {dp > 0 ? '+' : ''}{dp.toFixed(0)}%
-              </span>
+      {kpiColumnCodes.map(code => {
+        const cell = group.byKpi.get(code);
+        return (
+          <td key={code} className="w-[180px] border-b border-l border-slate-100 px-3 py-2 align-middle">
+            {cell ? (
+              <div className="leading-tight">
+                <p className="truncate font-mono text-[11px] font-medium text-slate-700" title={code}>
+                  {code}
+                </p>
+                <p className="mt-0.5 text-[10px] font-normal text-slate-400">{cell.occ} occ</p>
+                <p className="mt-0.5 text-[12px] font-medium tabular-nums text-slate-800">
+                  {Number.isFinite(cell.value) ? cell.value.toFixed(4) : '—'}
+                </p>
+              </div>
+            ) : (
+              <span className="text-[12px] font-light text-slate-300">—</span>
             )}
-          </div>
-          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-            <div
-              className={cn(
-                'h-full rounded-full transition-all',
-                barAbove ? 'bg-gradient-to-r from-rose-400 to-rose-500' : 'bg-gradient-to-r from-emerald-400 to-emerald-500',
-              )}
-              style={{ width: `${barFill}%` }}
-            />
-          </div>
-          <p className="mt-1 text-[10px] text-slate-400">Threshold &lt; {r.threshold}</p>
-        </div>
+          </td>
+        );
+      })}
+      <td className="border-b border-l border-slate-100 px-3 py-2 align-middle text-right text-[13px] font-medium tabular-nums text-slate-800">
+        {group.totalOcc}
       </td>
-      <td className="border-b border-slate-100 px-3 py-3 align-middle">
-        <div className="flex items-center gap-2">
-          <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', freq.cls)}>
-            <FreqIcon className="h-2.5 w-2.5" />
-            {freq.label}
-          </span>
-          <span className="text-[13px] font-bold tabular-nums text-slate-800">{occurrences}</span>
-          <TrendIcon className={cn('h-3 w-3', trendTone)} />
-        </div>
-        {/* mini occurrence heat dots */}
-        <div className="mt-1.5 flex items-center gap-[2px]">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <span
-              key={i}
-              className={cn(
-                'h-1.5 w-1.5 rounded-sm',
-                i < Math.min(10, occurrences)
-                  ? (occurrences >= 8 ? 'bg-rose-400' : occurrences >= 4 ? 'bg-amber-400' : 'bg-emerald-400')
-                  : 'bg-slate-100',
-              )}
-            />
-          ))}
-        </div>
-      </td>
-      <td className="border-b border-slate-100 px-3 py-3 align-middle">
-        <div className="space-y-0.5 leading-tight">
-          <p className="text-[11px]" title="Sévérité × écart statistique × récurrence 7j. Pas une probabilité.">
-            <span className="text-slate-400">Force du signal</span>{' '}
-            <span className="font-semibold text-slate-700">
-              {evidenceScore !== null ? `${evidenceScore.toFixed(0)}/100` : '—'}
-            </span>
-          </p>
-          <p className="text-[11px]">
-            <span className="text-slate-400">Impact</span>{' '}
-            <span className={cn('font-semibold', impactTone[impact])}>{impact}</span>
-          </p>
-          <p className="text-[11px]">
-            <span className="text-slate-400">Trend</span>{' '}
-            <span className={cn('font-semibold', trendTone)}>
-              {trend === 'up' ? 'Increasing' : trend === 'down' ? 'Recovering' : 'Stable'}
-            </span>
-          </p>
-        </div>
-      </td>
-      <td className="border-b border-slate-100 px-3 py-3 align-middle">
-        <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider', sts.chip)}>
+      <td className="border-b border-slate-100 px-3 py-2 align-middle">
+        <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide', sts.chip)}>
           <span className={cn('h-1.5 w-1.5 rounded-full', sts.dot)} />
           {sts.label}
         </span>
-      </td>
-      <td className="border-b border-slate-100 px-3 py-3 align-middle text-right">
-        <div className="inline-flex items-center gap-1.5 opacity-90 group-hover:opacity-100">
-          <ResultActionButton icon={<Eye className="h-3 w-3" />} onClick={() => {}}>RCA</ResultActionButton>
-          <ResultActionButton icon={<TrendingUp className="h-3 w-3" />} onClick={() => {}}>Analyze</ResultActionButton>
-          <ResultActionButton icon={<CheckCircle2 className="h-3 w-3" />} tone="emerald" onClick={() => onStatus('resolved')}>Validate</ResultActionButton>
-          <ResultActionButton icon={<XCircle className="h-3 w-3" />} tone="slate" onClick={() => onStatus('ignored')}>Ignore</ResultActionButton>
-        </div>
       </td>
     </tr>
   );
