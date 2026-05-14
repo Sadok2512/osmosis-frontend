@@ -159,7 +159,7 @@ function buildQs(p: ListAlarmsParams): string {
 
 async function _get<T>(path: string): Promise<T> {
   const url = getApiUrl(`alarms${path}`);
-  const r = await fetch(url, { headers: getApiHeaders(), credentials: 'include' });
+  const r = await fetch(url, { headers: getApiHeaders() });
   if (!r.ok) throw new Error(`GET ${url} failed (${r.status})`);
   return r.json() as Promise<T>;
 }
