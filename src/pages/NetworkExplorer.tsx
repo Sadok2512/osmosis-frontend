@@ -68,7 +68,6 @@ const navItems = [
   { label: "Parameter Hub", icon: SlidersHorizontal },
   { label: "Neighbors", icon: GitBranch },
   { label: "Change History", icon: History },
-  { label: "Alarms", icon: Bell },
   { label: "Architecture View", icon: Layers3 },
 ];
 
