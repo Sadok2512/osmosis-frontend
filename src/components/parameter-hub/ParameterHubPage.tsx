@@ -501,29 +501,7 @@ const ParameterHubPage: React.FC = () => {
             </div>
           )}
 
-          {activeModule === 'alarms' && (
-            <div className="rounded-2xl bg-white border border-slate-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_12px_32px_-12px_rgba(15,23,42,0.10)] overflow-hidden">
-              <div className="px-7 pt-6 pb-5 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Bell className="w-4 h-4 text-teal-600" />
-                  <h2 className="text-base font-semibold text-slate-800">Alarms</h2>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Monitor active alerts and anomalies on sites and cells.
-                </p>
-              </div>
-              <div className="px-6 py-24 bg-gradient-to-b from-white to-slate-50/40 min-h-[520px] flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center mb-4">
-                  <Bell className="w-7 h-7 text-teal-600/70" />
-                </div>
-                <p className="text-sm font-semibold text-slate-600">Alarms — coming soon</p>
-                <p className="text-xs mt-1.5 text-slate-400 max-w-sm">
-                  This module will list severity-coded alarms (active/resolved), affected elements,
-                  filters by severity/region/time, and per-alarm sparklines.
-                </p>
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
     </div>
