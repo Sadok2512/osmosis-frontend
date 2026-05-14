@@ -236,6 +236,8 @@ const Index: React.FC = () => {
         return <PmDashboardPage />;
       case 'parameters':
         return <ParametersPage />;
+      case 'alarm_center':
+        return <AlarmCenterPage />;
       case 'agent_hub':
         return <AgentHubPage onNavigate={setActiveTab} />;
       case 'sentinel':
