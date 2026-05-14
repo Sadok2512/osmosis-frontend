@@ -553,7 +553,6 @@ const AlarmCenterPage: React.FC = () => {
                   ))}
                 </tbody>
               </table>
-              )}
             </div>
             <div className={`${CARD} px-5 py-4`}>
               <span className="text-[14px] font-semibold text-slate-900">Alarm Distribution</span>
