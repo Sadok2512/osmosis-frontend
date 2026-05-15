@@ -87,7 +87,7 @@ const rcaDot: Record<RcaStatus, string> = {
 interface KpiDef { label: string; value: string; delta: string; tone: string; icon: React.ReactNode; spark: string; }
 
 const KPIS: KpiDef[] = [
-  { label: 'Open Tickets',    value: '1,248', delta: '+12% vs yesterday', tone: 'text-blue-600',    icon: <Ticket className="w-4 h-4" />,        spark: 'M0 18 L10 12 L20 14 L30 6 L40 10 L50 4 L60 8 L70 2' },
+  { label: 'Open Tickets',    value: '1,248', delta: '+12% vs yesterday', tone: 'text-blue-600',    icon: <TicketIcon className="w-4 h-4" />,        spark: 'M0 18 L10 12 L20 14 L30 6 L40 10 L50 4 L60 8 L70 2' },
   { label: 'Critical Tickets',value: '327',   delta: '+8% vs yesterday',  tone: 'text-rose-600',    icon: <AlertTriangle className="w-4 h-4" />, spark: 'M0 14 L10 10 L20 16 L30 6 L40 12 L50 8 L60 14 L70 4' },
   { label: 'SLA Breached',    value: '42',    delta: '+5% vs yesterday',  tone: 'text-orange-600',  icon: <Clock className="w-4 h-4" />,         spark: 'M0 6 L10 14 L20 8 L30 12 L40 4 L50 10 L60 6 L70 14' },
   { label: 'Assigned to Me',  value: '18',    delta: '-3% vs yesterday',  tone: 'text-amber-600',   icon: <UserCheck className="w-4 h-4" />,     spark: 'M0 10 L10 6 L20 12 L30 8 L40 14 L50 6 L60 10 L70 8' },
@@ -443,12 +443,5 @@ const TicketManagementPage: React.FC = () => {
   );
 };
 
-/* Local icons not imported above to keep one import block */
-const Bell: React.FC<{ className?: string }> = ({ className }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-);
-const Settings2: React.FC<{ className?: string }> = ({ className }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
-);
 
 export default TicketManagementPage;
