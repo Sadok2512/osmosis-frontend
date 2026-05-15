@@ -509,7 +509,10 @@ const NetworkExplorer = () => {
           <ParameterHubPage />
         ) : (
         <>
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9">
+        <section
+          className="grid gap-3"
+          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}
+        >
           {kpis.map(({ label, value, icon: Icon, hint }) => (
             <article key={label} className="rounded-xl border border-white/85 bg-white/80 p-4 shadow-[0_14px_40px_rgba(15,23,42,0.06)] backdrop-blur transition hover:-translate-y-0.5 hover:shadow-[0_18px_48px_rgba(15,118,110,0.12)]">
               <div className="mb-3 flex items-center justify-between">
