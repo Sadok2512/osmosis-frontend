@@ -2560,6 +2560,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       // Auto-activate newly created dashboard
       onActiveDashboardIdChange(id);
       onDashboardActiveChange?.(true, finalScope, cleanFilters);
+      try { window.dispatchEvent(new CustomEvent('osmosis:dashboards-changed')); } catch {}
+      try { window.dispatchEvent(new CustomEvent('osmosis:active-dashboard-changed')); } catch {}
     } catch (err) { console.warn('[SitesMonitor] createDashboard failed', err); }
     setCreatingDash(false);
   };
@@ -2580,6 +2582,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setShowDeleteConfirm(null);
     // Stay on the Dashboard tab after deletion
     try { window.dispatchEvent(new CustomEvent('osmosis:force-dashboard-tab')); } catch {}
+    try { window.dispatchEvent(new CustomEvent('osmosis:dashboards-changed')); } catch {}
   };
 
   const handlePermanentDeleteDashboard = async (dbId: string) => {
@@ -2594,6 +2597,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setShowDeleteConfirm(null);
     // Stay on the Dashboard tab after deletion
     try { window.dispatchEvent(new CustomEvent('osmosis:force-dashboard-tab')); } catch {}
+    try { window.dispatchEvent(new CustomEvent('osmosis:dashboards-changed')); } catch {}
   };
 
   const openLoadPicker = async () => {
@@ -5747,6 +5751,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setActiveDashboardId(dbId);
     setShowDashboardDropdown(false);
   }, [dashboardList, sectorColorMode]);
+
+  // Listen for sidebar-driven dashboard activation
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent).detail?.id;
+      if (!id) return;
+      try { loadDashboardSettings(id); } catch (err) { console.warn('[SitesMonitor] activate-dashboard failed', err); }
+      setInventoryTab('dashboard');
+    };
+    window.addEventListener('osmosis:activate-dashboard', handler);
+    return () => window.removeEventListener('osmosis:activate-dashboard', handler);
+  }, [loadDashboardSettings]);
 
   // Coverage simulation state
   const [showCoverageSim, setShowCoverageSim] = useState(false);

@@ -12,6 +12,7 @@ import {
 import { clearSession } from '@/services/adminAuth';
 import { useNavigate } from 'react-router-dom';
 import { Filters, AppTab } from '../../types';
+import { dashboardsApi } from '@/lib/localDb';
 
 interface SidebarProps {
   filters: Filters;
@@ -95,6 +96,42 @@ const AppSidebar: React.FC<SidebarProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  // ── Dashboards (Sites Monitor) listed under "Live Monitor Map" ──
+  const [mapDashboards, setMapDashboards] = useState<Array<{ id: string; name: string }>>([]);
+  const [activeDashboardId, setActiveDashboardIdState] = useState<string | null>(() => {
+    try { return localStorage.getItem('osmosis_active_dashboard_id') || null; } catch { return null; }
+  });
+  const [dashboardsExpanded, setDashboardsExpanded] = useState(true);
+
+  const refreshDashboards = useCallback(async () => {
+    try {
+      const list = await dashboardsApi.list();
+      if (Array.isArray(list)) {
+        const items = list
+          .filter((d: any) => !d?.is_archived && (d?.dashboard_type === 'map' || !d?.dashboard_type))
+          .map((d: any) => ({ id: String(d.id), name: String(d.name || 'Untitled') }));
+        setMapDashboards(items);
+      }
+    } catch (err) { console.warn('[AppSidebar] dashboards refresh failed', err); }
+  }, []);
+
+  useEffect(() => {
+    refreshDashboards();
+    const onChange = () => refreshDashboards();
+    const onActiveChange = () => {
+      try { setActiveDashboardIdState(localStorage.getItem('osmosis_active_dashboard_id') || null); } catch {}
+    };
+    window.addEventListener('osmosis:dashboards-changed', onChange);
+    window.addEventListener('osmosis:active-dashboard-changed', onActiveChange);
+    window.addEventListener('storage', onActiveChange);
+    return () => {
+      window.removeEventListener('osmosis:dashboards-changed', onChange);
+      window.removeEventListener('osmosis:active-dashboard-changed', onActiveChange);
+      window.removeEventListener('storage', onActiveChange);
+    };
+  }, [refreshDashboards]);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -168,8 +205,8 @@ const AppSidebar: React.FC<SidebarProps> = ({
               <div className="mx-2 mb-1 h-px bg-sidebar-border/60" />
             )}
             {isOpen && group.items.map((item) => (
+              <React.Fragment key={item.id}>
               <button
-                key={item.id}
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center rounded-xl transition-all text-left group relative ${isCollapsed ? 'justify-center p-3 h-12' : 'gap-3 px-3 py-2.5 h-12'} ${
                   activeTab === item.id
@@ -182,8 +219,48 @@ const AppSidebar: React.FC<SidebarProps> = ({
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full bg-sidebar-primary-foreground/60" />
                 )}
                 <span className={activeTab === item.id ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground group-hover:text-sidebar-primary'}>{item.icon}</span>
-                {!isCollapsed && <span className="text-[13px] font-medium tracking-tight">{item.label}</span>}
+                {!isCollapsed && <span className="text-[13px] font-medium tracking-tight flex-1">{item.label}</span>}
+                {!isCollapsed && item.id === 'list' && mapDashboards.length > 0 && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); setDashboardsExpanded(v => !v); }}
+                    className="p-0.5 rounded hover:bg-sidebar-accent/40"
+                    title={dashboardsExpanded ? 'Collapse dashboards' : 'Expand dashboards'}
+                  >
+                    <ChevronDown size={12} className={`transition-transform ${dashboardsExpanded ? '' : '-rotate-90'}`} />
+                  </span>
+                )}
               </button>
+              {!isCollapsed && item.id === 'list' && dashboardsExpanded && mapDashboards.length > 0 && (
+                <div className="ml-6 mt-1 mb-1 space-y-0.5 border-l border-sidebar-border/60 pl-2">
+                  {mapDashboards.map(db => {
+                    const isActiveDb = db.id === activeDashboardId && activeTab === 'list';
+                    return (
+                      <button
+                        key={db.id}
+                        onClick={() => {
+                          try { localStorage.setItem('osmosis_active_dashboard_id', db.id); } catch {}
+                          setActiveDashboardIdState(db.id);
+                          setActiveTab('list');
+                          try { window.dispatchEvent(new CustomEvent('osmosis:activate-dashboard', { detail: { id: db.id } })); } catch {}
+                          try { window.dispatchEvent(new CustomEvent('osmosis:force-dashboard-tab')); } catch {}
+                        }}
+                        className={`w-full text-left text-[12px] truncate px-2 py-1.5 rounded-md transition-colors ${
+                          isActiveDb
+                            ? 'bg-sidebar-primary/20 text-sidebar-primary-foreground font-medium'
+                            : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/40 hover:text-sidebar-accent-foreground'
+                        }`}
+                        title={db.name}
+                      >
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-sidebar-primary mr-2 align-middle opacity-70" />
+                        {db.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              </React.Fragment>
             ))}
           </div>
           );
