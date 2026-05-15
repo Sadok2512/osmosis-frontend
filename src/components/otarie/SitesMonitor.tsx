@@ -3283,10 +3283,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Close = delete dashboard from sidebar
-                          handleDeleteDashboard(db.id);
+                          // Close = delete dashboard, with confirmation
+                          setShowDeleteConfirm(db.id);
                         }}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted"
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5"
                       >
                         <X size={12} />
                         <span className="uppercase tracking-wider">Close</span>
