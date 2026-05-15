@@ -3034,14 +3034,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       {showDeleteConfirm && (
         <div className="mb-2 px-1">
           <div className="border border-destructive/30 rounded-xl bg-destructive/5 p-3">
-            <p className="text-[11px] font-bold text-foreground mb-2">Supprimer ce dashboard ?</p>
-            <p className="text-[9px] text-muted-foreground mb-3">Cette action est irréversible.</p>
+            <p className="text-[11px] font-bold text-foreground mb-2">Fermer ce dashboard ?</p>
+            <p className="text-[9px] text-muted-foreground mb-3">Le dashboard sera retiré de la sidebar. Vous pourrez le recharger plus tard.</p>
             <div className="flex gap-2">
               <button
                 onClick={() => handlePermanentDeleteDashboard(showDeleteConfirm)}
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
               >
-                <Trash2 size={11} /> Supprimer
+                <X size={11} /> Fermer
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(null)}
