@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Ticket, AlertTriangle, Clock, UserCheck, CheckCircle2, Activity,
+  Ticket as TicketIcon, AlertTriangle, Clock, UserCheck, CheckCircle2, Activity,
   Plus, Check, UserPlus, ArrowUpRight, Sparkles, CheckCheck,
-  Search, Filter, Columns3, Download, RefreshCw, X, MessageSquare,
-  Paperclip, Bot, ChevronRight, Calendar, MapPin, Cpu, Wifi
+  Search, Filter, Columns3, Download, RefreshCw, X,
+  Bot, ChevronRight, Bell, Settings2
 } from 'lucide-react';
 
 /* ─────────── Types & mock data ─────────── */
