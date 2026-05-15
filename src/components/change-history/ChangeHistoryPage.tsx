@@ -316,9 +316,11 @@ const ChangeMap: React.FC<{ rows: Row[]; fullscreen: boolean }> = ({ rows, fulls
 const ChangeHistoryPage: React.FC = () => {
   const [selected, setSelected] = useState<string>(ROWS[0].id);
   const [checkedRows, setCheckedRows] = useState<Set<string>>(new Set([ROWS[0].id]));
-  const [showMap, setShowMap] = useState(false);
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const [paramFullscreen, setParamFullscreen] = useState(false);
+  const [chartTab, setChartTab] = useState<"timeline" | "param" | "map">("timeline");
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [paramRange, setParamRange] = useState<"24H" | "7D" | "14D" | "30D">("7D");
   const currentUser = getStoredSession();
   const username = currentUser?.username || "Guest";
   const initials = username.slice(0, 2).toUpperCase();
