@@ -37,6 +37,8 @@ const TARGETS = {
   '/agent-api/': { host: '127.0.0.1', port: 8000 },   // OSMOSIS AI agent — through parser proxy at /api/v1/agent
   '/ml-api/':    { host: '127.0.0.1', port: 11002 },  // ML Engine — standalone service (extracted from parser 2026-05-10)
   '/agentic-api/': { host: '127.0.0.1', port: 11003 },// Agentic Engine — closed-loop orchestration (Phase 1: RCA from ML anomalies)
+  '/fm-api/':    { host: '127.0.0.1', port: 8003 },   // osmosis-fm-parser (extracted 2026-05-14)
+  '/dump-api/':  { host: '127.0.0.1', port: 8002 },   // osmosis-dump-parser
   '/api/':       { host: '127.0.0.1', port: 3001 },   // this repo's index.js
 };
 
@@ -128,6 +130,17 @@ app.use(
   '/agentic-api',
   proxyTo(TARGETS['/agentic-api/'], (url) => url.replace(/^\/agentic-api/, '/api/v1/agentic')),
 );
+// /fm-api/* → osmosis-fm-parser :8003 (extracted 2026-05-14). Service
+// only exposes /health + /status today; URLs forwarded as-is.
+app.use(
+  '/fm-api',
+  proxyTo(TARGETS['/fm-api/'], (url) => url.replace(/^\/fm-api/, '')),
+);
+// /dump-api/* → osmosis-dump-parser :8002 (extracted 2025).
+app.use(
+  '/dump-api',
+  proxyTo(TARGETS['/dump-api/'], (url) => url.replace(/^\/dump-api/, '')),
+);
 app.use(
   '/api',
   proxyTo(TARGETS['/api/'], (url) => url),
@@ -143,7 +156,7 @@ app.use(express.static(DIST_DIR, { index: false, extensions: ['html'] }));
 //   2. The Accept header explicitly excludes HTML (e.g. Accept: application/json)
 // Browsers always send `Accept: text/html,...` for navigations; tooling
 // like curl sends `Accept: */*` which we treat as "wants HTML" too.
-app.get(/^(?!\/(api|admin\/api|kpi-api|agent-api|ml-api|agentic-api)).*/, (req, res, next) => {
+app.get(/^(?!\/(api|admin\/api|kpi-api|agent-api|ml-api|agentic-api|fm-api|dump-api)).*/, (req, res, next) => {
   const looksLikeAsset = /\.[a-z0-9]{1,6}$/i.test(req.path);
   const accept = req.headers.accept || '*/*';
   const wantsJson = accept.includes('application/json') && !accept.includes('text/html');
