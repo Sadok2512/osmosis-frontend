@@ -995,8 +995,41 @@ const SitesMiniMap: React.FC<{
   fullscreen?: boolean;
 }> = ({ sites, fullscreen = false }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  const [mapHeight, setMapHeight] = useState<number>(320);
+  const resizingRef = useRef(false);
+
+  // Drag-to-resize handlers (disabled in fullscreen)
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!resizingRef.current || !wrapperRef.current) return;
+      const top = wrapperRef.current.getBoundingClientRect().top;
+      const next = Math.max(180, Math.min(900, e.clientY - top));
+      setMapHeight(next);
+    };
+    const onUp = () => {
+      if (resizingRef.current) {
+        resizingRef.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        setTimeout(() => mapRef.current?.invalidateSize(), 50);
+      }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // Invalidate map size whenever the height changes
+  useEffect(() => {
+    const id = setTimeout(() => mapRef.current?.invalidateSize(), 30);
+    return () => clearTimeout(id);
+  }, [mapHeight]);
 
   // Init map once
   useEffect(() => {
@@ -1068,8 +1101,26 @@ const SitesMiniMap: React.FC<{
   }, [sites]);
 
   return (
-    <div className={`relative rounded-xl overflow-hidden border border-[#e7edf5] ${fullscreen ? "h-full" : ""}`} style={fullscreen ? undefined : { height: 320 }}>
+    <div
+      ref={wrapperRef}
+      className={`relative rounded-xl overflow-hidden border border-[#e7edf5] ${fullscreen ? "h-full" : ""}`}
+      style={fullscreen ? undefined : { height: mapHeight }}
+    >
       <div ref={containerRef} className="absolute inset-0" />
+      {!fullscreen && (
+        <div
+          onMouseDown={(e) => {
+            e.preventDefault();
+            resizingRef.current = true;
+            document.body.style.cursor = "ns-resize";
+            document.body.style.userSelect = "none";
+          }}
+          title="Drag to resize"
+          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-[450] flex items-center justify-center group"
+        >
+          <div className="h-1 w-12 rounded-full bg-slate-300 group-hover:bg-blue-500 transition" />
+        </div>
+      )}
       <div className="absolute bottom-2 left-2 z-[400] flex items-center gap-3 rounded-md bg-white/95 backdrop-blur px-2.5 py-1.5 ring-1 ring-[#e7edf5] text-[10px] text-slate-600 shadow-sm">
         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" /> Critical ≥4</span>
         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" /> ≥2</span>
