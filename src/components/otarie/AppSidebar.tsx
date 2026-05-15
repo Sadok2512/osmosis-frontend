@@ -48,6 +48,7 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'parameters', label: 'Network Explorer', icon: <Sliders className="w-5 h-5" /> },
       { id: 'alarm_center', label: 'Alarm Center', icon: <Bell className="w-5 h-5" /> },
+      { id: 'ticket_management' as AppTab, label: 'Ticket Management', icon: <FileText className="w-5 h-5" /> },
       { id: 'docs', label: 'Cluster Builder', icon: <BookOpen className="w-5 h-5" /> },
     ],
   },
