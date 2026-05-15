@@ -2560,6 +2560,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       // Auto-activate newly created dashboard
       onActiveDashboardIdChange(id);
       onDashboardActiveChange?.(true, finalScope, cleanFilters);
+      try { window.dispatchEvent(new CustomEvent('osmosis:dashboards-changed')); } catch {}
+      try { window.dispatchEvent(new CustomEvent('osmosis:active-dashboard-changed')); } catch {}
     } catch (err) { console.warn('[SitesMonitor] createDashboard failed', err); }
     setCreatingDash(false);
   };
