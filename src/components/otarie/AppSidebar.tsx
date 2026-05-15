@@ -97,40 +97,6 @@ const AppSidebar: React.FC<SidebarProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  // ── Dashboards (Sites Monitor) listed under "Live Monitor Map" ──
-  const [mapDashboards, setMapDashboards] = useState<Array<{ id: string; name: string }>>([]);
-  const [activeDashboardId, setActiveDashboardIdState] = useState<string | null>(() => {
-    try { return localStorage.getItem('osmosis_active_dashboard_id') || null; } catch { return null; }
-  });
-  const [dashboardsExpanded, setDashboardsExpanded] = useState(true);
-
-  const refreshDashboards = useCallback(async () => {
-    try {
-      const list = await dashboardsApi.list();
-      if (Array.isArray(list)) {
-        const items = list
-          .filter((d: any) => !d?.is_archived && (d?.dashboard_type === 'map' || !d?.dashboard_type))
-          .map((d: any) => ({ id: String(d.id), name: String(d.name || 'Untitled') }));
-        setMapDashboards(items);
-      }
-    } catch (err) { console.warn('[AppSidebar] dashboards refresh failed', err); }
-  }, []);
-
-  useEffect(() => {
-    refreshDashboards();
-    const onChange = () => refreshDashboards();
-    const onActiveChange = () => {
-      try { setActiveDashboardIdState(localStorage.getItem('osmosis_active_dashboard_id') || null); } catch {}
-    };
-    window.addEventListener('osmosis:dashboards-changed', onChange);
-    window.addEventListener('osmosis:active-dashboard-changed', onActiveChange);
-    window.addEventListener('storage', onActiveChange);
-    return () => {
-      window.removeEventListener('osmosis:dashboards-changed', onChange);
-      window.removeEventListener('osmosis:active-dashboard-changed', onActiveChange);
-      window.removeEventListener('storage', onActiveChange);
-    };
-  }, [refreshDashboards]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
