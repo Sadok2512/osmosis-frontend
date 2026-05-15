@@ -585,7 +585,7 @@ const AlarmCenterPage: React.FC = () => {
         </aside>
 
         {/* CENTER */}
-        <section className="col-span-7 space-y-4">
+        <section className="col-span-10 space-y-4">
           {/* Alarm Table */}
           <div className={CARD}>
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#eef2f8]">
