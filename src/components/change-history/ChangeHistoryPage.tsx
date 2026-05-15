@@ -409,44 +409,9 @@ const ChangeHistoryPage: React.FC = () => {
           })}
         </section>
 
-        {/* ----- Map panel ----- */}
-        {showMap && (
-          <section
-            className={
-              mapFullscreen
-                ? "fixed inset-0 z-[1000] bg-white p-4 flex flex-col"
-                : `${CARD} p-4`
-            }
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-blue-600" />
-                <span className="text-[14px] font-semibold text-slate-900">Network Change Map</span>
-                <span className="text-[12px] text-slate-500">— {ROWS.length} changes</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setMapFullscreen((v) => !v)}
-                  className="h-8 px-3 rounded-full border border-[#e7edf5] bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-50 transition inline-flex items-center gap-1.5"
-                >
-                  {mapFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                  {mapFullscreen ? "Exit" : "Fullscreen"}
-                </button>
-                <button
-                  onClick={() => { setMapFullscreen(false); setShowMap(false); }}
-                  className="h-8 px-3 rounded-full border border-[#e7edf5] bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-50 transition inline-flex items-center gap-1.5"
-                >
-                  <X className="w-3.5 h-3.5" /> Close
-                </button>
-              </div>
-            </div>
-            <ChangeMap rows={ROWS} fullscreen={mapFullscreen} />
-          </section>
-        )}
-
         {/* ----- Body grid ----- */}
         <section className="grid grid-cols-12 gap-4">
-          {/* Filters */}
+          {/* Filters — compact left rail */}
           <aside className={`${CARD} col-span-12 lg:col-span-2 px-4 py-4 self-start`}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-[13px] font-semibold text-slate-800">Filters</h3>
@@ -472,35 +437,115 @@ const ChangeHistoryPage: React.FC = () => {
                 <button className="flex-1 h-8 rounded-full text-[12px] font-medium text-white bg-gradient-to-r from-[#2563eb] to-[#3b82f6] hover:from-[#1d4ed8] hover:to-[#2563eb] shadow-sm hover:shadow transition">
                   Apply Filters
                 </button>
-                <button className="h-8 px-3 rounded-full text-[12px] font-medium text-slate-600 bg-white border border-[#e7edf5] hover:bg-slate-50">
-                  Reset
-                </button>
               </div>
             </div>
           </aside>
 
-          {/* Center — timeline + map + table */}
-          <div className="col-span-12 lg:col-span-7 space-y-4">
-            <div className={`${CARD} px-5 py-4`}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-[16px] font-semibold text-slate-800">Change Activity Timeline</h3>
+          {/* Center — main chart (tabbed) + table, full available width */}
+          <div className="col-span-12 lg:col-span-10 space-y-4 min-w-0">
+            {/* Main tabbed chart */}
+            <div className={`${CARD} overflow-hidden`}>
+              <div className="px-5 pt-4 pb-3 flex flex-wrap items-center justify-between gap-3 border-b border-[#eef2f8]">
+                <div className="inline-flex rounded-full bg-[#f6f8fb] ring-1 ring-[#eef2f8] p-1 text-[12px] font-medium">
+                  {[
+                    { id: "timeline" as const, label: "Change Timeline", icon: TrendingUp },
+                    { id: "param" as const, label: `Parameter History (${detail.param})`, icon: History },
+                    { id: "map" as const, label: "Map", icon: MapPin },
+                  ].map((t) => {
+                    const Ic = t.icon;
+                    const active = chartTab === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setChartTab(t.id)}
+                        className={`px-3.5 py-1.5 rounded-full inline-flex items-center gap-1.5 transition ${
+                          active ? "bg-white text-blue-600 shadow-sm ring-1 ring-[#e7edf5]" : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        <Ic className="w-3.5 h-3.5" /> {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
                 <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500">
-                  {(["Low", "Medium", "High", "Critical"] as Sev[]).map((s) => (
-                    <span key={s} className="inline-flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-sm ${sevDot[s]}`} />
-                      {s}
-                    </span>
-                  ))}
+                  {chartTab === "timeline" && (
+                    <>
+                      {(["Low", "Medium", "High", "Critical"] as Sev[]).map((s) => (
+                        <span key={s} className="inline-flex items-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-sm ${sevDot[s]}`} />
+                          {s}
+                        </span>
+                      ))}
+                    </>
+                  )}
+                  {chartTab === "param" && (
+                    <div className="inline-flex rounded-full bg-[#f6f8fb] ring-1 ring-[#eef2f8] p-0.5 text-[11px] font-medium">
+                      {(["24H", "7D", "14D", "30D"] as const).map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => setParamRange(p)}
+                          className={`px-2.5 py-1 rounded-full transition ${paramRange === p ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => (chartTab === "map" ? setMapFullscreen((v) => !v) : setParamFullscreen((v) => !v))}
+                    className="h-7 px-2.5 inline-flex items-center gap-1 rounded-full border border-[#e7edf5] bg-white text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    <Maximize2 className="w-3 h-3" /> Fullscreen
+                  </button>
                 </div>
               </div>
-              <TimelineChart rows={ROWS} />
+
+              {/* Mini KPIs contextual to chart */}
+              {chartTab === "timeline" && (
+                <div className="px-5 py-2.5 grid gap-3 border-b border-[#eef2f8]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+                  <div><div className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Total Changes</div><div className="text-[15px] font-bold text-slate-900 tabular-nums">{ROWS.length.toLocaleString()}</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Peak Activity</div><div className="text-[15px] font-bold text-slate-900 tabular-nums">11/05 — 3 chg</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Most Impacted Site</div><div className="text-[15px] font-bold text-slate-900">SITE_221</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Critical Risk</div><div className="text-[15px] font-bold text-rose-600 tabular-nums">{ROWS.filter(r => r.risk === "Critical" || r.risk === "High").length}</div></div>
+                </div>
+              )}
+              {chartTab === "param" && (
+                <div className="px-5 py-2.5 grid gap-3 border-b border-[#eef2f8]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+                  <div><div className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Old Value</div><div className="text-[15px] font-bold text-slate-700 tabular-nums">{detail.oldVal}</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">New Value</div><div className="text-[15px] font-bold text-rose-600 tabular-nums">{detail.newVal}</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Delta</div><div className="text-[15px] font-bold text-blue-600 tabular-nums">{detail.delta}</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Changed By</div><div className="text-[15px] font-bold text-slate-900">{detail.changedBy}</div></div>
+                </div>
+              )}
+
+              <div className="px-3 sm:px-5 pt-2 pb-4">
+                {chartTab === "timeline" && (
+                  <div className="min-h-[320px]">
+                    <TimelineChart rows={ROWS} />
+                  </div>
+                )}
+                {chartTab === "param" && (
+                  <div className="min-h-[320px] flex items-center justify-center">
+                    <div className="w-full max-w-[1100px]">
+                      <ParamLineChart />
+                    </div>
+                  </div>
+                )}
+                {chartTab === "map" && (
+                  <div className="min-h-[420px]">
+                    <ChangeMap rows={ROWS} fullscreen={false} />
+                  </div>
+                )}
+              </div>
             </div>
 
+            {/* Table — full width */}
             <div className={`${CARD} overflow-hidden`}>
               <div className="px-5 py-4 flex items-center justify-between border-b border-[#eef2f8]">
                 <div className="flex items-center gap-3">
                   <h3 className="text-[16px] font-semibold text-slate-800">Changes</h3>
                   <span className="text-[12px] text-slate-500">({ROWS.length.toLocaleString()})</span>
+                  <span className="text-[11px] text-slate-400 hidden md:inline">— click a row for full details</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button className="h-8 px-3 inline-flex items-center gap-1.5 rounded-full border border-[#e7edf5] bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-50">
@@ -513,13 +558,12 @@ const ChangeHistoryPage: React.FC = () => {
                   <button className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-[#e7edf5] bg-white text-slate-500 hover:bg-slate-50"><FilterIcon className="w-3.5 h-3.5" /></button>
                   <button className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-[#e7edf5] bg-white text-slate-500 hover:bg-slate-50"><Download className="w-3.5 h-3.5" /></button>
                   <button className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-[#e7edf5] bg-white text-slate-500 hover:bg-slate-50"><Columns3 className="w-3.5 h-3.5" /></button>
-                  <button className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-[#e7edf5] bg-white text-slate-500 hover:bg-slate-50"><LayoutGrid className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
-                  <thead>
-                    <tr className="text-[11px] font-medium uppercase tracking-wider text-slate-500 bg-[#fafbfd]">
+                  <thead className="sticky top-0 z-[1] bg-[#fafbfd]">
+                    <tr className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
                       {["", "Date / Time", "Network", "DR", "Plaque", "Site", "Cell", "Vendor", "Tech", "Parameter", "Old", "New", "Δ", "Changed By", "Type", "Risk", "Validation"].map((h, i) => (
                         <th key={i} className="text-left font-medium px-3 py-2.5 whitespace-nowrap border-b border-[#eef2f8]">{h}</th>
                       ))}
@@ -531,7 +575,7 @@ const ChangeHistoryPage: React.FC = () => {
                       return (
                         <tr
                           key={r.id}
-                          onClick={() => setSelected(r.id)}
+                          onClick={() => { setSelected(r.id); setDetailsOpen(true); }}
                           className={`cursor-pointer border-b border-[#f1f5fb] transition-colors ${isSel ? "bg-blue-50/40" : "hover:bg-slate-50/60"}`}
                         >
                           <td className="px-3 py-2.5">
@@ -544,13 +588,13 @@ const ChangeHistoryPage: React.FC = () => {
                             />
                           </td>
                           <td className="px-3 py-2.5 text-slate-700 tabular-nums whitespace-nowrap">{r.ts}</td>
-                          <td className="px-3 py-2.5 text-slate-600">{r.network}</td>
+                          <td className="px-3 py-2.5"><span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold ring-1 ring-inset bg-indigo-50 text-indigo-700 ring-indigo-100">{r.network}</span></td>
                           <td className="px-3 py-2.5 text-slate-600">{r.dr}</td>
                           <td className="px-3 py-2.5 text-slate-600">{r.plaque}</td>
                           <td className="px-3 py-2.5 text-slate-700 font-medium">{r.site}</td>
                           <td className="px-3 py-2.5 text-slate-600">{r.cell}</td>
                           <td className="px-3 py-2.5 text-slate-600">{r.vendor}</td>
-                          <td className="px-3 py-2.5 text-slate-600">{r.tech}</td>
+                          <td className="px-3 py-2.5"><span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold ring-1 ring-inset bg-sky-50 text-sky-700 ring-sky-100">{r.tech}</span></td>
                           <td className="px-3 py-2.5 text-slate-700 font-medium">{r.param}</td>
                           <td className="px-3 py-2.5 text-slate-500 tabular-nums">{r.oldVal}</td>
                           <td className="px-3 py-2.5 text-slate-700 tabular-nums font-medium">{r.newVal}</td>
@@ -558,7 +602,9 @@ const ChangeHistoryPage: React.FC = () => {
                           <td className="px-3 py-2.5 text-slate-600">{r.changedBy}</td>
                           <td className="px-3 py-2.5 text-slate-600">{r.type}</td>
                           <td className="px-3 py-2.5">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset ${sevPill[r.risk]}`}>{r.risk}</span>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset ${sevPill[r.risk]}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${sevDot[r.risk]}`} />{r.risk}
+                            </span>
                           </td>
                           <td className="px-3 py-2.5">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset ${statusPill[r.status]}`}>{r.status}</span>
@@ -587,67 +633,102 @@ const ChangeHistoryPage: React.FC = () => {
               </div>
             </div>
           </div>
+        </section>
 
-          {/* Right — details */}
-          <aside className="col-span-12 lg:col-span-3 space-y-4">
-            <div className={`${CARD} px-5 py-4`}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[16px] font-semibold text-slate-800">Change Details</h3>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset ${sevPill[detail.risk]}`}>{detail.risk}</span>
-              </div>
-              <dl className="space-y-2 text-[12px]">
-                {[
-                  ["Change ID", detail.id],
-                  ["Parameter", detail.param],
-                  ["Parameter Family", "RF"],
-                  ["Site / Cell", `${detail.site} / ${detail.cell}`],
-                  ["Vendor / Tech", `${detail.vendor} / ${detail.tech}`],
-                  ["Old Value", detail.oldVal],
-                  ["New Value", detail.newVal],
-                  ["Delta", detail.delta],
-                  ["Changed By", detail.changedBy],
-                  ["Source System", "SON Engine"],
-                  ["Timestamp", detail.ts],
-                  ["Risk Level", detail.risk],
-                  ["Validation Status", detail.status],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex items-center justify-between gap-3 py-1 border-b border-[#f1f5fb] last:border-0">
-                    <dt className="text-[11px] font-medium text-slate-500">{k}</dt>
-                    <dd className={`text-[12px] font-medium tabular-nums ${k === "New Value" || k === "Delta" ? "text-rose-600" : k === "Risk Level" ? sevText[detail.risk] : k === "Validation Status" ? (detail.status === "Failed" ? "text-rose-600" : "text-emerald-600") : "text-slate-700"}`}>
-                      {v}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-
-            <div className={paramFullscreen ? "fixed inset-0 z-[1000] bg-white p-6 flex flex-col" : `${CARD} px-5 py-4`}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[14px] font-semibold text-slate-800">Parameter History <span className="text-[11px] font-normal text-slate-500">({detail.param})</span></h3>
+        {/* ----- Change Details — slide-over drawer ----- */}
+        {detailsOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-[999] bg-slate-900/30 backdrop-blur-sm transition-opacity animate-in fade-in"
+              onClick={() => setDetailsOpen(false)}
+            />
+            <aside
+              className="fixed top-0 right-0 z-[1000] h-full w-full sm:w-[440px] bg-white shadow-2xl border-l border-[#e7edf5] flex flex-col animate-in slide-in-from-right duration-200"
+            >
+              <div className="px-5 py-4 flex items-center justify-between border-b border-[#eef2f8]">
+                <div className="flex items-center gap-2">
+                  <GitCompare className="w-4 h-4 text-blue-600" />
+                  <h3 className="text-[15px] font-semibold text-slate-900">Change Details</h3>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset ${sevPill[detail.risk]}`}>{detail.risk}</span>
+                </div>
                 <button
-                  onClick={() => setParamFullscreen((v) => !v)}
-                  className="h-7 px-2.5 inline-flex items-center gap-1 rounded-full border border-[#e7edf5] bg-white text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                  onClick={() => setDetailsOpen(false)}
+                  className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-[#e7edf5] bg-white text-slate-500 hover:bg-slate-50"
                 >
-                  {paramFullscreen ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
-                  {paramFullscreen ? "Exit" : "Fullscreen"}
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="inline-flex rounded-full bg-[#f6f8fb] ring-1 ring-[#eef2f8] p-0.5 text-[11px] font-medium">
-                  {["24H", "7D", "14D", "30D"].map((p, i) => (
-                    <button key={p} className={`px-2.5 py-1 rounded-full transition ${i === 1 ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>{p}</button>
-                  ))}
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                <div className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 ring-1 ring-blue-100 px-4 py-3">
+                  <div className="text-[10px] uppercase tracking-wide font-semibold text-blue-700">Parameter</div>
+                  <div className="mt-0.5 text-[16px] font-bold text-slate-900">{detail.param}</div>
+                  <div className="mt-2 flex items-center gap-2 text-[13px] tabular-nums">
+                    <span className="px-2 py-0.5 rounded-md bg-white ring-1 ring-slate-200 text-slate-600">{detail.oldVal}</span>
+                    <span className="text-slate-400">→</span>
+                    <span className="px-2 py-0.5 rounded-md bg-white ring-1 ring-rose-200 text-rose-700 font-semibold">{detail.newVal}</span>
+                    <span className="ml-auto text-blue-600 font-semibold">{detail.delta}</span>
+                  </div>
                 </div>
+                <dl className="space-y-1 text-[12px]">
+                  {[
+                    ["Change ID", detail.id],
+                    ["Parameter Family", "RF"],
+                    ["Site / Cell", `${detail.site} / ${detail.cell}`],
+                    ["Vendor / Tech", `${detail.vendor} / ${detail.tech}`],
+                    ["Changed By", detail.changedBy],
+                    ["Source System", "SON Engine"],
+                    ["Timestamp", detail.ts],
+                    ["Risk Level", detail.risk],
+                    ["Validation Status", detail.status],
+                  ].map(([k, v]) => (
+                    <div key={k} className="flex items-center justify-between gap-3 py-2 border-b border-[#f1f5fb] last:border-0">
+                      <dt className="text-[11px] font-medium text-slate-500">{k}</dt>
+                      <dd className={`text-[12px] font-medium tabular-nums text-right ${k === "Risk Level" ? sevText[detail.risk] : k === "Validation Status" ? (detail.status === "Failed" ? "text-rose-600" : "text-emerald-600") : "text-slate-700"}`}>
+                        {v}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <button
+                  onClick={() => { setChartTab("param"); setDetailsOpen(false); }}
+                  className="w-full h-9 rounded-full text-[12px] font-medium text-white bg-gradient-to-r from-[#2563eb] to-[#3b82f6] hover:from-[#1d4ed8] hover:to-[#2563eb] shadow-sm transition inline-flex items-center justify-center gap-1.5"
+                >
+                  <History className="w-3.5 h-3.5" /> View parameter history
+                </button>
               </div>
-              <div className={paramFullscreen ? "flex-1 flex items-center justify-center" : ""}>
-                <ParamLineChart />
-              </div>
-              <div className="flex items-center gap-4 text-[11px] font-medium text-slate-500 mt-2">
-                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-0.5 bg-blue-600" />{detail.param} ({detail.newVal.replace(/[\d.,+\-−]/g, "").trim() || "value"})</span>
-              </div>
+            </aside>
+          </>
+        )}
+
+        {/* Fullscreen overlays for chart tabs */}
+        {paramFullscreen && (
+          <div className="fixed inset-0 z-[1000] bg-white p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[16px] font-semibold text-slate-900">Parameter History — {detail.param}</h3>
+              <button onClick={() => setParamFullscreen(false)} className="h-8 px-3 inline-flex items-center gap-1.5 rounded-full border border-[#e7edf5] bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-50">
+                <Minimize2 className="w-3.5 h-3.5" /> Exit
+              </button>
             </div>
-          </aside>
-        </section>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="w-full max-w-[1400px]"><ParamLineChart /></div>
+            </div>
+          </div>
+        )}
+        {mapFullscreen && (
+          <div className="fixed inset-0 z-[1000] bg-white p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-blue-600" />
+                <span className="text-[14px] font-semibold text-slate-900">Network Change Map</span>
+                <span className="text-[12px] text-slate-500">— {ROWS.length} changes</span>
+              </div>
+              <button onClick={() => setMapFullscreen(false)} className="h-8 px-3 inline-flex items-center gap-1.5 rounded-full border border-[#e7edf5] bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-50">
+                <Minimize2 className="w-3.5 h-3.5" /> Exit
+              </button>
+            </div>
+            <ChangeMap rows={ROWS} fullscreen={true} />
+          </div>
+        )}
       </div>
     </div>
   );
