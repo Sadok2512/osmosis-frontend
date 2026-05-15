@@ -31,6 +31,7 @@ const DIST_DIR = path.join(__dirname, '..', 'dist');
 
 // Targets — env-overridable for non-localhost deployments.
 const TARGETS = {
+  '/api/v1/alarms': { host: '127.0.0.1', port: 8003 }, // osmosis-fm-parser owns FM alarms since 2026-05-15
   '/api/v1/':    { host: '127.0.0.1', port: 8000 },   // osmosis-parser
   '/admin/api/': { host: '127.0.0.1', port: 8000 },   // legacy admin auth POST
   '/kpi-api/':   { host: '127.0.0.1', port: 11004 },   // kpi-engine (strip prefix)
@@ -87,6 +88,12 @@ function proxyTo(target, rewritePath) {
 
 // Order matters: more-specific prefixes first so /api/v1/foo doesn't fall
 // through to /api/. Express path-prefix matching is left-to-right.
+// /api/v1/alarms* MUST be declared BEFORE the generic /api/v1 catch-all
+// so the FM domain (own service on :8003) doesn't fall through to :8000.
+app.use(
+  '/api/v1/alarms',
+  proxyTo(TARGETS['/api/v1/alarms'], (url) => url),
+);
 app.use(
   '/api/v1',
   proxyTo(TARGETS['/api/v1/'], (url) => url),  // pass through path verbatim
