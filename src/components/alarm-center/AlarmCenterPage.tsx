@@ -197,6 +197,7 @@ const AlarmCenterPage: React.FC = () => {
   const [aiOn, setAiOn] = useState(true);
   const [applyFlash, setApplyFlash] = useState(false);
   const [selectedId, setSelectedId] = useState<string>(alarms[0]?.id);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [showMap, setShowMap] = useState(true);
@@ -584,7 +585,7 @@ const AlarmCenterPage: React.FC = () => {
         </aside>
 
         {/* CENTER */}
-        <section className="col-span-7 space-y-4">
+        <section className="col-span-10 space-y-4">
           {/* Alarm Table */}
           <div className={CARD}>
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#eef2f8]">
@@ -624,7 +625,7 @@ const AlarmCenterPage: React.FC = () => {
                   {paged.map((a) => (
                     <tr
                       key={a.id}
-                      onClick={() => setSelectedId(a.id)}
+                      onClick={() => { setSelectedId(a.id); setDetailsOpen(true); }}
                       className={`border-b border-[#f1f5fb] cursor-pointer transition-colors ${selectedId === a.id ? "bg-blue-50/60" : "hover:bg-[#f9fbfe]"}`}
                     >
                       <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
@@ -760,8 +761,14 @@ const AlarmCenterPage: React.FC = () => {
           </div>
         </section>
 
-        {/* RIGHT — Details + AI */}
-        <aside className="col-span-3 space-y-4">
+        {/* FLOATING LEFT DRAWER — Details + AI */}
+        {detailsOpen && (
+          <div className="fixed inset-0 z-[60] pointer-events-none">
+            <div
+              className="absolute inset-0 bg-slate-900/20 backdrop-blur-[2px] pointer-events-auto animate-in fade-in duration-200"
+              onClick={() => setDetailsOpen(false)}
+            />
+            <aside className="pointer-events-auto absolute left-0 top-0 h-full w-[440px] max-w-[92vw] bg-[#f6f8fb] shadow-[8px_0_28px_rgba(15,23,42,0.12)] border-r border-[#e7edf5] overflow-y-auto p-4 space-y-4 animate-in slide-in-from-left duration-300">
           {selected && (
             <div className={`${CARD} px-5 py-4`}>
               <div className="flex items-start justify-between gap-2">
@@ -771,7 +778,7 @@ const AlarmCenterPage: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${SEV_STYLES[selected.severity].chip}`}>{selected.severity}</span>
-                  <button className="text-slate-300 hover:text-slate-500 transition"><X size={14} strokeWidth={1.75} /></button>
+                  <button onClick={() => setDetailsOpen(false)} className="text-slate-300 hover:text-slate-500 transition"><X size={14} strokeWidth={1.75} /></button>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3">
@@ -902,7 +909,9 @@ const AlarmCenterPage: React.FC = () => {
               <div className="text-[11px] text-slate-500 mt-1">Enable it to view correlation insights and smart recommendations.</div>
             </div>
           )}
-        </aside>
+            </aside>
+          </div>
+        )}
       </div>
     </div>
   );
