@@ -909,7 +909,9 @@ const AlarmCenterPage: React.FC = () => {
               <div className="text-[11px] text-slate-500 mt-1">Enable it to view correlation insights and smart recommendations.</div>
             </div>
           )}
-        </aside>
+            </aside>
+          </div>
+        )}
       </div>
     </div>
   );
