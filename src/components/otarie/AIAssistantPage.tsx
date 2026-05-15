@@ -896,10 +896,10 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                       )}
                     </div>
                   )}
-                  <div className={`max-w-[85%] overflow-hidden relative group ${
+                  <div className={`overflow-hidden relative group ${
                     msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-4 py-3 shadow-sm'
-                      : 'bg-card border border-border/80 rounded-2xl rounded-bl-sm px-5 py-4 shadow-sm'
+                      ? 'max-w-[75%] bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-4 py-3 shadow-sm'
+                      : 'flex-1 min-w-0 bg-card border border-border/80 rounded-2xl rounded-bl-sm px-5 py-4 shadow-sm'
                   }`}>
                     {msg.role === 'user' ? (
                       <>
