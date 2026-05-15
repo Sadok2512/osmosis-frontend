@@ -761,8 +761,14 @@ const AlarmCenterPage: React.FC = () => {
           </div>
         </section>
 
-        {/* RIGHT — Details + AI */}
-        <aside className="col-span-3 space-y-4">
+        {/* FLOATING LEFT DRAWER — Details + AI */}
+        {detailsOpen && (
+          <div className="fixed inset-0 z-[60] pointer-events-none">
+            <div
+              className="absolute inset-0 bg-slate-900/20 backdrop-blur-[2px] pointer-events-auto animate-in fade-in duration-200"
+              onClick={() => setDetailsOpen(false)}
+            />
+            <aside className="pointer-events-auto absolute left-0 top-0 h-full w-[440px] max-w-[92vw] bg-[#f6f8fb] shadow-[8px_0_28px_rgba(15,23,42,0.12)] border-r border-[#e7edf5] overflow-y-auto p-4 space-y-4 animate-in slide-in-from-left duration-300">
           {selected && (
             <div className={`${CARD} px-5 py-4`}>
               <div className="flex items-start justify-between gap-2">
