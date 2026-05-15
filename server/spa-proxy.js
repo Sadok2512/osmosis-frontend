@@ -31,8 +31,11 @@ const DIST_DIR = path.join(__dirname, '..', 'dist');
 
 // Targets — env-overridable for non-localhost deployments.
 const TARGETS = {
-  '/api/v1/alarms': { host: '127.0.0.1', port: 8003 }, // osmosis-fm-parser owns FM alarms since 2026-05-15
-  '/api/v1/dump':   { host: '127.0.0.1', port: 8002 }, // osmosis-dump-parser owns the dump surface since 2026-05-15
+  '/api/v1/alarms':  { host: '127.0.0.1', port: 8003 }, // osmosis-fm-parser owns FM alarms since 2026-05-15
+  '/api/v1/dump':    { host: '127.0.0.1', port: 8002 }, // osmosis-dump-parser owns the dump surface since 2026-05-15
+  '/api/v1/pm':      { host: '127.0.0.1', port: 8004 }, // osmosis-pm-parser owns PM since 2026-05-15
+  '/api/v1/kpi':     { host: '127.0.0.1', port: 8004 }, // KPI map + proxy live with PM
+  '/api/v1/monitor': { host: '127.0.0.1', port: 8004 }, // /monitor/{path} kpi proxy passthrough
   '/api/v1/':    { host: '127.0.0.1', port: 8000 },   // osmosis-parser
   '/admin/api/': { host: '127.0.0.1', port: 8000 },   // legacy admin auth POST
   '/kpi-api/':   { host: '127.0.0.1', port: 11004 },   // kpi-engine (strip prefix)
@@ -98,6 +101,18 @@ app.use(
 app.use(
   '/api/v1/dump',
   proxyTo(TARGETS['/api/v1/dump'], (url) => url),
+);
+app.use(
+  '/api/v1/pm',
+  proxyTo(TARGETS['/api/v1/pm'], (url) => url),
+);
+app.use(
+  '/api/v1/kpi',
+  proxyTo(TARGETS['/api/v1/kpi'], (url) => url),
+);
+app.use(
+  '/api/v1/monitor',
+  proxyTo(TARGETS['/api/v1/monitor'], (url) => url),
 );
 app.use(
   '/api/v1',
