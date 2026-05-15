@@ -3166,11 +3166,11 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          // "Fermer" — collapse without deactivating
-                          setExpandedDashboardId(null);
+                          // X = close (delete) dashboard, with confirmation
+                          setShowDeleteConfirm(db.id);
                         }}
-                        className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10"
-                        title="Fermer"
+                        className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        title="Fermer le dashboard"
                       >
                         <X size={12} />
                       </button>
