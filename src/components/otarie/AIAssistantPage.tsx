@@ -884,7 +884,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
               </div>
             </div>
           ) : (
-            <div className="max-w-6xl mx-auto px-5 py-6 space-y-6">
+            <div className="w-full px-4 lg:px-8 xl:px-12 py-6 space-y-6">
               {messages.map((msg, i) => (
                 <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                   {msg.role === 'assistant' && (
