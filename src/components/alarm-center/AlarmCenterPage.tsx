@@ -95,6 +95,8 @@ const seedAlarms = (): Alarm[] => {
       lastOccurrence: `10:${String(20 + (i % 30)).padStart(2, "0")}:${String((i * 5) % 60).padStart(2, "0")}`,
       impactedUsers: 100 + ((i * 137) % 1500),
       aiScore: 60 + ((i * 17) % 40),
+      latitude: null,
+      longitude: null,
     });
   }
   return rows;
