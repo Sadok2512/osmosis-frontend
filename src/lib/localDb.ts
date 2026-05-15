@@ -1081,7 +1081,28 @@ export const topoApi = {
       }
       if (Object.keys(cleaned).length) qs.set('context', JSON.stringify(cleaned));
     }
-    // ── Prefer Supabase topo RPC for known columns (VPS often returns truncated/empty) ──
+    // Order swapped 2026-05-15: prefer VPS (RAN_OP_POS truth on Back100)
+    // over the Supabase RPC. The legacy comment claimed VPS was truncated;
+    // the diagnostic that day showed the opposite — VPS returned both
+    // NANTES and "NANTES TOP14" for ?search=nante while Supabase RPC's
+    // topo_distinct_values mirror only had one of them, so the dropdown
+    // hid the second plaque even though it existed in production.
+    // ── VPS first ──
+    const path = `/topo/filters/values?${qs.toString()}`;
+    try {
+      const data = await fetchJson<any>(isLocalExpress() ? localUrl(path.slice(1)) : parserUrl(path));
+      if (!(data?.unavailable === true)) {
+        const vpsValues: string[] = Array.isArray(data?.values) ? data.values
+          : Array.isArray(data?.items) ? data.items
+          : Array.isArray(data?.data) ? data.data
+          : Array.isArray(data?.rows) ? data.rows
+          : [];
+        if (vpsValues.length > 0) return vpsValues;
+      }
+    } catch {
+      /* fall through to Supabase */
+    }
+    // ── Supabase fallback (used when VPS is unreachable / returns empty) ──
     const TOPO_COL_MAP: Record<string, string> = {
       plaque: 'plaque', plaque_site: 'plaque', plaque_cellule: 'plaque',
       dor: 'dor', region: 'region', zone_arcep: 'zone_arcep',
@@ -1110,24 +1131,9 @@ export const topoApi = {
           }
           if (out.length > 0) return out;
         }
-      } catch {
-        /* fall through to VPS */
-      }
+      } catch { /* both upstream sources failed */ }
     }
-    // ── VPS fallback ──
-    const path = `/topo/filters/values?${qs.toString()}`;
-    try {
-      const data = await fetchJson<any>(isLocalExpress() ? localUrl(path.slice(1)) : parserUrl(path));
-      if (data?.unavailable === true) return [];
-      const vpsValues: string[] = Array.isArray(data?.values) ? data.values
-        : Array.isArray(data?.items) ? data.items
-        : Array.isArray(data?.data) ? data.data
-        : Array.isArray(data?.rows) ? data.rows
-        : [];
-      return vpsValues;
-    } catch {
-      return [];
-    }
+    return [];
   },
 
   /** Fetch sites with dynamic filters: GET /api/v1/topo/sites?dor=X&techno=Y
