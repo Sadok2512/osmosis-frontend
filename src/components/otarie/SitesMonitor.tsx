@@ -5754,15 +5754,62 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Listen for sidebar-driven dashboard activation
   useEffect(() => {
-    const handler = (e: Event) => {
+    const handler = async (e: Event) => {
       const id = (e as CustomEvent).detail?.id;
       if (!id) return;
-      try { loadDashboardSettings(id); } catch (err) { console.warn('[SitesMonitor] activate-dashboard failed', err); }
-      setInventoryTab('dashboard');
+      try {
+        // Apply visual settings + set active dashboard id
+        loadDashboardSettings(id);
+
+        // Resolve dashboard (local list first, fallback to API)
+        let db: any = dashboardList.find(d => d.id === id);
+        if (!db) {
+          try {
+            const all = await dashboardsApi.list();
+            if (Array.isArray(all)) db = all.find((d: any) => d.id === id);
+          } catch {}
+        }
+        if (!db) return;
+
+        const widgets = Array.isArray(db.widgets) ? db.widgets : [];
+        const meta = widgets.find((w: any) => w?._type === 'dashboard_settings') || {};
+        const scope = meta.siteScope || null;
+        let siteFilters = meta.siteFilters && Object.keys(meta.siteFilters).length > 0 ? meta.siteFilters : null;
+        if (!siteFilters && scope && scope.type !== 'ALL' && scope.value) {
+          if (scope.type === 'DOR') siteFilters = { dor: [scope.value] };
+          else if (scope.type === 'Plaque') siteFilters = { plaque: [scope.value] };
+        }
+
+        // Fully activate (mirrors DashboardInventoryTab → onDashboardActiveChange path)
+        setDashboardActive(true);
+        setActiveSiteScope(scope);
+        setActiveDashboardFilters(siteFilters);
+        setInventoryTab('dashboard');
+        setTimeout(() => setInventoryTab('dashboard'), 0);
+        invalidateDashboardSitesCache();
+        invalidateBboxCache();
+        invalidateSiteCellsCache();
+        cellLoadingRef.current.clear();
+        cellLoadAttemptedRef.current.clear();
+        setDashboardRefreshTick(t => t + 1);
+        setDashboardFitKey(k => k + 1);
+        setSelectedSiteId(null);
+        setSelectedSiteSnapshot(null);
+        setSiteDetail(null);
+        setExpandedSectors(new Set());
+        setLocalDor('ALL');
+        setLocalPlaque('ALL');
+        setLocalVendor('ALL');
+        setLocalBande('ALL');
+        setLocalZoneArcep('ALL');
+        setLocalTechno('ALL');
+      } catch (err) {
+        console.warn('[SitesMonitor] activate-dashboard failed', err);
+      }
     };
     window.addEventListener('osmosis:activate-dashboard', handler);
     return () => window.removeEventListener('osmosis:activate-dashboard', handler);
-  }, [loadDashboardSettings]);
+  }, [loadDashboardSettings, dashboardList]);
 
   // Coverage simulation state
   const [showCoverageSim, setShowCoverageSim] = useState(false);
