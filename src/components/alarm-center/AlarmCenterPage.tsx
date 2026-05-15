@@ -197,6 +197,7 @@ const AlarmCenterPage: React.FC = () => {
   const [aiOn, setAiOn] = useState(true);
   const [applyFlash, setApplyFlash] = useState(false);
   const [selectedId, setSelectedId] = useState<string>(alarms[0]?.id);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [showMap, setShowMap] = useState(true);
