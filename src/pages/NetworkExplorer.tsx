@@ -477,7 +477,7 @@ const NetworkExplorer = () => {
 
   return (
     <main className="min-h-screen bg-[linear-gradient(135deg,#f8fafc_0%,#eefdfa_52%,#f7faf9_100%)] p-4 text-slate-900 sm:p-6">
-      <div className="mx-auto flex max-w-[1800px] flex-col gap-5">
+      <div className="flex w-full flex-col gap-5">
         <header className="rounded-xl border border-white/80 bg-white/78 p-4 shadow-[0_18px_60px_rgba(15,118,110,0.10)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center gap-4">
