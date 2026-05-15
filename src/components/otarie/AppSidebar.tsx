@@ -12,6 +12,7 @@ import {
 import { clearSession } from '@/services/adminAuth';
 import { useNavigate } from 'react-router-dom';
 import { Filters, AppTab } from '../../types';
+import { dashboardsApi } from '@/lib/localDb';
 
 interface SidebarProps {
   filters: Filters;
