@@ -995,8 +995,41 @@ const SitesMiniMap: React.FC<{
   fullscreen?: boolean;
 }> = ({ sites, fullscreen = false }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  const [mapHeight, setMapHeight] = useState<number>(320);
+  const resizingRef = useRef(false);
+
+  // Drag-to-resize handlers (disabled in fullscreen)
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!resizingRef.current || !wrapperRef.current) return;
+      const top = wrapperRef.current.getBoundingClientRect().top;
+      const next = Math.max(180, Math.min(900, e.clientY - top));
+      setMapHeight(next);
+    };
+    const onUp = () => {
+      if (resizingRef.current) {
+        resizingRef.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        setTimeout(() => mapRef.current?.invalidateSize(), 50);
+      }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // Invalidate map size whenever the height changes
+  useEffect(() => {
+    const id = setTimeout(() => mapRef.current?.invalidateSize(), 30);
+    return () => clearTimeout(id);
+  }, [mapHeight]);
 
   // Init map once
   useEffect(() => {
