@@ -337,4 +337,4 @@ export interface DetectorConfig {
   last_run?: string;
 }
 
-export type AppTab = 'list' | 'sites' | 'analytics' | 'bi' | 'radio' | 'traffic' | 'subscriber' | 'alerts' | 'detector' | 'odcc' | 'settings' | 'docs' | 'ai_assistant' | 'dashboard_overview' | 'rag' | 'radio_profile' | 'backend_admin' | 'topologie' | 'kpi_monitor' | 'kpi_reference2' | 'pm_dashboard' | 'parameters' | 'pulse_report' | 'agent_hub' | 'sentinel' | 'investigator' | 'ran_query' | 'topology' | 'precision_architect' | 'alarm_center';
+export type AppTab = 'list' | 'sites' | 'analytics' | 'bi' | 'radio' | 'traffic' | 'subscriber' | 'alerts' | 'detector' | 'odcc' | 'settings' | 'docs' | 'ai_assistant' | 'dashboard_overview' | 'rag' | 'radio_profile' | 'backend_admin' | 'topologie' | 'kpi_monitor' | 'kpi_reference2' | 'pm_dashboard' | 'parameters' | 'pulse_report' | 'agent_hub' | 'sentinel' | 'investigator' | 'ran_query' | 'topology' | 'precision_architect' | 'alarm_center' | 'ticket_management';
