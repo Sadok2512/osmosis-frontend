@@ -359,7 +359,7 @@ export async function fetchVpsWithRetry(
   init?: RequestInit,
   options: { maxRetries?: number; timeoutMs?: number; baseDelayMs?: number } = {},
 ): Promise<Response> {
-  const { maxRetries = 2, timeoutMs = REQUEST_TIMEOUT_MS, baseDelayMs = 400 } = options;
+  const { maxRetries = 3, timeoutMs = REQUEST_TIMEOUT_MS, baseDelayMs = 600 } = options;
   let lastErr: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
