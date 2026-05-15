@@ -585,7 +585,7 @@ const NetworkExplorer = () => {
               </div>
               <span className="flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-700 ring-1 ring-emerald-200"><Activity size={14} /> Live</span>
             </div>
-            <div className="relative min-h-[360px] overflow-hidden rounded-xl border border-slate-200 bg-[radial-gradient(circle_at_25%_20%,rgba(20,184,166,.16),transparent_28%),radial-gradient(circle_at_70%_55%,rgba(34,197,94,.20),transparent_26%),linear-gradient(135deg,#f8fafc,#eefcf7)]">
+            <div className="relative min-h-[480px] xl:min-h-[560px] overflow-hidden rounded-xl border border-slate-200 bg-[radial-gradient(circle_at_25%_20%,rgba(20,184,166,.16),transparent_28%),radial-gradient(circle_at_70%_55%,rgba(34,197,94,.20),transparent_26%),linear-gradient(135deg,#f8fafc,#eefcf7)]">
               <svg viewBox="0 0 720 380" className="absolute inset-0 h-full w-full">
                 <defs>
                   <filter id="soft"><feGaussianBlur stdDeviation="18" /></filter>
