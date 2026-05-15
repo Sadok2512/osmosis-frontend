@@ -118,6 +118,7 @@ const Index: React.FC = () => {
       topology: true,
       ran_query: true,
       ticket_management: true,
+    };
   });
 
   useEffect(() => {
