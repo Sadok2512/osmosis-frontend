@@ -18,6 +18,7 @@ const BackendAdmin = lazy(() => import('../components/otarie/BackendAdmin'));
 const TopologiePage = lazy(() => import('../components/otarie/TopologiePage'));
 const ParametersPage = lazy(() => import('../components/parameter-hub/ParameterHubPage'));
 const AlarmCenterPage = lazy(() => import('../components/alarm-center/AlarmCenterPage'));
+const TicketManagementPage = lazy(() => import('../components/ticket-management/TicketManagementPage'));
 const AgentHubPage = lazy(() => import('../components/otarie/AgentHubPage'));
 const KpiReference2Page = lazy(() => import('../components/kpi-monitor/KpiReferenceWorkspace2'));
 const PmDashboardPage = lazy(() => import('../components/pm-dashboard/PmDashboardPage'));
