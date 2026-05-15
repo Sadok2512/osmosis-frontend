@@ -625,7 +625,7 @@ const AlarmCenterPage: React.FC = () => {
                   {paged.map((a) => (
                     <tr
                       key={a.id}
-                      onClick={() => setSelectedId(a.id)}
+                      onClick={() => { setSelectedId(a.id); setDetailsOpen(true); }}
                       className={`border-b border-[#f1f5fb] cursor-pointer transition-colors ${selectedId === a.id ? "bg-blue-50/60" : "hover:bg-[#f9fbfe]"}`}
                     >
                       <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
