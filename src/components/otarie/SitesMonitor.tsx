@@ -2582,6 +2582,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setShowDeleteConfirm(null);
     // Stay on the Dashboard tab after deletion
     try { window.dispatchEvent(new CustomEvent('osmosis:force-dashboard-tab')); } catch {}
+    try { window.dispatchEvent(new CustomEvent('osmosis:dashboards-changed')); } catch {}
   };
 
   const handlePermanentDeleteDashboard = async (dbId: string) => {
@@ -2596,6 +2597,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setShowDeleteConfirm(null);
     // Stay on the Dashboard tab after deletion
     try { window.dispatchEvent(new CustomEvent('osmosis:force-dashboard-tab')); } catch {}
+    try { window.dispatchEvent(new CustomEvent('osmosis:dashboards-changed')); } catch {}
   };
 
   const openLoadPicker = async () => {
