@@ -5752,6 +5752,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setShowDashboardDropdown(false);
   }, [dashboardList, sectorColorMode]);
 
+  // Listen for sidebar-driven dashboard activation
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent).detail?.id;
+      if (!id) return;
+      try { loadDashboardSettings(id); } catch (err) { console.warn('[SitesMonitor] activate-dashboard failed', err); }
+      setInventoryTab('dashboard');
+    };
+    window.addEventListener('osmosis:activate-dashboard', handler);
+    return () => window.removeEventListener('osmosis:activate-dashboard', handler);
+  }, [loadDashboardSettings]);
+
   // Coverage simulation state
   const [showCoverageSim, setShowCoverageSim] = useState(false);
   const [coverageGrid, setCoverageGrid] = useState<CoverageGrid | null>(null);
