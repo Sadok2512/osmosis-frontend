@@ -476,8 +476,8 @@ const NetworkExplorer = () => {
   );
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(135deg,#f8fafc_0%,#eefdfa_52%,#f7faf9_100%)] p-4 text-slate-900 sm:p-6">
-      <div className="flex w-full flex-col gap-5">
+    <main className="min-h-screen w-full bg-[linear-gradient(135deg,#f8fafc_0%,#eefdfa_52%,#f7faf9_100%)] px-3 py-3 text-slate-900 sm:px-5 sm:py-4">
+      <div className="flex w-full max-w-full flex-1 flex-col gap-4">
         <header className="rounded-xl border border-white/80 bg-white/78 p-4 shadow-[0_18px_60px_rgba(15,118,110,0.10)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center gap-4">
@@ -509,7 +509,10 @@ const NetworkExplorer = () => {
           <ParameterHubPage />
         ) : (
         <>
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9">
+        <section
+          className="grid gap-3"
+          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}
+        >
           {kpis.map(({ label, value, icon: Icon, hint }) => (
             <article key={label} className="rounded-xl border border-white/85 bg-white/80 p-4 shadow-[0_14px_40px_rgba(15,23,42,0.06)] backdrop-blur transition hover:-translate-y-0.5 hover:shadow-[0_18px_48px_rgba(15,118,110,0.12)]">
               <div className="mb-3 flex items-center justify-between">
@@ -523,7 +526,7 @@ const NetworkExplorer = () => {
           ))}
         </section>
 
-        <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
           <div className="rounded-xl border border-white/85 bg-white/82 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.07)] backdrop-blur">
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -582,7 +585,7 @@ const NetworkExplorer = () => {
               </div>
               <span className="flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-700 ring-1 ring-emerald-200"><Activity size={14} /> Live</span>
             </div>
-            <div className="relative min-h-[360px] overflow-hidden rounded-xl border border-slate-200 bg-[radial-gradient(circle_at_25%_20%,rgba(20,184,166,.16),transparent_28%),radial-gradient(circle_at_70%_55%,rgba(34,197,94,.20),transparent_26%),linear-gradient(135deg,#f8fafc,#eefcf7)]">
+            <div className="relative min-h-[480px] xl:min-h-[560px] overflow-hidden rounded-xl border border-slate-200 bg-[radial-gradient(circle_at_25%_20%,rgba(20,184,166,.16),transparent_28%),radial-gradient(circle_at_70%_55%,rgba(34,197,94,.20),transparent_26%),linear-gradient(135deg,#f8fafc,#eefcf7)]">
               <svg viewBox="0 0 720 380" className="absolute inset-0 h-full w-full">
                 <defs>
                   <filter id="soft"><feGaussianBlur stdDeviation="18" /></filter>
@@ -655,9 +658,9 @@ const NetworkExplorer = () => {
           </div>
 
           <div className="overflow-hidden rounded-xl border border-slate-200">
-            <div className="max-h-[520px] overflow-auto">
-              <table className="w-full min-w-[1180px] border-collapse bg-white text-left">
-                <thead className="sticky top-0 z-10 bg-slate-50/95 text-[11px] uppercase tracking-wide text-slate-500 backdrop-blur">
+            <div className="max-h-[640px] overflow-auto">
+              <table className="w-full min-w-[960px] border-collapse bg-white text-left">
+                <thead className="sticky top-0 z-10 bg-slate-50/95 text-[11px] uppercase tracking-wide text-slate-500 backdrop-blur shadow-[0_1px_0_rgba(0,0,0,0.05)]">
                   <tr>
                     {["Project Name", "Vendor", "UPR", "DR", "Plaque", "Site Name", "Cells", "Technologies", "Bands", "Status", "Last Updated"].map((header) => (
                       <th key={header} className="border-b border-slate-200 px-4 py-3 font-extrabold">{header}</th>
