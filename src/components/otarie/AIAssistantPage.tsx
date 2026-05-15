@@ -602,7 +602,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     setEditTitle('');
   };
 
-  const sidebarWidth = sidebarMode === 'full' ? 'w-[280px]' : sidebarMode === 'collapsed' ? 'w-[52px]' : 'w-0';
+  const sidebarWidth = sidebarMode === 'full' ? 'w-[230px]' : sidebarMode === 'collapsed' ? 'w-[48px]' : 'w-0';
 
   return (
     <div className="osmosis-theme flex-1 flex h-full bg-background overflow-hidden">
@@ -884,7 +884,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
               </div>
             </div>
           ) : (
-            <div className="max-w-6xl mx-auto px-5 py-6 space-y-6">
+            <div className="w-full px-4 lg:px-8 xl:px-12 py-6 space-y-6">
               {messages.map((msg, i) => (
                 <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                   {msg.role === 'assistant' && (
@@ -896,10 +896,10 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                       )}
                     </div>
                   )}
-                  <div className={`max-w-[85%] overflow-hidden relative group ${
+                  <div className={`overflow-hidden relative group ${
                     msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-4 py-3 shadow-sm'
-                      : 'bg-card border border-border/80 rounded-2xl rounded-bl-sm px-5 py-4 shadow-sm'
+                      ? 'max-w-[75%] bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-4 py-3 shadow-sm'
+                      : 'flex-1 min-w-0 bg-card border border-border/80 rounded-2xl rounded-bl-sm px-5 py-4 shadow-sm'
                   }`}>
                     {msg.role === 'user' ? (
                       <>
