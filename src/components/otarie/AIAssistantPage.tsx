@@ -602,7 +602,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     setEditTitle('');
   };
 
-  const sidebarWidth = sidebarMode === 'full' ? 'w-[280px]' : sidebarMode === 'collapsed' ? 'w-[52px]' : 'w-0';
+  const sidebarWidth = sidebarMode === 'full' ? 'w-[230px]' : sidebarMode === 'collapsed' ? 'w-[48px]' : 'w-0';
 
   return (
     <div className="osmosis-theme flex-1 flex h-full bg-background overflow-hidden">
