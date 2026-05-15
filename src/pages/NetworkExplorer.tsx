@@ -658,9 +658,9 @@ const NetworkExplorer = () => {
           </div>
 
           <div className="overflow-hidden rounded-xl border border-slate-200">
-            <div className="max-h-[520px] overflow-auto">
-              <table className="w-full min-w-[1180px] border-collapse bg-white text-left">
-                <thead className="sticky top-0 z-10 bg-slate-50/95 text-[11px] uppercase tracking-wide text-slate-500 backdrop-blur">
+            <div className="max-h-[640px] overflow-auto">
+              <table className="w-full min-w-[960px] border-collapse bg-white text-left">
+                <thead className="sticky top-0 z-10 bg-slate-50/95 text-[11px] uppercase tracking-wide text-slate-500 backdrop-blur shadow-[0_1px_0_rgba(0,0,0,0.05)]">
                   <tr>
                     {["Project Name", "Vendor", "UPR", "DR", "Plaque", "Site Name", "Cells", "Technologies", "Bands", "Status", "Last Updated"].map((header) => (
                       <th key={header} className="border-b border-slate-200 px-4 py-3 font-extrabold">{header}</th>
