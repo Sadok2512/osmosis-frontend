@@ -2369,12 +2369,39 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setPendingSwitchId(null);
   };
 
+  // Optimistic entries that the server hasn't confirmed yet. fetchAll
+  // preserves them when the response is missing their id (VPS mirror
+  // still in flight). Once the id appears in the server response, the
+  // entry is considered confirmed and the pending flag is cleared.
+  // Stale guard: entries older than 60s are dropped on next fetchAll
+  // even if absent from the server, to avoid keeping zombie rows
+  // forever when the upstream upsert truly failed.
+  const pendingOptimisticRef = useRef<Map<string, number>>(new Map());
+
   const fetchAll = async () => {
     setLdg(true);
     try {
       const dbData = await dashboardsApi.list();
       if (Array.isArray(dbData)) {
-        setDashboards(dedupeAutoFilterDashboards(dbData.filter((d: any) => !d.is_archived)));
+        const cleaned = dedupeAutoFilterDashboards(dbData.filter((d: any) => !d.is_archived));
+        const serverIds = new Set(cleaned.map((d: any) => d.id));
+        // Confirm any optimistic entries the server now knows about.
+        for (const id of Array.from(pendingOptimisticRef.current.keys())) {
+          if (serverIds.has(id)) pendingOptimisticRef.current.delete(id);
+        }
+        // Drop optimistic entries older than 60s — they truly failed.
+        const now = Date.now();
+        for (const [id, ts] of Array.from(pendingOptimisticRef.current.entries())) {
+          if ((now - ts) > 60_000) pendingOptimisticRef.current.delete(id);
+        }
+        setDashboards(prev => {
+          // Keep client-only entries that are still in pendingOptimistic
+          // AND not yet on the server.
+          const stillPending = prev.filter((d: any) =>
+            pendingOptimisticRef.current.has(d.id) && !serverIds.has(d.id)
+          );
+          return [...stillPending, ...cleaned];
+        });
       }
     } catch (e) {
       console.warn('[SitesMonitor] fetchAll dashboards failed:', e);
@@ -2569,6 +2596,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         updated_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
       };
+      // Mark as pending so fetchAll knows to preserve it until the server
+      // confirms (or 60s elapses, whichever comes first).
+      pendingOptimisticRef.current.set(id, Date.now());
       setDashboards(prev => [optimistic, ...prev.filter((d: any) => d.id !== optimistic.id)]);
       // Ensure the freshly-created dashboard is visible in every filter mode
       // ('loaded' filters by loadedDashIds; 'my' by ownership). Adding it to
