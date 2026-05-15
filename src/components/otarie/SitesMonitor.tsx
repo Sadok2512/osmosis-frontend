@@ -2538,7 +2538,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     }
     try {
       const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
-      await dashboardsApi.upsert({
+      const saved = await dashboardsApi.upsert({
         id,
         name: trimmedName,
         description: '',
@@ -2550,7 +2550,26 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       setNewDashName('');
       setShowCreateDash(false);
       setCreateFilters({}); setCreateConditions([]); setCreateTopoPayload(null);
-      await fetchAll();
+      // OPTIMISTIC ADD — push the new dashboard to local state immediately.
+      // Without this, fetchAll() hits the VPS read endpoint BEFORE the
+      // fire-and-forget VPS mirror in dashboardsApi.upsert has flushed,
+      // so the response is missing the new row and the sidebar stays empty
+      // until the next fetchAll tick. addLoadedId + setExpandedDashboardId
+      // alone aren't enough — they reference an id that isn't yet in
+      // `dashboards`, so filteredDashboards yields nothing.
+      const optimistic = saved || {
+        id,
+        name: trimmedName,
+        description: '',
+        is_shared: true,
+        is_archived: false,
+        dashboard_type: 'map',
+        owner_username: session?.username,
+        widgets: [{ _type: 'dashboard_settings', mapLayer: 'light', mapKpi: 'qoe_score_avg', color: '', siteScope: finalScope, siteFilters: cleanFilters }],
+        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      };
+      setDashboards(prev => [optimistic, ...prev.filter((d: any) => d.id !== optimistic.id)]);
       // Ensure the freshly-created dashboard is visible in every filter mode
       // ('loaded' filters by loadedDashIds; 'my' by ownership). Adding it to
       // loadedDashIds guarantees it shows even if ownership comparison fails
@@ -2562,6 +2581,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       onDashboardActiveChange?.(true, finalScope, cleanFilters);
       try { window.dispatchEvent(new CustomEvent('osmosis:dashboards-changed')); } catch {}
       try { window.dispatchEvent(new CustomEvent('osmosis:active-dashboard-changed')); } catch {}
+      // Background reconcile — pull canonical state from VPS once the mirror
+      // has had time to land. Failures here don't matter — the optimistic
+      // entry above already covers the UI.
+      fetchAll().catch(() => {});
     } catch (err) { console.warn('[SitesMonitor] createDashboard failed', err); }
     setCreatingDash(false);
   };
