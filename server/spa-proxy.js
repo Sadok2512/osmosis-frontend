@@ -7,7 +7,7 @@
  *      │
  *      ├─ /api/v1/*   → proxy → http://127.0.0.1:8000 (osmosis-parser, FastAPI)
  *      ├─ /admin/api/*→ proxy → http://127.0.0.1:8000 (legacy admin login POST)
- *      ├─ /kpi-api/*  → proxy → http://127.0.0.1:8001 (kpi-engine, /monitor + /kpi)
+ *      ├─ /kpi-api/*  → proxy → http://127.0.0.1:11004 (kpi-engine, /monitor + /kpi)
  *      ├─ /api/*      → proxy → http://127.0.0.1:3001 (this repo's index.js)
  *      └─ everything else → static files in ../dist/ (Vite build output)
  *                          + SPA fallback to ../dist/index.html for client-side routing
@@ -33,7 +33,7 @@ const DIST_DIR = path.join(__dirname, '..', 'dist');
 const TARGETS = {
   '/api/v1/':    { host: '127.0.0.1', port: 8000 },   // osmosis-parser
   '/admin/api/': { host: '127.0.0.1', port: 8000 },   // legacy admin auth POST
-  '/kpi-api/':   { host: '127.0.0.1', port: 8001 },   // kpi-engine (strip prefix)
+  '/kpi-api/':   { host: '127.0.0.1', port: 11004 },   // kpi-engine (strip prefix)
   '/agent-api/': { host: '127.0.0.1', port: 8000 },   // OSMOSIS AI agent — through parser proxy at /api/v1/agent
   '/ml-api/':    { host: '127.0.0.1', port: 11002 },  // ML Engine — standalone service (extracted from parser 2026-05-10)
   '/agentic-api/': { host: '127.0.0.1', port: 11003 },// Agentic Engine — closed-loop orchestration (Phase 1: RCA from ML anomalies)
