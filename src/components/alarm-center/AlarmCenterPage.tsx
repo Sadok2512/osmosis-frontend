@@ -778,7 +778,7 @@ const AlarmCenterPage: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${SEV_STYLES[selected.severity].chip}`}>{selected.severity}</span>
-                  <button className="text-slate-300 hover:text-slate-500 transition"><X size={14} strokeWidth={1.75} /></button>
+                  <button onClick={() => setDetailsOpen(false)} className="text-slate-300 hover:text-slate-500 transition"><X size={14} strokeWidth={1.75} /></button>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3">
