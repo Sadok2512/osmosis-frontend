@@ -5358,6 +5358,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [activeDashboardId, _setActiveDashboardId] = useState<string | null>(() => {
     try { return localStorage.getItem('osmosis_active_dashboard_id') || null; } catch { return null; }
   });
+  // Per-dashboard scope-counts cache. Keyed by dashboardId, holds backend-
+  // authoritative sites + cells counts. Refreshed on filter change. Async
+  // fetch is triggered from getDashboardStats below — sync read here.
+  const [dashboardStatsCache, setDashboardStatsCache] = useState<Record<string, { sites: number; cells: number; ts: number; filtersKey: string }>>({});
+  const dashboardStatsInflightRef = useRef<Set<string>>(new Set());
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
   const [activeViewType, setActiveViewType] = useState<string | null>(null);
   const [kpiOverlayLocked, setKpiOverlayLocked] = useState(false);
@@ -14395,35 +14400,45 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       }
                       return c;
                     };
-                    // Active dashboard: use the already-filtered list
+                    // Active dashboard: use the already-filtered list — it
+                    // matches what's on the map AND uses the corrected
+                    // site_ref_daily.total_cells (DB fix landed 2026-05-14).
                     if (dashboardId === activeDashboardId) {
                       return { sites: filteredSites.length, cells: countCells(filteredSites) };
                     }
-                    // Non-active: apply provided siteFilters to the full sites list
-                    const sf: any = siteFilters || null;
-                    const matches = (s: any, key: string, vals: any[]) => {
-                      const v = (s as any)[key];
-                      return v != null && vals.map(String).includes(String(v));
-                    };
-                    const matchesCell = (s: any, key: string, vals: any[]) => {
-                      const cells = Array.isArray(s.cells) ? s.cells : [];
-                      if (!cells.length) return true; // unknown — don't exclude
-                      return cells.some((c: any) => vals.map(String).includes(String((c as any)[key])));
-                    };
-                    const filtered = sites.filter(s => {
-                      if (!sf) return true;
-                      for (const [k, vRaw] of Object.entries(sf)) {
-                        const vals = Array.isArray(vRaw) ? vRaw : (vRaw != null ? [vRaw] : []);
-                        if (!vals.length) continue;
-                        if (k === 'dor' || k === 'plaque' || k === 'vendor' || k === 'department' || k === 'zone_arcep') {
-                          if (!matches(s, k, vals)) return false;
-                        } else if (k === 'bande' || k === 'techno') {
-                          if (!matchesCell(s, k, vals)) return false;
-                        }
-                      }
-                      return true;
-                    });
-                    return { sites: filtered.length, cells: countCells(filtered) };
+                    // Non-active dashboards: ask the backend authoritatively
+                    // via /topo/sites?topo_search=&dim_filters=. Cached for 5 min
+                    // per (dashboardId, filtersKey) so we don't refetch on every
+                    // re-render. Returns null while in-flight → UI shows '—'.
+                    const filtersKey = JSON.stringify(siteFilters || {});
+                    const cached = dashboardStatsCache[dashboardId];
+                    const ttlMs = 5 * 60 * 1000;
+                    if (cached && cached.filtersKey === filtersKey && (Date.now() - cached.ts) < ttlMs) {
+                      return { sites: cached.sites, cells: cached.cells };
+                    }
+                    if (!dashboardStatsInflightRef.current.has(dashboardId) && siteFilters && Object.keys(siteFilters).length > 0) {
+                      dashboardStatsInflightRef.current.add(dashboardId);
+                      // Lazy-import to avoid pulling topoService into the initial
+                      // render path; this fires once per dashboard per TTL window.
+                      import('@/services/topoService').then(({ fetchDashboardSites }) => {
+                        return fetchDashboardSites(siteFilters as any);
+                      }).then(list => {
+                        setDashboardStatsCache(prev => ({
+                          ...prev,
+                          [dashboardId]: {
+                            sites:      list.length,
+                            cells:      countCells(list),
+                            ts:         Date.now(),
+                            filtersKey,
+                          },
+                        }));
+                      }).catch(err => {
+                        console.warn('[SitesMonitor] dashboard stats fetch failed', dashboardId, err);
+                      }).finally(() => {
+                        dashboardStatsInflightRef.current.delete(dashboardId);
+                      });
+                    }
+                    return null;
                   }}
                   onApplyView={(settings) => {
                     // Track view activation
