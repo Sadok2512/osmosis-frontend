@@ -786,7 +786,7 @@ const ChangeHistoryPage: React.FC = () => {
                 <Minimize2 className="w-3.5 h-3.5" /> Exit
               </button>
             </div>
-            <ChangeMap rows={ROWS} fullscreen={true} />
+            <ChangeMap rows={ROWS} fullscreen={true} basemap={basemap} />
           </div>
         )}
       </div>
