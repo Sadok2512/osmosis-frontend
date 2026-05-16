@@ -239,7 +239,7 @@ const ChangeMap: React.FC<{ rows: Row[]; fullscreen: boolean; basemap?: "map" | 
   const tileUrl = (b: "map" | "plan") =>
     b === "plan"
       ? "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-      : "https://{s}.basemaps.cartocdn.com/voyager/{z}/{x}/{y}{r}.png";
+      : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
