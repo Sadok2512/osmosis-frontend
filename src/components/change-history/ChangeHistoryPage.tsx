@@ -229,10 +229,17 @@ const riskColor: Record<Sev, string> = {
   High: "#f97316",
   Critical: "#f43f5e",
 };
-const ChangeMap: React.FC<{ rows: Row[]; fullscreen: boolean }> = ({ rows, fullscreen }) => {
+const ChangeMap: React.FC<{ rows: Row[]; fullscreen: boolean; basemap?: "map" | "plan" }> = ({ rows, fullscreen, basemap = "map" }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  const tileRef = useRef<L.TileLayer | null>(null);
+  const [counts, setCounts] = useState<{ critical: number; high: number; medium: number; low: number }>({ critical: 0, high: 0, medium: 0, low: 0 });
+
+  const tileUrl = (b: "map" | "plan") =>
+    b === "plan"
+      ? "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.basemaps.cartocdn.com/voyager/{z}/{x}/{y}{r}.png";
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -240,10 +247,11 @@ const ChangeMap: React.FC<{ rows: Row[]; fullscreen: boolean }> = ({ rows, fulls
       center: [46.6, 2.5],
       zoom: 6,
       scrollWheelZoom: false,
-      zoomControl: true,
+      zoomControl: false,
+      attributionControl: false,
     });
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap",
+    tileRef.current = L.tileLayer(tileUrl(basemap), {
+      attribution: "© OpenStreetMap · © CARTO",
       maxZoom: 19,
     }).addTo(map);
     layerRef.current = L.layerGroup().addTo(map);
@@ -258,38 +266,65 @@ const ChangeMap: React.FC<{ rows: Row[]; fullscreen: boolean }> = ({ rows, fulls
       map.remove();
       mapRef.current = null;
       layerRef.current = null;
+      tileRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Swap basemap on toggle
+  useEffect(() => {
+    if (!mapRef.current || !tileRef.current) return;
+    mapRef.current.removeLayer(tileRef.current);
+    tileRef.current = L.tileLayer(tileUrl(basemap), {
+      attribution: "© OpenStreetMap · © CARTO",
+      maxZoom: 19,
+    }).addTo(mapRef.current);
+    tileRef.current.bringToBack();
+  }, [basemap]);
 
   useEffect(() => {
     if (!mapRef.current || !layerRef.current) return;
     const lg = layerRef.current;
     lg.clearLayers();
-    // Bounding box ≈ France
     const minLat = 43.2, maxLat = 50.8, minLng = -4.5, maxLng = 7.5;
     const latlngs: L.LatLngExpression[] = [];
+    const c = { critical: 0, high: 0, medium: 0, low: 0 };
     rows.forEach((r) => {
       const h1 = hash(r.site);
       const h2 = hash(r.site + "_" + r.cell);
       const lat = minLat + ((h1 % 1000) / 1000) * (maxLat - minLat);
       const lng = minLng + ((h2 % 1000) / 1000) * (maxLng - minLng);
       const color = riskColor[r.risk];
+      if (r.risk === "Critical") c.critical++;
+      else if (r.risk === "High") c.high++;
+      else if (r.risk === "Medium") c.medium++;
+      else c.low++;
+      const pulse = r.risk === "Critical" || r.risk === "High";
       const icon = L.divIcon({
         className: "",
-        html: `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
-          <div style="width:18px;height:18px;border-radius:9999px;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25)"></div>
-          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:1px 5px;font-size:9px;font-weight:600;color:#334155;white-space:nowrap">${r.site}</div>
+        html: `<div style="position:relative;display:flex;align-items:center;justify-content:center;width:38px;height:38px">
+          ${pulse ? `<span style="position:absolute;inset:0;border-radius:9999px;background:${color};opacity:.18;animation:chPulse 2.2s ease-out infinite"></span>` : ""}
+          <span style="position:absolute;inset:8px;border-radius:9999px;background:${color};opacity:.22;filter:blur(4px)"></span>
+          <span style="position:relative;width:14px;height:14px;border-radius:9999px;background:${color};border:2px solid #fff;box-shadow:0 2px 6px rgba(15,23,42,.25),0 0 0 1px rgba(15,23,42,.04)"></span>
         </div>`,
-        iconSize: [60, 30],
-        iconAnchor: [30, 9],
+        iconSize: [38, 38],
+        iconAnchor: [19, 19],
       });
       L.marker([lat, lng], { icon })
-        .bindTooltip(`<b>${r.site}</b> · ${r.cell}<br/>${r.param}: ${r.oldVal} → ${r.newVal}<br/>By ${r.changedBy} · ${r.risk}`, { direction: "top" })
+        .bindTooltip(
+          `<div style="font-family:Inter,system-ui;font-size:11px;line-height:1.35">
+             <div style="font-weight:600;color:#0f172a">${r.site} · ${r.cell}</div>
+             <div style="color:#475569;margin-top:2px">${r.param}: <b>${r.oldVal}</b> → <b>${r.newVal}</b></div>
+             <div style="color:#94a3b8;margin-top:2px">By ${r.changedBy} · ${r.risk}</div>
+           </div>`,
+          { direction: "top", offset: [0, -6], className: "ch-tooltip" }
+        )
         .addTo(lg);
       latlngs.push([lat, lng]);
     });
+    setCounts(c);
     if (latlngs.length > 0) {
-      mapRef.current.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 7 });
+      mapRef.current.fitBounds(L.latLngBounds(latlngs), { padding: [60, 60], maxZoom: 7 });
     }
   }, [rows]);
 
@@ -297,14 +332,61 @@ const ChangeMap: React.FC<{ rows: Row[]; fullscreen: boolean }> = ({ rows, fulls
     setTimeout(() => mapRef.current?.invalidateSize(), 50);
   }, [fullscreen]);
 
+  const zoomIn = () => mapRef.current?.zoomIn();
+  const zoomOut = () => mapRef.current?.zoomOut();
+  const reset = () => mapRef.current?.setView([46.6, 2.5], 6, { animate: true });
+
   return (
     <div className={fullscreen ? "flex-1 min-h-0 relative" : "relative"}>
-      <div ref={containerRef} className={`w-full ${fullscreen ? "h-full" : "h-[420px]"} rounded-xl overflow-hidden border border-[#eef2f8]`} />
-      <div className="absolute bottom-3 left-3 z-[400] bg-white/95 backdrop-blur rounded-full px-3 py-1.5 ring-1 ring-[#e7edf5] shadow-sm flex items-center gap-3 text-[11px] font-medium text-slate-600">
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-rose-500" />Critical</span>
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-orange-500" />High</span>
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500" />Medium</span>
-        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />Low</span>
+      <style>{`
+        @keyframes chPulse { 0%{transform:scale(.6);opacity:.5} 100%{transform:scale(1.6);opacity:0} }
+        .ch-tooltip.leaflet-tooltip { background:rgba(255,255,255,.96)!important; backdrop-filter:blur(8px); border:1px solid #e7edf5!important; border-radius:10px!important; box-shadow:0 8px 24px rgba(15,23,42,.10)!important; padding:8px 10px!important; }
+        .ch-tooltip.leaflet-tooltip-top:before { border-top-color:rgba(255,255,255,.96)!important; }
+        .leaflet-container { background:#eef3f9; font-family:Inter,system-ui; }
+      `}</style>
+      <div ref={containerRef} className={`w-full ${fullscreen ? "h-full" : "h-[560px]"} rounded-2xl overflow-hidden ring-1 ring-[#e7edf5]`} />
+
+      {/* Floating rounded zoom controls */}
+      <div className="absolute top-4 right-4 z-[400] flex flex-col gap-1.5">
+        <button onClick={zoomIn} className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-xl ring-1 ring-[#e7edf5] shadow-[0_4px_14px_rgba(15,23,42,0.08)] flex items-center justify-center text-slate-700 hover:bg-white hover:scale-105 transition">
+          <span className="text-[15px] font-semibold leading-none">+</span>
+        </button>
+        <button onClick={zoomOut} className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-xl ring-1 ring-[#e7edf5] shadow-[0_4px_14px_rgba(15,23,42,0.08)] flex items-center justify-center text-slate-700 hover:bg-white hover:scale-105 transition">
+          <span className="text-[15px] font-semibold leading-none">−</span>
+        </button>
+        <button onClick={reset} title="Recenter" className="w-9 h-9 rounded-full bg-white/90 backdrop-blur-xl ring-1 ring-[#e7edf5] shadow-[0_4px_14px_rgba(15,23,42,0.08)] flex items-center justify-center text-slate-600 hover:bg-white hover:scale-105 transition">
+          <RotateCcw className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Glassmorphism legend */}
+      <div className="absolute bottom-4 left-4 z-[400] bg-white/80 backdrop-blur-xl rounded-2xl px-4 py-3 ring-1 ring-white/60 border border-[#e7edf5] shadow-[0_8px_28px_rgba(15,23,42,0.10)]">
+        <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-2">Severity</div>
+        <div className="grid grid-cols-2 gap-x-5 gap-y-1.5 text-[11px]">
+          {[
+            { k: "Critical", n: counts.critical, c: "bg-rose-500" },
+            { k: "High", n: counts.high, c: "bg-orange-500" },
+            { k: "Medium", n: counts.medium, c: "bg-amber-500" },
+            { k: "Low", n: counts.low, c: "bg-emerald-500" },
+          ].map((s) => (
+            <div key={s.k} className="flex items-center gap-2">
+              <span className={`relative inline-flex w-2 h-2 rounded-full ${s.c}`}>
+                <span className={`absolute inset-0 rounded-full ${s.c} opacity-40 blur-[3px]`} />
+              </span>
+              <span className="text-slate-700 font-medium">{s.k}</span>
+              <span className="ml-auto text-slate-500 tabular-nums">{s.n}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Stats pill (top-left) */}
+      <div className="absolute top-4 left-4 z-[400] bg-white/80 backdrop-blur-xl rounded-full pl-2 pr-3 py-1.5 ring-1 ring-white/60 border border-[#e7edf5] shadow-[0_6px_20px_rgba(15,23,42,0.08)] flex items-center gap-2 text-[11px] font-medium text-slate-700">
+        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-50 text-blue-600">
+          <MapPin className="w-3 h-3" />
+        </span>
+        <span className="tabular-nums">{rows.length}</span>
+        <span className="text-slate-400">sites · France</span>
       </div>
     </div>
   );
