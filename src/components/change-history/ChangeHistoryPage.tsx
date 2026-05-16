@@ -403,6 +403,7 @@ const ChangeHistoryPage: React.FC = () => {
   const [chartTab, setChartTab] = useState<"timeline" | "param" | "map">("map");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [paramRange, setParamRange] = useState<"24H" | "7D" | "14D" | "30D">("7D");
+  const [basemap, setBasemap] = useState<"map" | "plan">("map");
   const currentUser = getStoredSession();
   const username = currentUser?.username || "Guest";
   const initials = username.slice(0, 2).toUpperCase();
