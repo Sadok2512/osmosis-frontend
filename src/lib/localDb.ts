@@ -66,7 +66,8 @@ function useLocal(): boolean {
 }
 
 // Retry on transient edge-function cold-starts (BOOT_ERROR) and gateway hiccups
-const TRANSIENT_STATUSES = new Set([502, 503, 504]);
+// Cloudflare 520-530 = upstream origin errors (treated as transient like 502/503/504)
+const TRANSIENT_STATUSES = new Set([502, 503, 504, 520, 521, 522, 523, 524, 525, 526, 527, 530]);
 
 function backoffDelay(attempt: number): number {
   // Exponential backoff with jitter: ~600ms, 1.2s, 2.4s, 4s (+/- 200ms)
