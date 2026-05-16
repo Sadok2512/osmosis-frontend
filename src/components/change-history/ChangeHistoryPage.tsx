@@ -364,12 +364,6 @@ const ChangeHistoryPage: React.FC = () => {
             <button className="h-10 inline-flex items-center gap-2 px-4 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
               <RefreshCw className="w-4 h-4 text-slate-500" /> Refresh
             </button>
-            <button
-              onClick={() => setChartTab("map")}
-              className="h-10 inline-flex items-center gap-2 px-4 rounded-full text-[13px] font-medium transition ring-1 bg-white text-blue-600 ring-blue-200 hover:bg-blue-50"
-            >
-              <MapPin className="w-4 h-4" /> Map View
-            </button>
             <button className="h-10 inline-flex items-center gap-2 px-4 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
               <Download className="w-4 h-4 text-slate-500" /> Export
             </button>
@@ -380,12 +374,6 @@ const ChangeHistoryPage: React.FC = () => {
               </span>
               Live
             </span>
-            <div className="flex items-center gap-2 pl-1">
-              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-white text-[11px] font-semibold flex items-center justify-center shadow-sm">
-                {initials}
-              </div>
-              <span className="text-[13px] font-medium text-slate-700">{username}</span>
-            </div>
           </div>
         </header>
 
