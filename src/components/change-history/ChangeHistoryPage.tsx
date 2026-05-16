@@ -428,11 +428,6 @@ const ChangeHistoryPage: React.FC = () => {
                   </select>
                 </div>
               ))}
-              <div>
-                <label className="block text-[11px] font-medium text-slate-500 mb-1">Date Range</label>
-                <input className="w-full h-8 rounded-lg border border-[#e7edf5] bg-white text-[12px] text-slate-700 px-2.5 mb-1.5" defaultValue="06/12/2026 00:00" />
-                <input className="w-full h-8 rounded-lg border border-[#e7edf5] bg-white text-[12px] text-slate-700 px-2.5" defaultValue="12/05/2026 23:59" />
-              </div>
               <div className="pt-1 flex gap-2">
                 <button className="flex-1 h-8 rounded-full text-[12px] font-medium text-white bg-gradient-to-r from-[#2563eb] to-[#3b82f6] hover:from-[#1d4ed8] hover:to-[#2563eb] shadow-sm hover:shadow transition">
                   Apply Filters
