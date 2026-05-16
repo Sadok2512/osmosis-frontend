@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { getPreferredDataSource, getVpsProxyHeaders, getVpsProxyUrl } from "@/lib/apiConfig";
 import ParameterHubPage from "@/components/parameter-hub/ParameterHubPage";
+import ChangeHistoryPage from "@/components/change-history/ChangeHistoryPage";
 
 type Status = "Healthy" | "Warning" | "Critical";
 type Tech = "2G" | "3G" | "4G" | "5G";
