@@ -175,7 +175,7 @@ const ParameterHubPage: React.FC = () => {
     <div className="flex flex-col h-full bg-[#F7F9FB] overflow-hidden font-sans">
       {/* Scrollable wrapper — content centered in a max-width column */}
       <div className="flex-1 overflow-auto">
-        <div className="max-w-[1680px] mx-auto px-10 py-8 space-y-6">
+        <div className="w-full px-6 py-6 space-y-6">
           {/* Header */}
           <header className="flex items-start gap-4">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 shadow-[0_4px_12px_-2px_rgba(14,124,102,0.35)] flex items-center justify-center shrink-0">
