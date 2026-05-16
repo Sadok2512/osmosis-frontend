@@ -633,8 +633,6 @@ const ChangeHistoryPage: React.FC = () => {
             </div>
         </section>
         {/* (end full-width table) */}
-        <section className="hidden">
-          <div className="col-span-12 lg:col-span-10 space-y-4 min-w-0">
 
         {/* ----- Change Details — slide-over drawer ----- */}
         {detailsOpen && (
