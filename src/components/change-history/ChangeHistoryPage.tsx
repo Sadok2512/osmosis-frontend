@@ -299,7 +299,7 @@ const ChangeMap: React.FC<{ rows: Row[]; fullscreen: boolean }> = ({ rows, fulls
 
   return (
     <div className={fullscreen ? "flex-1 min-h-0 relative" : "relative"}>
-      <div ref={containerRef} className={`w-full ${fullscreen ? "h-full" : "h-[620px]"} rounded-xl overflow-hidden border border-[#eef2f8]`} />
+      <div ref={containerRef} className={`w-full ${fullscreen ? "h-full" : "h-[420px]"} rounded-xl overflow-hidden border border-[#eef2f8]`} />
       <div className="absolute bottom-3 left-3 z-[400] bg-white/95 backdrop-blur rounded-full px-3 py-1.5 ring-1 ring-[#e7edf5] shadow-sm flex items-center gap-3 text-[11px] font-medium text-slate-600">
         <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-rose-500" />Critical</span>
         <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-orange-500" />High</span>
