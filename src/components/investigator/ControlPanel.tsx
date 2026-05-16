@@ -1131,7 +1131,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       ];
       Promise.allSettled(
         dimProbes.map(d =>
-          fetch(getApiUrl(`pm/counters/filter-values?dimension=${d.param}&limit=1`), { headers: getApiHeaders() })
+          fetchVpsWithRetry(getApiUrl(`pm/counters/filter-values?dimension=${d.param}&limit=1`), { headers: getApiHeaders() })
             .then(r => r.ok ? r.json() : { values: [] })
             .then(data => ({ key: d.key, hasData: (data.values?.length || 0) > 0 }))
         )
