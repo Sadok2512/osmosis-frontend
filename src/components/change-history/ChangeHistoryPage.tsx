@@ -318,7 +318,7 @@ const ChangeHistoryPage: React.FC = () => {
   const [checkedRows, setCheckedRows] = useState<Set<string>>(new Set([ROWS[0].id]));
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const [paramFullscreen, setParamFullscreen] = useState(false);
-  const [chartTab, setChartTab] = useState<"timeline" | "param" | "map">("timeline");
+  const [chartTab, setChartTab] = useState<"timeline" | "param" | "map">("map");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [paramRange, setParamRange] = useState<"24H" | "7D" | "14D" | "30D">("7D");
   const currentUser = getStoredSession();
