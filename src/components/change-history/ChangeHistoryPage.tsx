@@ -534,7 +534,11 @@ const ChangeHistoryPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Table — full width */}
+          </div>
+        </section>
+
+        {/* ----- Table — full page width ----- */}
+        <section>
             <div className={`${CARD} overflow-hidden`}>
               <div className="px-5 py-4 flex items-center justify-between border-b border-[#eef2f8]">
                 <div className="flex items-center gap-3">
@@ -627,8 +631,10 @@ const ChangeHistoryPage: React.FC = () => {
                 </select>
               </div>
             </div>
-          </div>
         </section>
+        {/* (end full-width table) */}
+        <section className="hidden">
+          <div className="col-span-12 lg:col-span-10 space-y-4 min-w-0">
 
         {/* ----- Change Details — slide-over drawer ----- */}
         {detailsOpen && (
