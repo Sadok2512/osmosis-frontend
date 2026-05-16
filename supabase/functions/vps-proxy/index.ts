@@ -309,8 +309,8 @@ Deno.serve(async (req) => {
         const res = await tryFetch(u);
         if (res.status === 502 || res.status === 503 || res.status === 504 || (res.status >= 520 && res.status <= 530)) {
           console.warn(`[vps-proxy] Upstream ${res.status} on attempt ${attempt + 1}/${MAX_ATTEMPTS} (${u})`);
-          await res.body?.cancel().catch(() => {});
           if (attempt < MAX_ATTEMPTS - 1 && remainingBudget() > 5_000) {
+            await res.body?.cancel().catch(() => {});
             await sleep(Math.min(400 * Math.pow(2, attempt), remainingBudget() - 1_000));
             continue;
           }
