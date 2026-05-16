@@ -527,9 +527,7 @@ const ChangeHistoryPage: React.FC = () => {
                   </div>
                 )}
                 {chartTab === "map" && (
-                  <div className="min-h-[420px]">
-                    <ChangeMap rows={ROWS} fullscreen={false} />
-                  </div>
+                  <ChangeMap rows={ROWS} fullscreen={false} />
                 )}
               </div>
             </div>
