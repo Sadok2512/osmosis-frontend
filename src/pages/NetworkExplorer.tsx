@@ -508,6 +508,8 @@ const NetworkExplorer = () => {
 
         {activeTab === "Parameter Hub" ? (
           <ParameterHubPage />
+        ) : activeTab === "Change History" ? (
+          <ChangeHistoryPage />
         ) : (
         <>
         <section
