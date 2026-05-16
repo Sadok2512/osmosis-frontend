@@ -265,7 +265,7 @@ export function getApiUrl(functionName: string): string {
       return onDirect ? `${VPS_ENDPOINTS.kpi}/${clean}` : getVpsProxyUrl('kpi', `/${cleanPath}`, Object.keys(extraParams).length ? extraParams : undefined);
     }
     // Parser endpoints → api.osmosis.net/api/v1/* (or :8000 on VPS)
-    const parserPrefixes = ['topo', 'config/topo', 'qoe-map', 'qoe-metrics', 'dump-parameter', 'dump', 'parameter-changes', 'bi-query', 'bi-distinct', 'bi-date-range', 'bi-catalog', 'sentinel', 'alarms', 'cm', 'pm', 'neighbors', 'filters', 'agent'];
+    const parserPrefixes = ['topo', 'config/topo', 'qoe-map', 'qoe-metrics', 'dump-parameter', 'dump', 'parameter-changes', 'bi-query', 'bi-distinct', 'bi-date-range', 'bi-catalog', 'sentinel', 'alarms', 'cm', 'pm', 'neighbors', 'filters', 'agent', 'tickets'];
     const isParser = parserPrefixes.some(p => cleanPath.startsWith(p));
     if (isParser) {
       return onDirect ? `${VPS_ENDPOINTS.parser}/api/v1/${clean}` : getVpsProxyUrl('parser', `/api/v1/${cleanPath}`, Object.keys(extraParams).length ? extraParams : undefined);

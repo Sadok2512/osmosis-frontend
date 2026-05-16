@@ -1,99 +1,106 @@
 import React, { useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Ticket as TicketIcon, AlertTriangle, Clock, UserCheck, CheckCircle2, Activity,
-  Plus, Check, UserPlus, ArrowUpRight, Sparkles, CheckCheck,
+  Ticket as TicketIcon, AlertTriangle, Clock, UserCheck, CheckCircle2,
+  Plus, Check, UserPlus, ArrowUpRight, CheckCheck,
   Search, Filter, Columns3, Download, RefreshCw, X,
-  Bot, ChevronRight, Bell, Settings2
+  ChevronRight, Bell, Settings2
 } from 'lucide-react';
+import {
+  listTickets,
+  claimTicket,
+  resolveTicket,
+  closeTicket,
+  reopenTicket,
+  escalateTicket,
+  UiTicket,
+  UiSeverity,
+  UiStatus,
+} from '@/services/ticketService';
 
-/* ─────────── Types & mock data ─────────── */
+/* ─────────── UI types & helpers ───────────
+ *
+ * RCA has been removed from the ticket flow (party-mode arbitration
+ * 2026-05-16) — it lives in SentinelRCA.tsx as a separate post-mortem
+ * workflow. NOC operators acknowledge / assign / resolve / escalate;
+ * deep root-cause analysis is a L3 task on a different timescale.
+ */
 
-type Severity = 'Critical' | 'Major' | 'Minor' | 'Warning';
-type Status = 'Open' | 'Investigating' | 'Assigned' | 'Escalated' | 'Resolved' | 'Closed';
-type RcaStatus = 'Not Started' | 'In Progress' | 'Completed';
-
-interface Ticket {
-  id: string;
-  severity: Severity;
-  alarmName: string;
-  site: string;
-  cell: string;
-  vendor: string;
-  tech: string;
-  status: Status;
-  assignee: { name: string; initials: string; color: string };
-  createdAt: string;
-  sla: string; // negative = breached
-  slaBreached: boolean;
-  rca: RcaStatus;
-  description?: string;
-}
-
-const TEAM = [
-  { name: 'Alice B.',  initials: 'AB', color: 'bg-pink-500' },
-  { name: 'Marie S.',  initials: 'MS', color: 'bg-amber-500' },
-  { name: 'John D.',   initials: 'JD', color: 'bg-emerald-500' },
-  { name: 'Sophie M.', initials: 'SM', color: 'bg-violet-500' },
-  { name: 'Operator',  initials: 'OP', color: 'bg-slate-500' },
-  { name: 'Pierre L.', initials: 'PL', color: 'bg-cyan-500' },
-];
-
-const ALARMS: Array<Pick<Ticket, 'severity' | 'alarmName' | 'site' | 'cell' | 'vendor' | 'tech' | 'status' | 'rca' | 'sla' | 'slaBreached' | 'description'>> = [
-  { severity: 'Critical', alarmName: 'CLOCK_SYNC_LOST',    site: 'REIMS_BU (REIMS)',         cell: '97492_E3', vendor: 'Ericsson', tech: '4G LTE', status: 'Open',          rca: 'Not Started', sla: '-00:43:12', slaBreached: true,  description: 'Clock synchronization lost between eNodeB and time source. Services may be impacted.' },
-  { severity: 'Major',    alarmName: 'HIGH_PTWP',          site: 'REIMS_VO (REIMS)',         cell: '77615_E2', vendor: 'Ericsson', tech: '4G LTE', status: 'Investigating', rca: 'In Progress', sla: '00:28:12',  slaBreached: false, description: 'Power transmit warning above threshold on sector 2.' },
-  { severity: 'Major',    alarmName: 'VOLTE_REG_FAIL',     site: 'NANTES_C (NANTES)',        cell: '22311_A1', vendor: 'Nokia',    tech: '4G LTE', status: 'Assigned',      rca: 'Not Started', sla: '01:12:02',  slaBreached: false, description: 'VoLTE registration failure spike detected on cluster.' },
-  { severity: 'Minor',    alarmName: 'RSRP_DEGRADATION',   site: 'MARSEILLE (MARSEILLE)',    cell: '55223_B4', vendor: 'Huawei',   tech: '5G NR',  status: 'Escalated',     rca: 'In Progress', sla: '-00:10:05', slaBreached: true,  description: 'RSRP degradation observed across three neighbour cells.' },
-  { severity: 'Warning',  alarmName: 'CELL_DOWNTIME',      site: 'LILLE_CENTRE (LILLE)',     cell: '33445_C2', vendor: 'Ericsson', tech: '4G LTE', status: 'Open',          rca: 'Not Started', sla: '02:49:18',  slaBreached: false, description: 'Cell offline since 02:47:10. Auto-recovery attempts running.' },
-  { severity: 'Major',    alarmName: 'CQI_DEGRADATION',    site: 'LYON_PART (LYON)',         cell: '66778_D1', vendor: 'Nokia',    tech: '4G LTE', status: 'Investigating', rca: 'In Progress', sla: '00:56:22',  slaBreached: false, description: 'Channel quality degradation across PRBs.' },
-  { severity: 'Major',    alarmName: 'HANDOVER_FAILURE',   site: 'BORDEAUX (BORDEAUX)',      cell: '88990_A7', vendor: 'Ericsson', tech: '5G NR',  status: 'Assigned',      rca: 'In Progress', sla: '01:32:09',  slaBreached: false, description: 'X2 handover failure ratio above 5%.' },
-  { severity: 'Critical', alarmName: 'CORE_SWITCH_FAIL',   site: 'TOULOUSE (TOULOUSE)',      cell: '11223_E9', vendor: 'Huawei',   tech: '4G LTE', status: 'Open',          rca: 'Not Started', sla: '-00:20:33', slaBreached: true,  description: 'Core switch failure impacting backhaul ring.' },
-  { severity: 'Minor',    alarmName: 'DL_THROUGHPUT_LOW',  site: 'STRASBOURG (STRASBOURG)',  cell: '64556_F3', vendor: 'Nokia',    tech: '4G LTE', status: 'Investigating', rca: 'In Progress', sla: '00:45:11',  slaBreached: false, description: 'Sustained low DL throughput on busy hour.' },
-  { severity: 'Warning',  alarmName: 'PING_LATENCY_HIGH',  site: 'NICE_CENTRE (NICE)',       cell: '77889_G6', vendor: 'Ericsson', tech: '4G LTE', status: 'Open',          rca: 'Not Started', sla: '02:19:47',  slaBreached: false, description: 'Edge ping latency above 80ms threshold.' },
-];
-
-const TICKETS: Ticket[] = ALARMS.map((a, i) => ({
-  id: `TKT-2026-${10587 - i}`,
-  ...a,
-  assignee: TEAM[i % TEAM.length],
-  createdAt: `12/05/2026  ${String(2 + Math.floor(i / 3)).padStart(2, '0')}:${String((i * 13) % 60).padStart(2, '0')}:00`,
-}));
-
-/* ─────────── Style helpers ─────────── */
-
-const sevPill: Record<Severity, string> = {
+const sevPill: Record<UiSeverity, string> = {
   Critical: 'bg-rose-100 text-rose-700 ring-1 ring-rose-200',
   Major:    'bg-orange-100 text-orange-700 ring-1 ring-orange-200',
   Minor:    'bg-amber-100 text-amber-700 ring-1 ring-amber-200',
   Warning:  'bg-sky-100 text-sky-700 ring-1 ring-sky-200',
 };
 
-const statusPill: Record<Status, string> = {
+const statusPill: Record<UiStatus, string> = {
   Open:          'bg-blue-50 text-blue-700 ring-1 ring-blue-200',
   Investigating: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200',
   Assigned:      'bg-violet-50 text-violet-700 ring-1 ring-violet-200',
   Escalated:     'bg-orange-50 text-orange-700 ring-1 ring-orange-200',
   Resolved:      'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
   Closed:        'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
+  Cancelled:     'bg-slate-100 text-slate-500 ring-1 ring-slate-200',
 };
 
-const rcaDot: Record<RcaStatus, string> = {
-  'Not Started': 'bg-slate-300',
-  'In Progress': 'bg-amber-400',
-  'Completed':   'bg-emerald-500',
+function slaText(t: UiTicket): { label: string; breached: boolean } {
+  if (!t.slaDueAt) return { label: '—', breached: false };
+  const now = Date.now();
+  const due = new Date(t.slaDueAt).getTime();
+  const diffMs = due - now;
+  const sign = diffMs < 0 ? '-' : '';
+  const abs = Math.abs(diffMs);
+  const hh = Math.floor(abs / 3_600_000);
+  const mm = Math.floor((abs % 3_600_000) / 60_000);
+  const ss = Math.floor((abs % 60_000) / 1000);
+  return {
+    label: `${sign}${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`,
+    breached: diffMs < 0,
+  };
+}
+
+function formatCreatedAt(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('fr-FR', { hour12: false });
+  } catch {
+    return iso;
+  }
+}
+
+const initialsFromAssignee = (id: number | null): string =>
+  id == null ? '—' : `U${id}`;
+
+const assigneeColor = (id: number | null): string => {
+  if (id == null) return 'bg-slate-300';
+  const palette = ['bg-pink-500', 'bg-amber-500', 'bg-emerald-500',
+                   'bg-violet-500', 'bg-cyan-500', 'bg-blue-500'];
+  return palette[id % palette.length];
 };
 
-/* ─────────── KPI cards ─────────── */
+/* ─────────── KPI computation (from live data) ─────────── */
 
 interface KpiDef { label: string; value: string; delta: string; tone: string; icon: React.ReactNode; spark: string; }
 
-const KPIS: KpiDef[] = [
-  { label: 'Open Tickets',    value: '1,248', delta: '+12% vs yesterday', tone: 'text-blue-600',    icon: <TicketIcon className="w-4 h-4" />,        spark: 'M0 18 L10 12 L20 14 L30 6 L40 10 L50 4 L60 8 L70 2' },
-  { label: 'Critical Tickets',value: '327',   delta: '+8% vs yesterday',  tone: 'text-rose-600',    icon: <AlertTriangle className="w-4 h-4" />, spark: 'M0 14 L10 10 L20 16 L30 6 L40 12 L50 8 L60 14 L70 4' },
-  { label: 'SLA Breached',    value: '42',    delta: '+5% vs yesterday',  tone: 'text-orange-600',  icon: <Clock className="w-4 h-4" />,         spark: 'M0 6 L10 14 L20 8 L30 12 L40 4 L50 10 L60 6 L70 14' },
-  { label: 'Assigned to Me',  value: '18',    delta: '-3% vs yesterday',  tone: 'text-amber-600',   icon: <UserCheck className="w-4 h-4" />,     spark: 'M0 10 L10 6 L20 12 L30 8 L40 14 L50 6 L60 10 L70 8' },
-  { label: 'Resolved Today',  value: '96',    delta: '+15% vs yesterday', tone: 'text-emerald-600', icon: <CheckCircle2 className="w-4 h-4" />,  spark: 'M0 14 L10 10 L20 12 L30 4 L40 8 L50 6 L60 4 L70 2' },
-  { label: 'RCA Running',     value: '7',     delta: '+2 vs yesterday',   tone: 'text-violet-600',  icon: <Activity className="w-4 h-4" />,      spark: 'M0 8 L10 12 L20 6 L30 10 L40 4 L50 14 L60 8 L70 12' },
-];
+function computeKpis(tickets: UiTicket[]): KpiDef[] {
+  const open      = tickets.filter(t => t.status !== 'Resolved' && t.status !== 'Closed' && t.status !== 'Cancelled').length;
+  const critical  = tickets.filter(t => t.severity === 'Critical' && t.status !== 'Resolved' && t.status !== 'Closed').length;
+  const breached  = tickets.filter(t => t.slaBreached).length;
+  const resolvedToday = tickets.filter(t => {
+    if (t.status !== 'Resolved' && t.status !== 'Closed') return false;
+    const today = new Date().toISOString().slice(0, 10);
+    return (t.createdAt ?? '').startsWith(today);
+  }).length;
+  const escalated = tickets.filter(t => t.status === 'Escalated').length;
+
+  return [
+    { label: 'Open Tickets',     value: String(open),      delta: 'Live count', tone: 'text-blue-600',    icon: <TicketIcon className="w-4 h-4" />,    spark: 'M0 18 L10 12 L20 14 L30 6 L40 10 L50 4 L60 8 L70 2' },
+    { label: 'Critical Tickets', value: String(critical),  delta: 'Live count', tone: 'text-rose-600',    icon: <AlertTriangle className="w-4 h-4" />, spark: 'M0 14 L10 10 L20 16 L30 6 L40 12 L50 8 L60 14 L70 4' },
+    { label: 'SLA Breached',     value: String(breached),  delta: 'Live count', tone: 'text-orange-600',  icon: <Clock className="w-4 h-4" />,         spark: 'M0 6 L10 14 L20 8 L30 12 L40 4 L50 10 L60 6 L70 14' },
+    { label: 'Escalated',        value: String(escalated), delta: 'Live count', tone: 'text-violet-600',  icon: <ArrowUpRight className="w-4 h-4" />,  spark: 'M0 10 L10 6 L20 12 L30 8 L40 14 L50 6 L60 10 L70 8' },
+    { label: 'Resolved Today',   value: String(resolvedToday), delta: 'Live count', tone: 'text-emerald-600', icon: <CheckCircle2 className="w-4 h-4" />, spark: 'M0 14 L10 10 L20 12 L30 4 L40 8 L50 6 L60 4 L70 2' },
+  ];
+}
 
 const KpiCard: React.FC<KpiDef> = ({ label, value, delta, tone, icon, spark }) => (
   <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm hover:shadow-md transition-shadow">
@@ -129,42 +136,73 @@ const ActionBtn: React.FC<{ icon: React.ReactNode; label: string; tone: string; 
 /* ─────────── Main page ─────────── */
 
 const TicketManagementPage: React.FC = () => {
-  const [tickets] = useState<Ticket[]>(TICKETS);
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [drawerId, setDrawerId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const pageSize = 10;
+
+  const { data: tickets = [], isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['noc-tickets', 'list'],
+    queryFn: () => listTickets({ limit: 500 }),
+    refetchInterval: 30_000,
+  });
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return tickets;
     return tickets.filter(t =>
-      [t.id, t.alarmName, t.site, t.cell, t.vendor, t.assignee.name, t.status]
-        .some(v => v.toLowerCase().includes(q))
+      [t.id, t.alarmName, t.site, t.cell, t.vendor, t.status]
+        .some(v => (v ?? '').toLowerCase().includes(q))
     );
   }, [tickets, search]);
 
   const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const drawer = drawerId ? tickets.find(t => t.id === drawerId) ?? null : null;
-  const allChecked = pageRows.length > 0 && pageRows.every(r => selected.has(r.id));
+  const drawer = drawerId != null ? tickets.find(t => t.numericId === drawerId) ?? null : null;
+  const allChecked = pageRows.length > 0 && pageRows.every(r => selected.has(r.numericId));
 
   const toggleAll = () => {
     setSelected(prev => {
       const next = new Set(prev);
-      if (allChecked) pageRows.forEach(r => next.delete(r.id));
-      else pageRows.forEach(r => next.add(r.id));
+      if (allChecked) pageRows.forEach(r => next.delete(r.numericId));
+      else pageRows.forEach(r => next.add(r.numericId));
       return next;
     });
   };
-  const toggleOne = (id: string) => setSelected(prev => {
+  const toggleOne = (id: number) => setSelected(prev => {
     const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
+    if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
 
   const hasSelection = selected.size > 0;
+
+  /* Mutations — workflow actions on the drawer ticket */
+  const mutClaim = useMutation({
+    mutationFn: ({ id, version }: { id: number; version: number }) => claimTicket(id, version),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['noc-tickets'] }),
+  });
+  const mutResolve = useMutation({
+    mutationFn: ({ id, version, comment }: { id: number; version: number; comment?: string }) =>
+      resolveTicket(id, version, comment),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['noc-tickets'] }),
+  });
+  const mutClose = useMutation({
+    mutationFn: ({ id, version }: { id: number; version: number }) => closeTicket(id, version),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['noc-tickets'] }),
+  });
+  const mutReopen = useMutation({
+    mutationFn: ({ id, version }: { id: number; version: number }) => reopenTicket(id, version),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['noc-tickets'] }),
+  });
+  const mutEscalate = useMutation({
+    mutationFn: ({ id, version }: { id: number; version: number }) => escalateTicket(id, version),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['noc-tickets'] }),
+  });
+
+  const KPIS = useMemo(() => computeKpis(tickets), [tickets]);
 
   return (
     <div className="flex h-full w-full bg-slate-50">
@@ -187,20 +225,15 @@ const TicketManagementPage: React.FC = () => {
                   className="h-8 w-[320px] rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300"
                 />
               </div>
+              <button onClick={() => refetch()} title="Refresh" className="h-8 w-8 grid place-items-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600">
+                <RefreshCw className="w-4 h-4" />
+              </button>
               <button className="relative h-8 w-8 grid place-items-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600">
                 <Bell className="w-4 h-4" />
-                <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 grid place-items-center rounded-full bg-rose-500 text-white text-[9px] font-bold">7</span>
               </button>
               <button className="h-8 w-8 grid place-items-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600">
                 <Settings2 className="w-4 h-4" />
               </button>
-              <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-                <div className="w-8 h-8 grid place-items-center rounded-full bg-slate-700 text-white text-[11px] font-bold">SG</div>
-                <div className="text-[11px] leading-tight">
-                  <div className="font-semibold text-slate-900">SGKV0640</div>
-                  <div className="text-slate-500">Operator</div>
-                </div>
-              </div>
             </div>
           </div>
         </header>
@@ -214,12 +247,11 @@ const TicketManagementPage: React.FC = () => {
 
           {/* Action bar */}
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-            <ActionBtn icon={<Plus className="w-3.5 h-3.5" />}        label="Create Ticket"   tone="bg-gradient-to-br from-blue-500 to-blue-600" />
-            <ActionBtn icon={<Check className="w-3.5 h-3.5" />}       label="Acknowledge"     tone="bg-gradient-to-br from-emerald-500 to-emerald-600" disabled={!hasSelection} />
-            <ActionBtn icon={<UserPlus className="w-3.5 h-3.5" />}    label="Assign"          tone="bg-gradient-to-br from-cyan-500 to-cyan-600"       disabled={!hasSelection} />
-            <ActionBtn icon={<ArrowUpRight className="w-3.5 h-3.5" />} label="Escalate"       tone="bg-gradient-to-br from-orange-500 to-orange-600"   disabled={!hasSelection} />
-            <ActionBtn icon={<Sparkles className="w-3.5 h-3.5" />}    label="Launch RCA"      tone="bg-gradient-to-br from-violet-500 to-violet-600"   disabled={!hasSelection} />
-            <ActionBtn icon={<CheckCheck className="w-3.5 h-3.5" />}  label="Resolve"        tone="bg-gradient-to-br from-slate-500 to-slate-600"     disabled={!hasSelection} />
+            <ActionBtn icon={<Plus className="w-3.5 h-3.5" />}         label="Create Ticket"   tone="bg-gradient-to-br from-blue-500 to-blue-600" />
+            <ActionBtn icon={<Check className="w-3.5 h-3.5" />}        label="Acknowledge"     tone="bg-gradient-to-br from-emerald-500 to-emerald-600" disabled={!hasSelection} />
+            <ActionBtn icon={<UserPlus className="w-3.5 h-3.5" />}     label="Assign"          tone="bg-gradient-to-br from-cyan-500 to-cyan-600"       disabled={!hasSelection} />
+            <ActionBtn icon={<ArrowUpRight className="w-3.5 h-3.5" />} label="Escalate"        tone="bg-gradient-to-br from-orange-500 to-orange-600"   disabled={!hasSelection} />
+            <ActionBtn icon={<CheckCheck className="w-3.5 h-3.5" />}   label="Resolve"         tone="bg-gradient-to-br from-slate-500 to-slate-600"     disabled={!hasSelection} />
             <button className="ml-auto inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50">
               More <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -247,7 +279,7 @@ const TicketManagementPage: React.FC = () => {
               <button className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50">
                 <Download className="w-3.5 h-3.5" /> Export
               </button>
-              <button className="h-8 w-8 grid place-items-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+              <button onClick={() => refetch()} className="h-8 w-8 grid place-items-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
                 <RefreshCw className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -260,62 +292,69 @@ const TicketManagementPage: React.FC = () => {
                     <th className="px-3 py-2 text-left w-8">
                       <input type="checkbox" className="accent-blue-600" checked={allChecked} onChange={toggleAll} />
                     </th>
-                    {['Severity','Ticket ID','Alarm Name','Site','Cell','Vendor','Tech','Status','Assignee','Created Time','SLA','RCA Status'].map(h => (
+                    {['Severity','Ticket ID','Alarm Name','Site/Cell','Status','Assignee','Created Time','SLA','Esc.'].map(h => (
                       <th key={h} className="px-3 py-2 text-left font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
+                  {isLoading && (
+                    <tr><td colSpan={10} className="px-3 py-12 text-center text-slate-400">Loading tickets…</td></tr>
+                  )}
+                  {isError && (
+                    <tr><td colSpan={10} className="px-3 py-12 text-center text-rose-600">
+                      Failed to load tickets: {(error as Error)?.message ?? 'unknown error'}
+                    </td></tr>
+                  )}
+                  {!isLoading && !isError && pageRows.length === 0 && (
+                    <tr><td colSpan={10} className="px-3 py-12 text-center text-slate-400">
+                      {filtered.length === 0 && tickets.length > 0
+                        ? 'No tickets match your search.'
+                        : 'No tickets yet. Create one to get started.'}
+                    </td></tr>
+                  )}
                   {pageRows.map(t => {
-                    const isActive = drawerId === t.id;
+                    const isActive = drawerId === t.numericId;
+                    const sla = slaText(t);
                     return (
                       <tr
-                        key={t.id}
-                        onClick={() => setDrawerId(t.id)}
+                        key={t.numericId}
+                        onClick={() => setDrawerId(t.numericId)}
                         className={`group border-b border-slate-100 cursor-pointer transition-colors ${isActive ? 'bg-blue-50/60' : 'hover:bg-slate-50'}`}
                       >
                         <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
-                          <input type="checkbox" className="accent-blue-600" checked={selected.has(t.id)} onChange={() => toggleOne(t.id)} />
+                          <input type="checkbox" className="accent-blue-600" checked={selected.has(t.numericId)} onChange={() => toggleOne(t.numericId)} />
                         </td>
                         <td className="px-3 py-2.5">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold ${sevPill[t.severity]}`}>{t.severity}</span>
                         </td>
                         <td className="px-3 py-2.5 font-semibold text-slate-700 whitespace-nowrap">{t.id}</td>
                         <td className="px-3 py-2.5 text-slate-700 font-medium whitespace-nowrap">{t.alarmName}</td>
-                        <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{t.site}</td>
-                        <td className="px-3 py-2.5 text-slate-600">{t.cell}</td>
-                        <td className="px-3 py-2.5 text-slate-600">{t.vendor}</td>
-                        <td className="px-3 py-2.5 text-slate-600">{t.tech}</td>
+                        <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{t.cell}</td>
                         <td className="px-3 py-2.5">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold ${statusPill[t.status]}`}>{t.status}</span>
                         </td>
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-1.5">
-                            <span className={`w-5 h-5 grid place-items-center rounded-full text-white text-[9px] font-bold ${t.assignee.color}`}>{t.assignee.initials}</span>
-                            <span className="text-slate-700">{t.assignee.name}</span>
+                            <span className={`w-5 h-5 grid place-items-center rounded-full text-white text-[9px] font-bold ${assigneeColor(t.assigneeId)}`}>
+                              {initialsFromAssignee(t.assigneeId)}
+                            </span>
+                            <span className="text-slate-700">{t.assigneeId == null ? 'Unassigned' : `User #${t.assigneeId}`}</span>
                           </div>
                         </td>
-                        <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{t.createdAt}</td>
-                        <td className={`px-3 py-2.5 font-bold whitespace-nowrap ${t.slaBreached ? 'text-rose-600' : 'text-emerald-600'}`}>{t.sla}</td>
-                        <td className="px-3 py-2.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`w-1.5 h-1.5 rounded-full ${rcaDot[t.rca]}`} />
-                            <span className="text-slate-600">{t.rca}</span>
-                          </div>
-                        </td>
+                        <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{formatCreatedAt(t.createdAt)}</td>
+                        <td className={`px-3 py-2.5 font-bold whitespace-nowrap ${sla.breached ? 'text-rose-600' : 'text-emerald-600'}`}>{sla.label}</td>
+                        <td className="px-3 py-2.5 text-slate-600">{t.escalationLevel > 0 ? `L${t.escalationLevel}` : '—'}</td>
                       </tr>
                     );
                   })}
-                  {pageRows.length === 0 && (
-                    <tr><td colSpan={13} className="px-3 py-12 text-center text-slate-400">No tickets match your search.</td></tr>
-                  )}
                 </tbody>
               </table>
             </div>
 
             {/* Pagination */}
             <div className="flex items-center justify-between px-3 py-2 border-t border-slate-200 bg-slate-50/60 text-[11px] text-slate-600">
-              <div>Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, filtered.length)} of {filtered.length} entries</div>
+              <div>Showing {filtered.length === 0 ? 0 : (page - 1) * pageSize + 1} to {Math.min(page * pageSize, filtered.length)} of {filtered.length} entries</div>
               <div className="flex items-center gap-1">
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} className="h-7 px-2 rounded border border-slate-200 bg-white hover:bg-slate-50">‹</button>
                 {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
@@ -347,9 +386,7 @@ const TicketManagementPage: React.FC = () => {
               <div className="flex items-center justify-between gap-2">
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold ${sevPill[drawer.severity]}`}>{drawer.severity}</span>
                 <div className="flex items-center gap-2">
-                  <select className="h-7 px-2 rounded-md border border-slate-200 bg-white text-[11px] font-semibold text-slate-700">
-                    <option>{drawer.status}</option>
-                  </select>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold ${statusPill[drawer.status]}`}>{drawer.status}</span>
                   <button onClick={() => setDrawerId(null)} className="h-7 w-7 grid place-items-center rounded-md hover:bg-slate-100 text-slate-500">
                     <X className="w-4 h-4" />
                   </button>
@@ -359,13 +396,15 @@ const TicketManagementPage: React.FC = () => {
               <div className="mt-2 grid grid-cols-2 gap-2 text-[10px]">
                 <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                   <div className="text-slate-400 font-semibold uppercase tracking-wide">SLA</div>
-                  <div className={`font-bold ${drawer.slaBreached ? 'text-rose-600' : 'text-emerald-600'}`}>{drawer.sla}</div>
+                  <div className={`font-bold ${slaText(drawer).breached ? 'text-rose-600' : 'text-emerald-600'}`}>{slaText(drawer).label}</div>
                 </div>
                 <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                   <div className="text-slate-400 font-semibold uppercase tracking-wide">Assignee</div>
                   <div className="flex items-center gap-1 mt-0.5">
-                    <span className={`w-4 h-4 grid place-items-center rounded-full text-white text-[8px] font-bold ${drawer.assignee.color}`}>{drawer.assignee.initials}</span>
-                    <span className="font-semibold text-slate-700">{drawer.assignee.name}</span>
+                    <span className={`w-4 h-4 grid place-items-center rounded-full text-white text-[8px] font-bold ${assigneeColor(drawer.assigneeId)}`}>
+                      {initialsFromAssignee(drawer.assigneeId)}
+                    </span>
+                    <span className="font-semibold text-slate-700">{drawer.assigneeId == null ? 'Unassigned' : `User #${drawer.assigneeId}`}</span>
                   </div>
                 </div>
               </div>
@@ -373,7 +412,7 @@ const TicketManagementPage: React.FC = () => {
 
             {/* Tabs */}
             <div className="flex items-center gap-4 px-4 border-b border-slate-200 text-[11px] font-semibold text-slate-500">
-              {['Details', 'Timeline', 'Comments (2)', 'RCA Insights'].map((t, i) => (
+              {['Details', 'Timeline', 'Comments'].map((t, i) => (
                 <button key={t} className={`py-2 border-b-2 ${i === 0 ? 'border-blue-600 text-blue-700' : 'border-transparent hover:text-slate-700'}`}>{t}</button>
               ))}
             </div>
@@ -385,11 +424,10 @@ const TicketManagementPage: React.FC = () => {
                 <dl className="space-y-1.5">
                   {[
                     ['Alarm Name', drawer.alarmName],
-                    ['Site / Cell', `${drawer.site.split(' ')[0]} / ${drawer.cell}`],
-                    ['Vendor / Tech', `${drawer.vendor} / ${drawer.tech}`],
-                    ['Start Time', drawer.createdAt],
-                    ['Last Occurrence', drawer.createdAt],
-                    ['Impact', 'Voice, Data Services'],
+                    ['Site / Cell', drawer.cell],
+                    ['Created', formatCreatedAt(drawer.createdAt)],
+                    ['Escalation Level', drawer.escalationLevel > 0 ? `L${drawer.escalationLevel}` : 'None'],
+                    ['Version', String(drawer.version)],
                   ].map(([k, v]) => (
                     <div key={k} className="flex items-center justify-between gap-2">
                       <dt className="text-slate-500">{k}</dt>
@@ -399,40 +437,41 @@ const TicketManagementPage: React.FC = () => {
                 </dl>
               </section>
 
-              <section>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Description</div>
-                <p className="text-slate-700 leading-relaxed">{drawer.description}</p>
-              </section>
-
-              <section>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Tags</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {['Synchronization', 'Clock', 'Timing', 'Core'].map(tag => (
-                    <span key={tag} className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-medium">{tag}</span>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">RCA Insights</div>
-                <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-2.5">
-                  <div className="flex items-center gap-1.5 text-violet-700 font-bold text-[10px] uppercase tracking-wide mb-1">
-                    <Bot className="w-3 h-3" /> AI Analysis
-                  </div>
-                  <p className="text-slate-700 leading-relaxed">Probable cause: GPS antenna degradation on co-located cells. 3 neighbours show correlated sync drift in last 4h.</p>
-                </div>
-              </section>
+              {drawer.description && (
+                <section>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Description</div>
+                  <p className="text-slate-700 leading-relaxed">{drawer.description}</p>
+                </section>
+              )}
 
               <section>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Quick Actions</div>
                 <div className="grid grid-cols-2 gap-1.5">
-                  <ActionBtn icon={<Check className="w-3 h-3" />}        label="Acknowledge" tone="bg-gradient-to-br from-emerald-500 to-emerald-600" />
-                  <ActionBtn icon={<UserPlus className="w-3 h-3" />}     label="Assign"      tone="bg-gradient-to-br from-cyan-500 to-cyan-600" />
-                  <ActionBtn icon={<ArrowUpRight className="w-3 h-3" />} label="Escalate"    tone="bg-gradient-to-br from-orange-500 to-orange-600" />
-                  <ActionBtn icon={<Sparkles className="w-3 h-3" />}     label="Launch RCA"  tone="bg-gradient-to-br from-violet-500 to-violet-600" />
-                  <button className="col-span-2 inline-flex items-center justify-center gap-1.5 h-7 rounded-lg border border-dashed border-slate-300 text-[11px] font-semibold text-slate-600 hover:bg-slate-50">
-                    <Plus className="w-3 h-3" /> Add Note
-                  </button>
+                  {(drawer.status === 'Open' || drawer.status === 'Investigating') && (
+                    <ActionBtn icon={<UserPlus className="w-3 h-3" />} label="Claim"
+                      tone="bg-gradient-to-br from-cyan-500 to-cyan-600"
+                      onClick={() => mutClaim.mutate({ id: drawer.numericId, version: drawer.version })} />
+                  )}
+                  {drawer.status !== 'Resolved' && drawer.status !== 'Closed' && drawer.status !== 'Cancelled' && (
+                    <ActionBtn icon={<ArrowUpRight className="w-3 h-3" />} label="Escalate"
+                      tone="bg-gradient-to-br from-orange-500 to-orange-600"
+                      onClick={() => mutEscalate.mutate({ id: drawer.numericId, version: drawer.version })} />
+                  )}
+                  {drawer.status !== 'Resolved' && drawer.status !== 'Closed' && drawer.status !== 'Cancelled' && (
+                    <ActionBtn icon={<CheckCheck className="w-3 h-3" />} label="Resolve"
+                      tone="bg-gradient-to-br from-emerald-500 to-emerald-600"
+                      onClick={() => mutResolve.mutate({ id: drawer.numericId, version: drawer.version })} />
+                  )}
+                  {drawer.status === 'Resolved' && (
+                    <ActionBtn icon={<Check className="w-3 h-3" />} label="Close"
+                      tone="bg-gradient-to-br from-slate-500 to-slate-600"
+                      onClick={() => mutClose.mutate({ id: drawer.numericId, version: drawer.version })} />
+                  )}
+                  {drawer.status === 'Resolved' && (
+                    <ActionBtn icon={<RefreshCw className="w-3 h-3" />} label="Reopen"
+                      tone="bg-gradient-to-br from-amber-500 to-amber-600"
+                      onClick={() => mutReopen.mutate({ id: drawer.numericId, version: drawer.version })} />
+                  )}
                 </div>
               </section>
             </div>
