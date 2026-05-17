@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { createTicket, sevToBackend, type UiSeverity } from "@/services/ticketService";
 
 type Severity = "Critical" | "Major" | "Minor" | "Warning" | "Cleared";
 type Status = "Active" | "Acknowledged" | "Cleared";
@@ -302,6 +303,51 @@ const AlarmCenterPage: React.FC = () => {
     const n = new Set(checked);
     n.has(id) ? n.delete(id) : n.add(id);
     setChecked(n);
+  };
+
+  // Bulk-create one NOC ticket per selected alarm. Cleared alarms are skipped
+  // (no point opening a ticket against an already-cleared condition). Each
+  // alarm is sent with fingerprint=alarm.id so the backend can dedup if the
+  // same alarm is bulk-actioned twice.
+  const [creatingTickets, setCreatingTickets] = useState(false);
+  const handleCreateTickets = async () => {
+    if (creatingTickets) return;
+    const targets = alarms
+      .filter((a) => checked.has(a.id) && a.severity !== "Cleared");
+    if (targets.length === 0) {
+      toast.message(checked.size === 0
+        ? "Select at least one active alarm to ticket"
+        : "Selected alarms are all Cleared — nothing to ticket");
+      return;
+    }
+    setCreatingTickets(true);
+    let ok = 0, fail = 0;
+    const errors: string[] = [];
+    for (const a of targets) {
+      try {
+        await createTicket({
+          title: a.name,
+          severity: sevToBackend(a.severity as UiSeverity),
+          description: [a.probableCause, a.specificProblem].filter(Boolean).join(" — ") || undefined,
+          target_kind: "cell",
+          target_ref: a.cell,
+          fingerprint: a.id,
+        });
+        ok++;
+      } catch (e) {
+        fail++;
+        errors.push(`${a.id}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    setCreatingTickets(false);
+    setChecked(new Set());
+    if (fail === 0) {
+      toast.success(`${ok} ticket${ok > 1 ? "s" : ""} created`);
+    } else if (ok === 0) {
+      toast.error(`Failed to create ${fail} ticket${fail > 1 ? "s" : ""}: ${errors[0]}`);
+    } else {
+      toast.warning(`${ok} created, ${fail} failed — ${errors[0]}`);
+    }
   };
 
   // Per-site aggregation, driven by the *filtered* alarm set so the map
@@ -741,8 +787,13 @@ const AlarmCenterPage: React.FC = () => {
             <span className="text-[12px] font-medium text-slate-600 mr-2">
               Selected: <span className="font-semibold text-slate-900 tabular-nums">{checked.size}</span>
             </span>
-            <button className="h-9 px-3.5 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white text-[12px] font-semibold shadow-[0_2px_8px_rgba(37,99,235,0.25)] transition flex items-center gap-1.5">
-              <Ticket size={13} strokeWidth={1.75} /> Create Ticket
+            <button
+              type="button"
+              onClick={handleCreateTickets}
+              disabled={creatingTickets || checked.size === 0}
+              className="h-9 px-3.5 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white text-[12px] font-semibold shadow-[0_2px_8px_rgba(37,99,235,0.25)] transition flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Ticket size={13} strokeWidth={1.75} /> {creatingTickets ? "Creating…" : "Create Ticket"}
             </button>
             <button className="h-9 px-3.5 rounded-full border border-[#e8edf5] bg-white text-[12px] font-medium text-slate-600 hover:bg-slate-50 transition flex items-center gap-1.5">
               <Download size={13} strokeWidth={1.75} /> Export Selected

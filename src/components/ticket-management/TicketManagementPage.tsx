@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Ticket as TicketIcon, AlertTriangle, Clock, UserCheck, CheckCircle2,
@@ -8,15 +8,21 @@ import {
 } from 'lucide-react';
 import {
   listTickets,
+  createTicket,
+  assignTicket,
   claimTicket,
   resolveTicket,
   closeTicket,
   reopenTicket,
   escalateTicket,
+  listUsers,
+  BackendUser,
   UiTicket,
   UiSeverity,
   UiStatus,
 } from '@/services/ticketService';
+import { getApiHeaders, getApiUrl } from '@/lib/apiConfig';
+import { getStoredToken } from '@/services/adminAuth';
 
 /* ─────────── UI types & helpers ───────────
  *
@@ -76,6 +82,73 @@ const assigneeColor = (id: number | null): string => {
   const palette = ['bg-pink-500', 'bg-amber-500', 'bg-emerald-500',
                    'bg-violet-500', 'bg-cyan-500', 'bg-blue-500'];
   return palette[id % palette.length];
+};
+
+interface CreateTicketForm {
+  title: string;
+  severity: UiSeverity;
+  targetKind: string;
+  targetRef: string;
+  fingerprint: string;
+  description: string;
+  assigneeId: string;
+}
+
+const emptyCreateForm = (): CreateTicketForm => ({
+  title: '',
+  severity: 'Major',
+  targetKind: 'cell',
+  targetRef: '',
+  fingerprint: '',
+  description: '',
+  assigneeId: '',
+});
+
+interface TicketSourceAlarm {
+  id: number | string;
+  alarm_time?: string | null;
+  alarm_severity?: string | null;
+  alarm_text?: string | null;
+  alarm_status?: string | null;
+  specific_problem?: string | null;
+  supplementary_info?: string | null;
+  site_name?: string | null;
+  cell_name?: string | null;
+  vendor?: string | null;
+  mo_dn?: string | null;
+}
+
+interface AlarmResponse {
+  items?: TicketSourceAlarm[];
+}
+
+const normalizeTicketSeverity = (value?: string | null): UiSeverity => {
+  const raw = String(value || '').toLowerCase();
+  if (raw.includes('crit')) return 'Critical';
+  if (raw.includes('major')) return 'Major';
+  if (raw.includes('minor')) return 'Minor';
+  if (raw.includes('warn')) return 'Warning';
+  return 'Minor';
+};
+
+const ticketBackendHeaders = (): Record<string, string> => {
+  const token = getStoredToken();
+  return {
+    ...getApiHeaders(),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
+const userLabel = (user: BackendUser): string =>
+  `${user.display_name || user.email} · ${user.team || 'NOC'} · #${user.id}`;
+
+const filterUsers = (users: BackendUser[], query: string): BackendUser[] => {
+  const q = query.trim().toLowerCase();
+  if (!q) return users;
+  return users.filter((user) =>
+    [user.display_name, user.email, user.team, String(user.id)]
+      .some((value) => (value || '').toLowerCase().includes(q))
+  );
 };
 
 /* ─────────── KPI computation (from live data) ─────────── */
@@ -140,6 +213,24 @@ const TicketManagementPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [drawerId, setDrawerId] = useState<number | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateTicketForm>(() => emptyCreateForm());
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [createUserSearch, setCreateUserSearch] = useState('');
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignUserId, setAssignUserId] = useState('');
+  const [assignUserSearch, setAssignUserSearch] = useState('');
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [escalateOpen, setEscalateOpen] = useState(false);
+  const [escalateTargets, setEscalateTargets] = useState<UiTicket[]>([]);
+  const [escalateUserId, setEscalateUserId] = useState('');
+  const [escalateUserSearch, setEscalateUserSearch] = useState('');
+  const [escalateError, setEscalateError] = useState<string | null>(null);
+  const [sourceAlarms, setSourceAlarms] = useState<TicketSourceAlarm[]>([]);
+  const [sourceAlarmId, setSourceAlarmId] = useState('');
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceError, setSourceError] = useState<string | null>(null);
+  const [users, setUsers] = useState<BackendUser[]>([]);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -178,6 +269,93 @@ const TicketManagementPage: React.FC = () => {
   });
 
   const hasSelection = selected.size > 0;
+  const selectedTickets = useMemo(
+    () => tickets.filter((ticket) => selected.has(ticket.numericId)),
+    [selected, tickets],
+  );
+  const userById = useMemo(
+    () => new Map(users.map((user) => [user.id, user])),
+    [users],
+  );
+  const createUsers = useMemo(() => filterUsers(users, createUserSearch), [createUserSearch, users]);
+  const assignUsers = useMemo(() => filterUsers(users, assignUserSearch), [assignUserSearch, users]);
+  const escalateUsers = useMemo(() => filterUsers(users, escalateUserSearch), [escalateUserSearch, users]);
+
+  useEffect(() => {
+    if (!createOpen && !assignOpen && !escalateOpen) return;
+    let cancelled = false;
+
+    const loadCreateSources = async () => {
+      setSourceLoading(true);
+      setSourceError(null);
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '100',
+          status: 'ACTIVE',
+        });
+        const [alarmResult, userRows] = await Promise.allSettled([
+          createOpen
+            ? fetch(getApiUrl(`alarms/nokia?${params.toString()}`), { headers: ticketBackendHeaders() })
+            : Promise.resolve(null),
+          listUsers(),
+        ]);
+        if (cancelled) return;
+        if (alarmResult.status === 'fulfilled' && alarmResult.value) {
+          const alarmResp = alarmResult.value;
+          const alarmData = await alarmResp.json().catch(() => ({}));
+          if (!alarmResp.ok) throw new Error(alarmData?.detail || alarmData?.error || `${alarmResp.status} ${alarmResp.statusText}`);
+          setSourceAlarms(Array.isArray((alarmData as AlarmResponse).items) ? (alarmData as AlarmResponse).items! : []);
+        }
+        if (userRows.status === 'fulfilled') {
+          setUsers(userRows.value.filter((u) => u.active));
+        } else {
+          setUsers([]);
+          if (assignOpen || escalateOpen) throw userRows.reason;
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setSourceAlarms([]);
+          setSourceError(err instanceof Error ? err.message : String(err));
+        }
+      } finally {
+        if (!cancelled) setSourceLoading(false);
+      }
+    };
+
+    loadCreateSources();
+    return () => { cancelled = true; };
+  }, [assignOpen, createOpen, escalateOpen]);
+
+  const applySourceAlarm = (alarmId: string) => {
+    setSourceAlarmId(alarmId);
+    const alarm = sourceAlarms.find((row) => String(row.id) === alarmId);
+    if (!alarm) return;
+    const targetRef = alarm.cell_name || alarm.site_name || alarm.mo_dn || String(alarm.id);
+    const title = alarm.alarm_text || alarm.specific_problem || `Alarm ${alarm.id}`;
+    const severity = normalizeTicketSeverity(alarm.alarm_severity);
+    setCreateForm((form) => ({
+      ...form,
+      title,
+      severity,
+      targetKind: alarm.cell_name ? 'cell' : alarm.site_name ? 'site' : 'alarm',
+      targetRef,
+      fingerprint: `alarm:${alarm.id}:${targetRef}:${alarm.specific_problem || title}`,
+      description: [
+        `FM alarm from backend Alarm Center`,
+        `Alarm id: ${alarm.id}`,
+        `Severity: ${alarm.alarm_severity || severity}`,
+        `Status: ${alarm.alarm_status || '-'}`,
+        `Site: ${alarm.site_name || '-'}`,
+        `Cell: ${alarm.cell_name || '-'}`,
+        `Vendor: ${alarm.vendor || '-'}`,
+        `Raised: ${alarm.alarm_time || '-'}`,
+        `Specific problem: ${alarm.specific_problem || '-'}`,
+        `MO DN: ${alarm.mo_dn || '-'}`,
+        alarm.supplementary_info ? `Supplementary info: ${alarm.supplementary_info}` : '',
+      ].filter(Boolean).join('\n'),
+    }));
+  };
 
   /* Mutations — workflow actions on the drawer ticket */
   const mutClaim = useMutation({
@@ -201,6 +379,102 @@ const TicketManagementPage: React.FC = () => {
     mutationFn: ({ id, version }: { id: number; version: number }) => escalateTicket(id, version),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['noc-tickets'] }),
   });
+  const mutAssign = useMutation({
+    mutationFn: async ({ rows, assigneeId }: { rows: UiTicket[]; assigneeId: number | null }) => {
+      return Promise.all(rows.map((row) => assignTicket(row.numericId, row.version, assigneeId)));
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['noc-tickets'] });
+      setAssignOpen(false);
+      setAssignUserId('');
+      setAssignError(null);
+      setSelected(new Set());
+    },
+    onError: (err) => setAssignError(err instanceof Error ? err.message : String(err)),
+  });
+  const mutEscalateToUser = useMutation({
+    mutationFn: async ({ rows, assigneeId }: { rows: UiTicket[]; assigneeId: number }) => {
+      return Promise.all(rows.map(async (row) => {
+        const assigned = await assignTicket(row.numericId, row.version, assigneeId);
+        return escalateTicket(assigned.numericId, assigned.version, `Escalated to ${userById.get(assigneeId)?.display_name || `user #${assigneeId}`}`);
+      }));
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['noc-tickets'] });
+      setEscalateOpen(false);
+      setEscalateTargets([]);
+      setEscalateUserId('');
+      setEscalateUserSearch('');
+      setEscalateError(null);
+      setSelected(new Set());
+    },
+    onError: (err) => setEscalateError(err instanceof Error ? err.message : String(err)),
+  });
+  const mutCreate = useMutation({
+    mutationFn: (form: CreateTicketForm) => createTicket({
+      title: form.title.trim(),
+      severity: form.severity.toLowerCase() as 'critical' | 'major' | 'minor' | 'warning',
+      description: form.description.trim() || undefined,
+      fingerprint: form.fingerprint.trim() || undefined,
+      target_kind: form.targetKind.trim() || undefined,
+      target_ref: form.targetRef.trim() || undefined,
+      assignee_id: form.assigneeId ? Number(form.assigneeId) : undefined,
+    }),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ['noc-tickets'] });
+      setCreateOpen(false);
+      setCreateForm(emptyCreateForm());
+      setCreateError(null);
+      setDrawerId(created.numericId);
+    },
+    onError: (err) => setCreateError(err instanceof Error ? err.message : String(err)),
+  });
+
+  const submitCreateTicket = (event: React.FormEvent) => {
+    event.preventDefault();
+    setCreateError(null);
+    if (!createForm.title.trim()) {
+      setCreateError('Title is required.');
+      return;
+    }
+    mutCreate.mutate(createForm);
+  };
+
+  const submitAssignTickets = (event: React.FormEvent) => {
+    event.preventDefault();
+    setAssignError(null);
+    if (selectedTickets.length === 0) {
+      setAssignError('Select at least one ticket.');
+      return;
+    }
+    mutAssign.mutate({
+      rows: selectedTickets,
+      assigneeId: assignUserId ? Number(assignUserId) : null,
+    });
+  };
+
+  const openEscalateDialog = (rows: UiTicket[]) => {
+    setEscalateTargets(rows);
+    setEscalateError(null);
+    setEscalateOpen(true);
+  };
+
+  const submitEscalateTickets = (event: React.FormEvent) => {
+    event.preventDefault();
+    setEscalateError(null);
+    if (escalateTargets.length === 0) {
+      setEscalateError('Select at least one ticket.');
+      return;
+    }
+    if (!escalateUserId) {
+      setEscalateError('Select a user to escalate to.');
+      return;
+    }
+    mutEscalateToUser.mutate({
+      rows: escalateTargets,
+      assigneeId: Number(escalateUserId),
+    });
+  };
 
   const KPIS = useMemo(() => computeKpis(tickets), [tickets]);
 
@@ -247,10 +521,10 @@ const TicketManagementPage: React.FC = () => {
 
           {/* Action bar */}
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-            <ActionBtn icon={<Plus className="w-3.5 h-3.5" />}         label="Create Ticket"   tone="bg-gradient-to-br from-blue-500 to-blue-600" />
+            <ActionBtn icon={<Plus className="w-3.5 h-3.5" />}         label="Create Ticket"   tone="bg-gradient-to-br from-blue-500 to-blue-600" onClick={() => { setCreateError(null); setCreateOpen(true); }} />
             <ActionBtn icon={<Check className="w-3.5 h-3.5" />}        label="Acknowledge"     tone="bg-gradient-to-br from-emerald-500 to-emerald-600" disabled={!hasSelection} />
-            <ActionBtn icon={<UserPlus className="w-3.5 h-3.5" />}     label="Assign"          tone="bg-gradient-to-br from-cyan-500 to-cyan-600"       disabled={!hasSelection} />
-            <ActionBtn icon={<ArrowUpRight className="w-3.5 h-3.5" />} label="Escalate"        tone="bg-gradient-to-br from-orange-500 to-orange-600"   disabled={!hasSelection} />
+            <ActionBtn icon={<UserPlus className="w-3.5 h-3.5" />}     label="Assign"          tone="bg-gradient-to-br from-cyan-500 to-cyan-600"       disabled={!hasSelection} onClick={() => { setAssignError(null); setAssignOpen(true); }} />
+            <ActionBtn icon={<ArrowUpRight className="w-3.5 h-3.5" />} label="Escalate"        tone="bg-gradient-to-br from-orange-500 to-orange-600"   disabled={!hasSelection} onClick={() => openEscalateDialog(selectedTickets)} />
             <ActionBtn icon={<CheckCheck className="w-3.5 h-3.5" />}   label="Resolve"         tone="bg-gradient-to-br from-slate-500 to-slate-600"     disabled={!hasSelection} />
             <button className="ml-auto inline-flex items-center gap-1.5 px-2.5 h-8 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50">
               More <ChevronRight className="w-3.5 h-3.5" />
@@ -339,7 +613,7 @@ const TicketManagementPage: React.FC = () => {
                             <span className={`w-5 h-5 grid place-items-center rounded-full text-white text-[9px] font-bold ${assigneeColor(t.assigneeId)}`}>
                               {initialsFromAssignee(t.assigneeId)}
                             </span>
-                            <span className="text-slate-700">{t.assigneeId == null ? 'Unassigned' : `User #${t.assigneeId}`}</span>
+                            <span className="text-slate-700">{t.assigneeId == null ? 'Unassigned' : userById.get(t.assigneeId)?.display_name || `User #${t.assigneeId}`}</span>
                           </div>
                         </td>
                         <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{formatCreatedAt(t.createdAt)}</td>
@@ -404,7 +678,7 @@ const TicketManagementPage: React.FC = () => {
                     <span className={`w-4 h-4 grid place-items-center rounded-full text-white text-[8px] font-bold ${assigneeColor(drawer.assigneeId)}`}>
                       {initialsFromAssignee(drawer.assigneeId)}
                     </span>
-                    <span className="font-semibold text-slate-700">{drawer.assigneeId == null ? 'Unassigned' : `User #${drawer.assigneeId}`}</span>
+                    <span className="font-semibold text-slate-700">{drawer.assigneeId == null ? 'Unassigned' : userById.get(drawer.assigneeId)?.display_name || `User #${drawer.assigneeId}`}</span>
                   </div>
                 </div>
               </div>
@@ -455,7 +729,7 @@ const TicketManagementPage: React.FC = () => {
                   {drawer.status !== 'Resolved' && drawer.status !== 'Closed' && drawer.status !== 'Cancelled' && (
                     <ActionBtn icon={<ArrowUpRight className="w-3 h-3" />} label="Escalate"
                       tone="bg-gradient-to-br from-orange-500 to-orange-600"
-                      onClick={() => mutEscalate.mutate({ id: drawer.numericId, version: drawer.version })} />
+                      onClick={() => openEscalateDialog([drawer])} />
                   )}
                   {drawer.status !== 'Resolved' && drawer.status !== 'Closed' && drawer.status !== 'Cancelled' && (
                     <ActionBtn icon={<CheckCheck className="w-3 h-3" />} label="Resolve"
@@ -476,6 +750,274 @@ const TicketManagementPage: React.FC = () => {
               </section>
             </div>
           </aside>
+        </>
+      )}
+
+      {createOpen && (
+        <>
+          <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-[2px] z-40" onClick={() => !mutCreate.isPending && setCreateOpen(false)} />
+          <div className="fixed left-1/2 top-1/2 z-50 w-[560px] max-w-[94vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <form onSubmit={submitCreateTicket}>
+              <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Create Ticket</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">Open a backend NOC ticket with deduplication fingerprint support.</p>
+                </div>
+                <button type="button" disabled={mutCreate.isPending} onClick={() => setCreateOpen(false)} className="h-8 w-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="space-y-3 px-5 py-4">
+                {createError && (
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+                    {createError}
+                  </div>
+                )}
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Backend source alarm</span>
+                  <select
+                    value={sourceAlarmId}
+                    onChange={(e) => applySourceAlarm(e.target.value)}
+                    disabled={sourceLoading}
+                    className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+                  >
+                    <option value="">{sourceLoading ? 'Loading active alarms...' : 'Select active backend alarm or keep manual'}</option>
+                    {sourceAlarms.map((alarm) => {
+                      const label = [
+                        alarm.alarm_severity || 'alarm',
+                        alarm.site_name || alarm.cell_name || alarm.mo_dn || alarm.id,
+                        alarm.alarm_text || alarm.specific_problem || 'No label',
+                      ].filter(Boolean).join(' · ');
+                      return <option key={String(alarm.id)} value={String(alarm.id)}>{label}</option>;
+                    })}
+                  </select>
+                  {sourceError && (
+                    <p className="mt-1 text-[11px] font-medium text-amber-700">
+                      Backend source unavailable: {sourceError}. Manual ticket creation remains available.
+                    </p>
+                  )}
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Title</span>
+                  <input
+                    value={createForm.title}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
+                    placeholder="e.g. Cell availability degradation"
+                    className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Severity</span>
+                    <select value={createForm.severity} onChange={(e) => setCreateForm((f) => ({ ...f, severity: e.target.value as UiSeverity }))} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100">
+                      <option>Critical</option>
+                      <option>Major</option>
+                      <option>Minor</option>
+                      <option>Warning</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Target kind</span>
+                    <input value={createForm.targetKind} onChange={(e) => setCreateForm((f) => ({ ...f, targetKind: e.target.value }))} placeholder="cell" className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100" />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Target ref</span>
+                    <input value={createForm.targetRef} onChange={(e) => setCreateForm((f) => ({ ...f, targetRef: e.target.value }))} placeholder="NE / cell / site" className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100" />
+                  </label>
+                </div>
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Fingerprint</span>
+                  <input value={createForm.fingerprint} onChange={(e) => setCreateForm((f) => ({ ...f, fingerprint: e.target.value }))} placeholder="Optional duplicate key, e.g. alarm:site:kpi" className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 font-mono text-xs text-slate-800 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100" />
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Assignee</span>
+                  <div className="relative mt-1">
+                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={createUserSearch}
+                      onChange={(e) => setCreateUserSearch(e.target.value)}
+                      placeholder="Search users by name, email, team..."
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+                  <select
+                    value={createForm.assigneeId}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, assigneeId: e.target.value }))}
+                    className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="">Unassigned</option>
+                    {createUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {userLabel(user)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Description</span>
+                  <textarea value={createForm.description} onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))} rows={5} placeholder="Operational context, impact, first checks..." className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100" />
+                </label>
+              </div>
+              <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+                <button type="button" disabled={mutCreate.isPending} onClick={() => setCreateOpen(false)} className="h-9 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                  Cancel
+                </button>
+                <button type="submit" disabled={mutCreate.isPending} className="h-9 rounded-xl bg-blue-600 px-4 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">
+                  {mutCreate.isPending ? 'Creating...' : 'Create Ticket'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
+      {assignOpen && (
+        <>
+          <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-[2px] z-40" onClick={() => !mutAssign.isPending && setAssignOpen(false)} />
+          <div className="fixed left-1/2 top-1/2 z-50 w-[460px] max-w-[94vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <form onSubmit={submitAssignTickets}>
+              <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Assign Ticket</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {selectedTickets.length} selected ticket{selectedTickets.length > 1 ? 's' : ''}. Users are loaded from backend NOC users.
+                  </p>
+                </div>
+                <button type="button" disabled={mutAssign.isPending} onClick={() => setAssignOpen(false)} className="h-8 w-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="space-y-3 px-5 py-4">
+                {assignError && (
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+                    {assignError}
+                  </div>
+                )}
+                {sourceError && users.length === 0 && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+                    Could not load users: {sourceError}
+                  </div>
+                )}
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Assign to</span>
+                  <div className="relative mt-1">
+                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={assignUserSearch}
+                      onChange={(e) => setAssignUserSearch(e.target.value)}
+                      disabled={sourceLoading || mutAssign.isPending}
+                      placeholder="Search users by name, email, team..."
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 disabled:opacity-60"
+                    />
+                  </div>
+                  <select
+                    value={assignUserId}
+                    onChange={(e) => setAssignUserId(e.target.value)}
+                    disabled={sourceLoading || mutAssign.isPending}
+                    className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 disabled:opacity-60"
+                  >
+                    <option value="">{sourceLoading ? 'Loading users...' : 'Unassigned'}</option>
+                    {assignUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {userLabel(user)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="max-h-40 overflow-auto rounded-xl border border-slate-200 bg-slate-50">
+                  {selectedTickets.map((ticket) => (
+                    <div key={ticket.numericId} className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2 text-xs last:border-b-0">
+                      <span className="font-semibold text-slate-800">{ticket.id}</span>
+                      <span className="truncate text-slate-500">{ticket.alarmName}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+                <button type="button" disabled={mutAssign.isPending} onClick={() => setAssignOpen(false)} className="h-9 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                  Cancel
+                </button>
+                <button type="submit" disabled={mutAssign.isPending || sourceLoading} className="h-9 rounded-xl bg-cyan-600 px-4 text-xs font-semibold text-white shadow-sm hover:bg-cyan-700 disabled:opacity-50">
+                  {mutAssign.isPending ? 'Assigning...' : 'Apply Assignment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
+      {escalateOpen && (
+        <>
+          <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-[2px] z-40" onClick={() => !mutEscalateToUser.isPending && setEscalateOpen(false)} />
+          <div className="fixed left-1/2 top-1/2 z-50 w-[480px] max-w-[94vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <form onSubmit={submitEscalateTickets}>
+              <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Escalate Ticket</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Escalate {escalateTargets.length} ticket{escalateTargets.length > 1 ? 's' : ''} and assign ownership to a backend NOC user.
+                  </p>
+                </div>
+                <button type="button" disabled={mutEscalateToUser.isPending} onClick={() => setEscalateOpen(false)} className="h-8 w-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="space-y-3 px-5 py-4">
+                {escalateError && (
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+                    {escalateError}
+                  </div>
+                )}
+                {sourceError && users.length === 0 && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+                    Could not load users: {sourceError}
+                  </div>
+                )}
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Escalate to user</span>
+                  <div className="relative mt-1">
+                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={escalateUserSearch}
+                      onChange={(e) => setEscalateUserSearch(e.target.value)}
+                      disabled={sourceLoading || mutEscalateToUser.isPending}
+                      placeholder="Search users by name, email, team..."
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 disabled:opacity-60"
+                    />
+                  </div>
+                  <select
+                    value={escalateUserId}
+                    onChange={(e) => setEscalateUserId(e.target.value)}
+                    disabled={sourceLoading || mutEscalateToUser.isPending}
+                    className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 disabled:opacity-60"
+                  >
+                    <option value="">{sourceLoading ? 'Loading users...' : 'Select user'}</option>
+                    {escalateUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {userLabel(user)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="max-h-40 overflow-auto rounded-xl border border-slate-200 bg-slate-50">
+                  {escalateTargets.map((ticket) => (
+                    <div key={ticket.numericId} className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2 text-xs last:border-b-0">
+                      <span className="font-semibold text-slate-800">{ticket.id}</span>
+                      <span className="truncate text-slate-500">{ticket.alarmName}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+                <button type="button" disabled={mutEscalateToUser.isPending} onClick={() => setEscalateOpen(false)} className="h-9 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                  Cancel
+                </button>
+                <button type="submit" disabled={mutEscalateToUser.isPending || sourceLoading} className="h-9 rounded-xl bg-orange-600 px-4 text-xs font-semibold text-white shadow-sm hover:bg-orange-700 disabled:opacity-50">
+                  {mutEscalateToUser.isPending ? 'Escalating...' : 'Escalate'}
+                </button>
+              </div>
+            </form>
+          </div>
         </>
       )}
     </div>

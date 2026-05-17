@@ -237,6 +237,15 @@ export async function claimTicket(id: number, version: number): Promise<UiTicket
   return mapTicket(await jsonOrThrow<BackendTicket>(resp));
 }
 
+export async function assignTicket(id: number, version: number, assigneeId: number | null): Promise<UiTicket> {
+  const resp = await fetch(getApiUrl(`tickets/${id}`), {
+    method: 'PATCH',
+    headers: headersWithActor(),
+    body: JSON.stringify({ version, assignee_id: assigneeId }),
+  });
+  return mapTicket(await jsonOrThrow<BackendTicket>(resp));
+}
+
 export async function resolveTicket(id: number, version: number, comment?: string): Promise<UiTicket> {
   const resp = await fetch(getApiUrl(`tickets/${id}/resolve`), {
     method: 'POST',

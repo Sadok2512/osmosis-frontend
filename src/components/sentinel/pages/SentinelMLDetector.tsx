@@ -21,6 +21,7 @@ import {
   MlProfile, MlAnomaly, Recommendation, RiskApproval, ExecutionRow, OutcomeRow,
 } from '../mlDetectorApi';
 import { fetchTopoSites } from '../../../services/topoService';
+import { createTicket } from '../../../services/ticketService';
 
 const SEVERITY_STYLES: Record<string, string> = {
   critical: 'bg-red-50 text-red-700 border-red-200',
@@ -86,6 +87,8 @@ const SentinelMLDetector: React.FC<{ onOpenRCA?: (anomaly: MlAnomaly) => void }>
   // Diagnostic id we got from server — needed to trigger recommendation.
   // We pick it from a cached GET (the only way to get the row id here).
   const [rcaDiagnosticId, setRcaDiagnosticId] = useState<number | null>(null);
+  const [ticketCreating, setTicketCreating] = useState(false);
+  const [ticketFeedback, setTicketFeedback] = useState<string | null>(null);
 
   // OPTIMUS recommendation state (Phase 2).
   const [recText, setRecText] = useState<string>('');
@@ -124,6 +127,7 @@ const SentinelMLDetector: React.FC<{ onOpenRCA?: (anomaly: MlAnomaly) => void }>
   type Step = 'rca' | 'reco' | 'risk' | 'exec' | 'outcome';
   const [activeStep, setActiveStep] = useState<Step>('rca');
   useEffect(() => { setActiveStep('rca'); }, [rcaOpen?.id]);
+  useEffect(() => { setTicketFeedback(null); }, [rcaOpen?.id]);
 
   const limit = 50;
 
@@ -226,6 +230,45 @@ const SentinelMLDetector: React.FC<{ onOpenRCA?: (anomaly: MlAnomaly) => void }>
       setRcaLoading(false);
     }
   }, []);
+
+  const createTicketForOpenAnomaly = useCallback(async () => {
+    if (!rcaOpen) return;
+    setTicketCreating(true);
+    setTicketFeedback(null);
+    const targetRef = rcaOpen.cell_name || rcaOpen.dimension_key || `anomaly-${rcaOpen.id}`;
+    const severityForTicket = rcaOpen.severity === 'critical'
+      ? 'critical'
+      : rcaOpen.severity === 'warning'
+        ? 'warning'
+        : 'minor';
+    const description = [
+      `ML detector anomaly #${rcaOpen.id}`,
+      `Detector profile: ${rcaOpen.detector_id}`,
+      `Target: ${targetRef}`,
+      `KPI: ${rcaOpen.kpi_code}`,
+      `Period: ${fmtDate(rcaOpen.period_start)}`,
+      `Current value: ${fmtNum(rcaOpen.value)}`,
+      `Z-score: ${fmtNum(rcaOpen.z_score)}`,
+      `Trend: ${fmtNum(rcaOpen.trend_pct)}%`,
+      rcaText ? `\nRCA summary:\n${rcaText.slice(0, 3500)}` : '',
+    ].filter(Boolean).join('\n');
+
+    try {
+      const created = await createTicket({
+        title: `ML anomaly ${rcaOpen.kpi_code} on ${targetRef}`,
+        severity: severityForTicket,
+        target_kind: rcaOpen.cell_name ? 'cell' : 'network_element',
+        target_ref: targetRef,
+        fingerprint: `ml-anomaly:${rcaOpen.detector_id}:${targetRef}:${rcaOpen.kpi_code}`,
+        description,
+      });
+      setTicketFeedback(`Ticket ${created.id} created.`);
+    } catch (err) {
+      setTicketFeedback(err instanceof Error ? err.message : String(err));
+    } finally {
+      setTicketCreating(false);
+    }
+  }, [rcaOpen, rcaText]);
 
   // Trigger OPTIMUS recommendation for the diagnostic currently in the drawer.
   const runRecommendation = useCallback(async () => {
@@ -1322,7 +1365,7 @@ const SentinelMLDetector: React.FC<{ onOpenRCA?: (anomaly: MlAnomaly) => void }>
             <footer className="border-t border-slate-200 bg-white/95 p-4 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="text-xs text-slate-500">
-                  agentic.diagnostics cache enabled
+                  {ticketFeedback || 'agentic.diagnostics cache enabled'}
                 </span>
                 <button
                   type="button"
@@ -1338,8 +1381,13 @@ const SentinelMLDetector: React.FC<{ onOpenRCA?: (anomaly: MlAnomaly) => void }>
                 <button type="button" className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-50">
                   Escalate
                 </button>
-                <button type="button" className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50">
-                  Create Ticket
+                <button
+                  type="button"
+                  onClick={createTicketForOpenAnomaly}
+                  disabled={ticketCreating}
+                  className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 disabled:opacity-50"
+                >
+                  {ticketCreating ? 'Creating...' : 'Create Ticket'}
                 </button>
                 <button type="button" className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50">
                   Mark Resolved
