@@ -741,20 +741,9 @@ const AlarmCenterPage: React.FC = () => {
             <span className="text-[12px] font-medium text-slate-600 mr-2">
               Selected: <span className="font-semibold text-slate-900 tabular-nums">{checked.size}</span>
             </span>
-            <button className="h-9 px-3.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-[12px] font-semibold shadow-[0_2px_8px_rgba(16,185,129,0.25)] transition flex items-center gap-1.5">
-              <CheckCircle2 size={13} strokeWidth={1.75} /> Acknowledge Selected
-            </button>
             <button className="h-9 px-3.5 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white text-[12px] font-semibold shadow-[0_2px_8px_rgba(37,99,235,0.25)] transition flex items-center gap-1.5">
               <Ticket size={13} strokeWidth={1.75} /> Create Ticket
             </button>
-            <button className="h-9 px-3.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-[12px] font-semibold shadow-[0_2px_8px_rgba(249,115,22,0.25)] transition flex items-center gap-1.5">
-              <TrendingUp size={13} strokeWidth={1.75} /> Escalate
-            </button>
-            {aiOn && (
-              <button className="h-9 px-3.5 rounded-full bg-gradient-to-r from-indigo-600 to-violet-500 hover:from-indigo-700 hover:to-violet-600 text-white text-[12px] font-semibold shadow-[0_2px_8px_rgba(99,102,241,0.3)] transition flex items-center gap-1.5">
-                <Sparkles size={13} strokeWidth={1.75} /> Launch RCA
-              </button>
-            )}
             <button className="h-9 px-3.5 rounded-full border border-[#e8edf5] bg-white text-[12px] font-medium text-slate-600 hover:bg-slate-50 transition flex items-center gap-1.5">
               <Download size={13} strokeWidth={1.75} /> Export Selected
             </button>
