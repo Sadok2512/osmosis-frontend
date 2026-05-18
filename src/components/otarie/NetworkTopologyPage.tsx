@@ -42,6 +42,16 @@ const SitesFitBounds: React.FC<{ points: [number, number][] }> = ({ points }) =>
   return null;
 };
 
+/* Fly to selected site coordinates */
+const SitesFlyTo: React.FC<{ target: [number, number] | null }> = ({ target }) => {
+  const map = useMap();
+  React.useEffect(() => {
+    if (!target) return;
+    map.flyTo(target, Math.max(map.getZoom(), 13), { duration: 0.8 });
+  }, [target, map]);
+  return null;
+};
+
 /* ────────────────────── Types ────────────────────── */
 
 interface TopoStats {
