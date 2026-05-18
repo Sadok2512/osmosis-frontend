@@ -82,6 +82,18 @@ export default function UserLogin() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {errorMsg && (
+              <div
+                role="alert"
+                className="flex items-start gap-2.5 rounded-md border border-destructive/40 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive animate-in fade-in slide-in-from-top-1"
+              >
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold leading-tight">Authentication failed</p>
+                  <p className="text-destructive/80 text-xs mt-0.5">{errorMsg}</p>
+                </div>
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Username</label>
               <div className="relative">
