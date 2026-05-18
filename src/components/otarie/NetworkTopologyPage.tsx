@@ -25,8 +25,24 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { MapContainer, TileLayer, CircleMarker, Tooltip as LTooltip, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Polyline, Tooltip as LTooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+
+/* Destination point given start, bearing (deg) and distance (m) */
+const destPoint = (lat: number, lng: number, bearingDeg: number, distM: number): [number, number] => {
+  const R = 6371000;
+  const brng = (bearingDeg * Math.PI) / 180;
+  const lat1 = (lat * Math.PI) / 180;
+  const lng1 = (lng * Math.PI) / 180;
+  const d = distM / R;
+  const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
+  const lng2 = lng1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+  return [(lat2 * 180) / Math.PI, (lng2 * 180) / Math.PI];
+};
+
+const TECH_COLOR: Record<string, string> = {
+  '2G': '#8E44AD', '3G': '#3498DB', '4G': '#F39C12', '5G': '#27AE60',
+};
 
 /* Auto-fit bounds for sites map */
 const SitesFitBounds: React.FC<{ points: [number, number][] }> = ({ points }) => {
@@ -1537,6 +1553,69 @@ const NetworkTopologyPage: React.FC = () => {
                             </LTooltip>
                           </CircleMarker>
                         ))}
+
+                        {/* Beams + permanent label for the SELECTED site only */}
+                        {flyTarget && selectedSite && (() => {
+                          const [sLat, sLng] = flyTarget;
+                          const cells = (siteDetail?.cells || []) as Record<string, unknown>[];
+                          const normT = (t: string) => {
+                            const u = (t || '').toUpperCase();
+                            if (u.includes('5G') || u.includes('NR')) return '5G';
+                            if (u.includes('4G') || u.includes('LTE')) return '4G';
+                            if (u.includes('3G') || u.includes('UMTS') || u.includes('WCDMA')) return '3G';
+                            if (u.includes('2G') || u.includes('GSM')) return '2G';
+                            return u || '4G';
+                          };
+                          const beams = cells
+                            .map(c => {
+                              const azRaw = c.azimuth ?? c.azimut ?? c.az;
+                              const az = typeof azRaw === 'string' ? parseFloat(azRaw) : (azRaw as number);
+                              if (!Number.isFinite(az)) return null;
+                              const tech = normT(String(c.techno || c.rat || ''));
+                              return { az: az as number, tech };
+                            })
+                            .filter(Boolean) as { az: number; tech: string }[];
+                          // Dedupe by az+tech
+                          const seen = new Set<string>();
+                          const unique = beams.filter(b => {
+                            const k = `${Math.round(b.az)}-${b.tech}`;
+                            if (seen.has(k)) return false;
+                            seen.add(k); return true;
+                          });
+                          return (
+                            <>
+                              {unique.map((b, i) => {
+                                const color = TECH_COLOR[b.tech] || '#F39C12';
+                                const len = 250;
+                                const end = destPoint(sLat, sLng, b.az, len);
+                                const left = destPoint(sLat, sLng, b.az - 12, len * 0.85);
+                                const right = destPoint(sLat, sLng, b.az + 12, len * 0.85);
+                                return (
+                                  <React.Fragment key={`beam-${i}`}>
+                                    <Polyline positions={[[sLat, sLng], end]} pathOptions={{ color, weight: 3, opacity: 0.9 }} />
+                                    <Polyline positions={[[sLat, sLng], left]} pathOptions={{ color, weight: 1, opacity: 0.4, dashArray: '3 3' }} />
+                                    <Polyline positions={[[sLat, sLng], right]} pathOptions={{ color, weight: 1, opacity: 0.4, dashArray: '3 3' }} />
+                                  </React.Fragment>
+                                );
+                              })}
+                              {/* Permanent name label on the selected site */}
+                              <CircleMarker
+                                center={[sLat, sLng]}
+                                radius={1}
+                                pathOptions={{ opacity: 0, fillOpacity: 0 }}
+                              >
+                                <LTooltip
+                                  direction="top"
+                                  offset={[0, -10]}
+                                  permanent
+                                  className="!text-[11px] !font-bold !bg-card !border-border !shadow-md !px-2 !py-1"
+                                >
+                                  {selectedSite}
+                                </LTooltip>
+                              </CircleMarker>
+                            </>
+                          );
+                        })()}
                       </MapContainer>
                     </div>
                   );
