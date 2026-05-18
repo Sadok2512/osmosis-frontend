@@ -502,10 +502,10 @@ const KpiCatalogView: React.FC = () => {
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setActionMenuId(null)} />
                           <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-xl border border-border/30 bg-white shadow-xl py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
-                            <button onClick={() => { setSelectedKpi(row); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
+                            <button onClick={() => { setSelectedKpi(enrichEntry(row)); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
                               <Eye className="w-3.5 h-3.5" /> Voir détails
                             </button>
-                            <button onClick={() => { setEditingKpi(row); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
+                            <button onClick={() => { setEditingKpi(enrichEntry(row)); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
                               <Edit2 className="w-3.5 h-3.5" /> Modifier
                             </button>
                             <div className="border-t border-border/20 my-1" />
