@@ -889,6 +889,8 @@ export default function EditorView({
             </div>
           );
         })()}
+          </div>
+        )}
       </div>
 
       {/* Floating right config sidebar — overlays canvas, never resizes the dashboard grid. */}
