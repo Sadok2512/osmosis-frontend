@@ -4,7 +4,7 @@ import { loginAdmin } from '@/services/adminAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { ShieldCheck, Loader2, Eye, EyeOff, Lock, User } from 'lucide-react';
+import { ShieldCheck, Loader2, Eye, EyeOff, Lock, User, AlertCircle } from 'lucide-react';
 
 export default function UserLogin() {
   const [username, setUsername] = useState('');
