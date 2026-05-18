@@ -754,7 +754,7 @@ export default function EditorView({
             className="fixed bottom-4 z-40 transition-all duration-300 pa-widget-settings-drawer"
             style={{
               left: '16rem',
-              right: 'calc(336px + 16px)',
+              right: showSettings ? 'calc(400px + 16px)' : '16px',
             }}
           >
         {(() => {
