@@ -1504,6 +1504,11 @@ const NetworkTopologyPage: React.FC = () => {
                     .map(s => ({ name: s.site_name, lat: s.latitude as number, lng: s.longitude as number, selected: s.site_name === selectedSite }));
                   const bounds: [number, number][] = mapPts.map(p => [p.lat, p.lng]);
                   const center: [number, number] = bounds[0] || [46.6, 2.3];
+                  const selectedPt = mapPts.find(p => p.selected);
+                  const flyTarget: [number, number] | null =
+                    selectedPt ? [selectedPt.lat, selectedPt.lng]
+                    : (siteDetail && typeof siteDetail.latitude === 'number' && typeof siteDetail.longitude === 'number'
+                        ? [siteDetail.latitude, siteDetail.longitude] : null);
                   return (
                     <div className="w-full h-full" style={{ minHeight: 'calc(100vh - 340px)', background: '#eef3f9' }}>
                       <MapContainer center={center} zoom={6} style={{ height: '100%', width: '100%', minHeight: 'calc(100vh - 340px)' }} scrollWheelZoom>
@@ -1512,7 +1517,8 @@ const NetworkTopologyPage: React.FC = () => {
                           maxZoom={19}
                           subdomains="abcd"
                         />
-                        <SitesFitBounds points={bounds} />
+                        {!selectedSite && <SitesFitBounds points={bounds} />}
+                        <SitesFlyTo target={flyTarget} />
                         {mapPts.map(p => (
                           <CircleMarker
                             key={p.name}
