@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, ChevronRight, ChevronLeft, Check, AlertCircle, Loader2, Play, BarChart3, Code2, Lightbulb, Puzzle, Wand2 } from 'lucide-react';
-import { getApiUrl, getApiHeaders, getVpsUrl } from '@/lib/apiConfig';
+import { X, ChevronRight, ChevronLeft, Check, AlertCircle, Loader2, Play, BarChart3, Code2 } from 'lucide-react';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import type { KpiCatalogEntry } from './kpiCatalogTypes';
+import KpiFxAdvancedMode from './KpiFxAdvancedMode';
 
 interface KpiCreateWizardProps {
   onSubmit: (data: Record<string, any>) => Promise<void> | void;
@@ -102,42 +103,15 @@ const FormulaEditor: React.FC<{
   );
 };
 
-// ── FX Patterns + valid enum lists (shared with backend kpi-engine/services/fx_formula.py) ──
-const FX_PATTERNS: Record<string, Record<string, any>> = {
-  busy_hour:  { fx: '[Drop Rate 4G]', statistics: 'MAX', statisticsKpi: '[Traffic DL 4G]', granularity: 'hour', includeHours: '6-22' },
-  night:      { fx: '[Drop Rate 4G]', statistics: 'AVG', granularity: 'hour', includeHours: '0-6' },
-  outlier:    { fx: 'IF([Drop Rate 4G] > 3, 1, 0)', statistics: 'SUM', granularity: 'hour', includeHours: '0-6' },
-  rolling:    { fx: '[eRAB Setup Failures Rate]', statistics: 'MEDIAN', samePeriod: 'weekWD', granularity: 'default', period: 5 },
-  spatial:    { fx: '[Traffic DL 4G - eNodeB]', sourceNeType: 'enodeb', aggregation: 'SUM' },
-};
-
-const FX_INSERT_KEYS: Array<{ key: string; sample: any; hint: string }> = [
-  { key: 'granularity',   sample: 'hour',                  hint: 'default | one_min | five_min | quarter | half | hour | day | week | month' },
-  { key: 'statistics',    sample: 'AVG',                   hint: 'SUM | MAX | MIN | AVG | MEDIAN | STDDEVPOP' },
-  { key: 'statisticsKpi', sample: '[Traffic DL 4G]',       hint: 'Ref KPI for Busy Hour — requires statistics MAX or MIN' },
-  { key: 'includeHours',  sample: '0-6',                   hint: 'Hour range H-H (0-23)' },
-  { key: 'includeDays',   sample: 'Mon,Tue,Wed,Thu,Fri',   hint: 'Comma list of Mon..Sun' },
-  { key: 'timeshift',     sample: 1,                       hint: 'Positive int — offset periods' },
-  { key: 'dateTime',      sample: '2026-05-18T00:00:00Z',  hint: 'ISO 8601 anchor' },
-  { key: 'period',        sample: 5,                       hint: 'Rolling window — number of previous periods' },
-  { key: 'samePeriod',    sample: 'weekWD',                hint: 'contiguous | contiguousWD | day | dayWD | week | weekWD | month' },
-  { key: 'sourceNeType',  sample: 'enodeb',                hint: 'Source topology level: enodeb | cell | site | …' },
-  { key: 'aggregation',   sample: 'SUM',                   hint: 'Spatial aggregation function' },
-];
-
 const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, initialData, mode = 'create' }) => {
   const isEdit = mode === 'edit';
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
-  // Advanced FX mode — toggled from header. When 'advanced', the
-  // 6-step wizard is hidden and the JSON editor view takes over.
-  // Existing simple flow untouched when mode='simple'.
+  // Advanced FX mode — toggle dans le header. State complet du JSON
+  // editor délégué à <KpiFxAdvancedMode> pour ne pas re-render le
+  // wizard à chaque keystroke (cf. KpiFxAdvancedMode.tsx).
   const [editorMode, setEditorMode] = useState<'simple' | 'advanced'>('simple');
-  const [fxJson, setFxJson] = useState<string>('');
-  const [fxJsonStatus, setFxJsonStatus] = useState<{ ok: boolean; msg: string }>({ ok: false, msg: '— empty —' });
-  const [fxResult, setFxResult] = useState<{ kind: 'ok' | 'warn' | 'err'; html: string } | null>(null);
-  const [fxBusy, setFxBusy] = useState(false);
 
   // Step 1 — General
   const [code, setCode] = useState(initialData?.kpi_code || '');
@@ -228,169 +202,6 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
     }
   };
 
-  // ── FX advanced mode helpers ─────────────────────────────────────
-  const fxUrl = (path: string) => getVpsUrl('kpi', path);
-
-  const fxParseAndCheck = () => {
-    const v = fxJson.trim();
-    if (!v) { setFxJsonStatus({ ok: false, msg: '— empty —' }); return null; }
-    try {
-      const obj = JSON.parse(v);
-      setFxJsonStatus({ ok: true, msg: '✓ JSON syntax OK' });
-      return obj;
-    } catch (e: any) {
-      setFxJsonStatus({ ok: false, msg: '✗ ' + (e.message || 'parse error').split('\n')[0] });
-      return null;
-    }
-  };
-
-  const fxOnEdit = (v: string) => {
-    setFxJson(v);
-    // Throttle parse — keep it cheap since textarea fires per keystroke.
-    if (!v.trim()) { setFxJsonStatus({ ok: false, msg: '— empty —' }); return; }
-    try { JSON.parse(v); setFxJsonStatus({ ok: true, msg: '✓ JSON syntax OK' }); }
-    catch (e: any) { setFxJsonStatus({ ok: false, msg: '✗ ' + (e.message || '?').split('\n')[0] }); }
-  };
-
-  const fxFormat = () => {
-    const obj = fxParseAndCheck();
-    if (!obj) {
-      setFxResult({ kind: 'err', html: '✗ Cannot format — JSON invalid.' });
-      return;
-    }
-    setFxJson(JSON.stringify(obj, null, 2));
-    setFxResult(null);
-  };
-
-  const fxLoadPattern = (name: string) => {
-    const pat = FX_PATTERNS[name];
-    if (!pat) return;
-    setFxJson(JSON.stringify(pat, null, 2));
-    setFxJsonStatus({ ok: true, msg: '✓ JSON syntax OK' });
-    setFxResult({ kind: 'warn', html: `Loaded <b>${name}</b> pattern. Adapt <code>[kpi_code]</code> refs to existing catalog KPIs before Create.` });
-  };
-
-  const fxInsertKey = (key: string, sample: any) => {
-    let obj: Record<string, any> = {};
-    const cur = fxJson.trim();
-    if (cur) {
-      try { obj = JSON.parse(cur); }
-      catch {
-        setFxResult({ kind: 'err', html: `✗ JSON invalid — fix syntax before inserting <code>${key}</code>.` });
-        return;
-      }
-    }
-    obj[key] = sample;
-    setFxJson(JSON.stringify(obj, null, 2));
-    setFxJsonStatus({ ok: true, msg: '✓ JSON syntax OK' });
-  };
-
-  const fxValidate = async () => {
-    const obj = fxParseAndCheck();
-    if (!obj) { setFxResult({ kind: 'err', html: '✗ JSON invalid — fix syntax first.' }); return; }
-    setFxBusy(true);
-    try {
-      const r = await fetch(fxUrl('/kpi/fx/validate'), {
-        method: 'POST',
-        headers: { ...getApiHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formula_fx: obj }),
-      });
-      const d = await r.json();
-      if (!r.ok) {
-        const errs = (d.detail?.errors || []).map((e: any) =>
-          `<li><code>${(e.loc || []).join('.') || '(root)'}</code>: ${e.msg}</li>`).join('');
-        setFxResult({ kind: 'err', html: `<b>HTTP ${r.status}</b><ul>${errs}</ul><i>${d.detail?.hint || ''}</i>` });
-        return;
-      }
-      const feat = Object.entries(d.detected_features || {})
-        .filter(([, v]) => v === true || (Array.isArray(v) && v.length))
-        .map(([k, v]) => `${k}${Array.isArray(v) ? ': ' + (v as string[]).join(', ') : ''}`).join(' · ');
-      const warns = (d.warnings || []).map((w: string) => `<div>⚠ ${w}</div>`).join('');
-      const refs = Object.entries(d.resolved_refs || {})
-        .map(([k, v]: any) => v.found ? `✓ <code>${k}</code>` : `✗ <code>${k}</code> (introuvable)`).join(' · ');
-      setFxResult({
-        kind: warns ? 'warn' : 'ok',
-        html: `<b>✓ Valid</b>${warns ? '<br>' + warns : ''}<br><b>Features :</b> ${feat || '—'}<br><b>Refs :</b> ${refs || '—'}`,
-      });
-    } catch (e: any) {
-      setFxResult({ kind: 'err', html: `Network error: ${e.message}` });
-    } finally {
-      setFxBusy(false);
-    }
-  };
-
-  const fxTest = async () => {
-    const obj = fxParseAndCheck();
-    if (!obj) { setFxResult({ kind: 'err', html: '✗ JSON invalid.' }); return; }
-    setFxBusy(true);
-    try {
-      const r = await fetch(fxUrl('/kpi/fx/test'), {
-        method: 'POST',
-        headers: { ...getApiHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formula_fx: obj }),
-      });
-      const d = await r.json();
-      if (!r.ok) {
-        const errs = (d.detail?.errors || []).map((e: any) => `<li>${e.msg}</li>`).join('');
-        setFxResult({ kind: 'err', html: `<b>HTTP ${r.status}</b><ul>${errs}</ul>` });
-        return;
-      }
-      const steps = (d.execution_plan?.steps || []).map((s: any) =>
-        `<li><b>${s.stage}</b>: ${JSON.stringify(s).replace(/[<>]/g, '')}</li>`).join('');
-      setFxResult({
-        kind: 'ok',
-        html: `<b>✓ Plan généré</b> (${d.duration_ms} ms)<br><ol style="margin:6px 0;padding-left:18px">${steps}</ol><i>${d.preview?.note || ''}</i>`,
-      });
-    } catch (e: any) {
-      setFxResult({ kind: 'err', html: `Network error: ${e.message}` });
-    } finally {
-      setFxBusy(false);
-    }
-  };
-
-  const fxCreate = async () => {
-    if (!code.trim()) {
-      setFxResult({ kind: 'err', html: '<b>KPI Code required</b> — fill the KPI Code in General Info first (switch to Simple to fill, then back to Advanced).' });
-      return;
-    }
-    const obj = fxParseAndCheck();
-    if (!obj) { setFxResult({ kind: 'err', html: '✗ JSON invalid.' }); return; }
-    setFxBusy(true);
-    try {
-      const r = await fetch(fxUrl('/kpi/fx'), {
-        method: 'POST',
-        headers: { ...getApiHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kpi_code: code,
-          nom_ihm: name || null,
-          famille: category || null,
-          unites: unit || null,
-          vendor: vendor && vendor !== 'ALL' ? vendor : null,
-          techno: tech && tech !== 'ALL' ? tech : null,
-          formula_fx: obj,
-          is_active: false,
-        }),
-      });
-      const d = await r.json();
-      if (!r.ok) {
-        if (r.status === 409) {
-          setFxResult({ kind: 'err', html: `<b>HTTP 409</b> — already exists: ${d.detail}` });
-        } else {
-          const errs = (d.detail?.errors || []).map((e: any) => `<li>${e.msg}</li>`).join('');
-          setFxResult({ kind: 'err', html: `<b>HTTP ${r.status}</b><ul>${errs}</ul>` });
-        }
-        return;
-      }
-      setFxResult({
-        kind: 'ok',
-        html: `<b>✓ Created</b> id=<code>${d.id}</code> kpi_code=<code>${d.kpi_code}</code> status=<b>${d.status}</b><br><i>Next: activate via POST /kpi/definitions/${d.kpi_code}/activate.</i>`,
-      });
-    } catch (e: any) {
-      setFxResult({ kind: 'err', html: `Network error: ${e.message}` });
-    } finally {
-      setFxBusy(false);
-    }
-  };
 
   const canNext = () => {
     if (step === 0) return code.trim() && name.trim();
@@ -485,98 +296,25 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
         </div>
         )}
 
-        {/* Content — Advanced FX mode */}
+        {/* Content — Advanced FX mode (state owned by KpiFxAdvancedMode) */}
         {editorMode === 'advanced' && (
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            {/* Meta fields (re-uses simple-mode state) */}
             <div className="grid grid-cols-2 gap-4">
               <InputField label="KPI Code" value={code} onChange={setCode} placeholder="FX_BUSY_HOUR_DROP_RATE_4G" required mono />
               <InputField label="Display Name" value={name} onChange={setName} placeholder="Busy Hour Drop Rate 4G" />
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <SelectField label="Vendor (optional)" value={vendor} onChange={setVendor} options={['ALL', 'Nokia', 'Ericsson', 'Huawei', 'Samsung']} />
+              <SelectField label="Vendor" value={vendor} onChange={setVendor} options={['ALL', 'Nokia', 'Ericsson', 'Huawei', 'Samsung']} />
               <SelectField label="Technology" value={tech} onChange={setTech} options={['ALL', 'LTE', 'NR']} />
               <SelectField label="Category" value={category} onChange={setCategory} options={['Accessibility', 'Retainability', 'Throughput', 'Traffic', 'Mobility', 'Radio Quality', 'VoLTE', 'Latency', 'Integrity', 'Other']} />
             </div>
-
-            <div className="grid grid-cols-[1fr_220px] gap-4">
-              {/* LEFT: JSON editor */}
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                  <span>formula_fx (JSON) <span className="text-destructive">*</span></span>
-                  <span className={`font-normal text-[10px] ${fxJsonStatus.ok ? 'text-emerald-500' : 'text-amber-500'}`}>{fxJsonStatus.msg}</span>
-                </label>
-                <textarea
-                  value={fxJson}
-                  onChange={e => fxOnEdit(e.target.value)}
-                  spellCheck={false}
-                  placeholder={`{\n  "fx": "[Drop Rate 4G]",\n  "statistics": "MAX",\n  "statisticsKpi": "[Traffic DL 4G]",\n  "granularity": "hour",\n  "includeHours": "6-22"\n}`}
-                  className="w-full mt-1 px-3 py-2.5 rounded-xl border border-border bg-[#1e1e2e] text-[#cdd6f4] text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y"
-                  style={{ minHeight: 240, lineHeight: 1.5 }}
-                />
-                <div className="flex flex-wrap items-center gap-2 mt-3">
-                  <button onClick={fxFormat} disabled={fxBusy}
-                    className="px-2.5 py-1.5 rounded-lg border border-border text-[10px] font-bold uppercase tracking-wider hover:bg-muted disabled:opacity-50 flex items-center gap-1">
-                    <Wand2 className="w-3 h-3" /> Format
-                  </button>
-                  <button onClick={fxValidate} disabled={fxBusy}
-                    className="px-2.5 py-1.5 rounded-lg border border-border text-[10px] font-bold uppercase tracking-wider hover:bg-muted disabled:opacity-50 flex items-center gap-1">
-                    <Check className="w-3 h-3" /> Validate
-                  </button>
-                  <button onClick={fxTest} disabled={fxBusy}
-                    className="px-2.5 py-1.5 rounded-lg border border-border text-[10px] font-bold uppercase tracking-wider hover:bg-muted disabled:opacity-50 flex items-center gap-1">
-                    <Play className="w-3 h-3" /> Test KPI
-                  </button>
-                  <div className="flex-1" />
-                  <button onClick={fxCreate} disabled={fxBusy}
-                    className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 flex items-center gap-1">
-                    {fxBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Create KPI
-                  </button>
-                </div>
-
-                {fxResult && (
-                  <div
-                    className={`mt-3 p-3 rounded-lg text-xs border-l-2 ${
-                      fxResult.kind === 'ok' ? 'border-emerald-500 bg-emerald-500/5 text-foreground'
-                      : fxResult.kind === 'warn' ? 'border-amber-500 bg-amber-500/5 text-foreground'
-                      : 'border-destructive bg-destructive/5 text-foreground'
-                    }`}
-                    dangerouslySetInnerHTML={{ __html: fxResult.html }}
-                  />
-                )}
-              </div>
-
-              {/* RIGHT: snippets panel */}
-              <div className="space-y-3">
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
-                    <Lightbulb className="w-3 h-3 text-amber-500" /> Patterns
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    {Object.keys(FX_PATTERNS).map(p => (
-                      <button key={p} onClick={() => fxLoadPattern(p)}
-                        className="px-2 py-1 rounded-md border border-border text-[10px] font-bold uppercase tracking-wider text-left hover:bg-muted">
-                        {p === 'busy_hour' ? 'Busy Hour' : p === 'night' ? 'Night KPI' : p === 'outlier' ? 'Outlier Count' : p === 'rolling' ? 'Rolling Median' : 'Spatial Expand'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
-                    <Puzzle className="w-3 h-3 text-primary" /> Insert Key
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    {FX_INSERT_KEYS.map(k => (
-                      <button key={k.key} onClick={() => fxInsertKey(k.key, k.sample)} title={k.hint}
-                        className="px-2 py-1 rounded-md border border-dashed border-border text-[10px] font-mono text-left hover:bg-muted">
-                        {k.key}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <KpiFxAdvancedMode
+              getMeta={() => ({
+                kpi_code: code, nom_ihm: name, famille: category, unites: unit,
+                vendor, techno: tech,
+              })}
+              onCreated={() => { /* operator can close manually after seeing result panel */ }}
+            />
           </div>
         )}
 
