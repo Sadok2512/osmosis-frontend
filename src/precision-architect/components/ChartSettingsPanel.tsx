@@ -252,9 +252,9 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
   };
 
   return (
-    <div className="h-[280px] max-h-[32vh] w-full bg-white border border-outline-variant/20 rounded-2xl shadow-2xl relative z-40 shrink-0 flex flex-col">
+    <div className="h-[280px] max-h-[30vh] w-full bg-white border border-[hsl(165,12%,91%)] rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.06)] relative z-40 shrink-0 flex flex-col">
       {/* Header — sticky */}
-      <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low shrink-0 sticky top-0 z-10 rounded-t-2xl">
+      <div className="px-4 h-12 border-b border-[hsl(165,12%,93%)] flex items-center justify-between bg-white shrink-0 sticky top-0 z-10 rounded-t-xl">
         <div className="flex items-center gap-4">
           <span className="text-[10px] font-black uppercase tracking-widest text-primary">Widget Settings</span>
           <div className="h-4 w-px bg-outline-variant" />
@@ -314,7 +314,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 
       {/* Body: left sidebar tabs + content */}
       <div className="flex flex-1 min-h-0">
-        <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1 overflow-y-auto">
+        <aside className="w-44 border-r border-[hsl(165,12%,93%)] p-3 shrink-0 space-y-0.5 overflow-y-auto">
           {([
             { key: 'data', label: 'Data Source', icon: Database },
             { key: 'appearance', label: 'Appearance', icon: Palette },
