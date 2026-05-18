@@ -516,6 +516,22 @@ const NetworkTopologyPage: React.FC = () => {
   /* ══════════════════ SITE DETAIL ══════════════════ */
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
   const [siteDetail, setSiteDetail] = useState<SiteDetail | null>(null);
+  const [enabledTechs, setEnabledTechs] = useState<Set<string>>(new Set(['2G', '3G', '4G', '5G']));
+  const toggleTech = useCallback((t: string) => {
+    setEnabledTechs(prev => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t); else next.add(t);
+      return next;
+    });
+  }, []);
+  const normTech = useCallback((raw: string): string => {
+    const u = (raw || '').toUpperCase();
+    if (u.includes('5G') || u.includes('NR')) return '5G';
+    if (u.includes('4G') || u.includes('LTE')) return '4G';
+    if (u.includes('3G') || u.includes('UMTS') || u.includes('WCDMA')) return '3G';
+    if (u.includes('2G') || u.includes('GSM')) return '2G';
+    return u || '4G';
+  }, []);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState('info');
@@ -1558,20 +1574,13 @@ const NetworkTopologyPage: React.FC = () => {
                         {flyTarget && selectedSite && (() => {
                           const [sLat, sLng] = flyTarget;
                           const cells = (siteDetail?.cells || []) as Record<string, unknown>[];
-                          const normT = (t: string) => {
-                            const u = (t || '').toUpperCase();
-                            if (u.includes('5G') || u.includes('NR')) return '5G';
-                            if (u.includes('4G') || u.includes('LTE')) return '4G';
-                            if (u.includes('3G') || u.includes('UMTS') || u.includes('WCDMA')) return '3G';
-                            if (u.includes('2G') || u.includes('GSM')) return '2G';
-                            return u || '4G';
-                          };
                           const beams = cells
                             .map(c => {
                               const azRaw = c.azimuth ?? c.azimut ?? c.az;
                               const az = typeof azRaw === 'string' ? parseFloat(azRaw) : (azRaw as number);
                               if (!Number.isFinite(az)) return null;
-                              const tech = normT(String(c.techno || c.rat || ''));
+                              const tech = normTech(String(c.techno || c.rat || ''));
+                              if (!enabledTechs.has(tech)) return null;
                               return { az: az as number, tech };
                             })
                             .filter(Boolean) as { az: number; tech: string }[];
@@ -1645,10 +1654,29 @@ const NetworkTopologyPage: React.FC = () => {
             {/* Site detail */}
             {(selectedSite || detailLoading) && (
               <Card className="p-5" id="topo-site-detail">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <Info className="w-5 h-5 text-emerald-500" />
                     <h2 className="text-sm font-bold uppercase tracking-wide">Site Detail — {selectedSite}</h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mr-1">Techno</span>
+                    {(['2G', '3G', '4G', '5G'] as const).map(t => {
+                      const active = enabledTechs.has(t);
+                      const colors: Record<string, string> = {
+                        '2G': '#8E44AD', '3G': '#3498DB', '4G': '#F39C12', '5G': '#27AE60',
+                      };
+                      return (
+                        <button
+                          key={t}
+                          onClick={() => toggleTech(t)}
+                          className={`text-[11px] font-bold px-2.5 py-1 rounded-md border transition-all ${active ? 'text-white shadow-sm' : 'bg-muted text-muted-foreground opacity-50 hover:opacity-75'}`}
+                          style={active ? { backgroundColor: colors[t], borderColor: colors[t] } : undefined}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => { setSelectedSite(null); setSiteDetail(null); }}>
                     <X className="w-4 h-4 mr-1" /> Close
@@ -1736,31 +1764,41 @@ const NetworkTopologyPage: React.FC = () => {
 
                       {/* Cells tab */}
                       <TabsContent value="cells" className="mt-3">
-                        <div className="flex items-center justify-between mb-2 px-1">
-                          <span className="text-xs text-muted-foreground">
-                            Showing <span className="font-bold text-foreground">{siteDetail.cells.length}</span> cells
-                          </span>
-                        </div>
-                        <div className="border rounded-lg overflow-auto max-h-[70vh]">
-                          <Table>
-                            <TableHeader className="sticky top-0 bg-card z-10">
-                              <TableRow>
-                                {cellColumns.map(k => (
-                                  <TableHead key={k} className="text-[10px] whitespace-nowrap">{prettyLabel(k)}</TableHead>
-                                ))}
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {siteDetail.cells.map((c, i) => (
-                                <TableRow key={i}>
-                                  {cellColumns.map(k => (
-                                    <TableCell key={k} className="text-xs whitespace-nowrap py-1.5">{String((c as Record<string, unknown>)[k] ?? '')}</TableCell>
-                                  ))}
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
+                        {(() => {
+                          const filteredCells = siteDetail.cells.filter(c => {
+                            const tech = normTech(String((c as Record<string, unknown>).techno || (c as Record<string, unknown>).rat || ''));
+                            return enabledTechs.has(tech);
+                          });
+                          return (
+                            <>
+                              <div className="flex items-center justify-between mb-2 px-1">
+                                <span className="text-xs text-muted-foreground">
+                                  Showing <span className="font-bold text-foreground">{filteredCells.length}</span> of {siteDetail.cells.length} cells
+                                </span>
+                              </div>
+                              <div className="border rounded-lg overflow-auto max-h-[70vh]">
+                                <Table>
+                                  <TableHeader className="sticky top-0 bg-card z-10">
+                                    <TableRow>
+                                      {cellColumns.map(k => (
+                                        <TableHead key={k} className="text-[10px] whitespace-nowrap">{prettyLabel(k)}</TableHead>
+                                      ))}
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {filteredCells.map((c, i) => (
+                                      <TableRow key={i}>
+                                        {cellColumns.map(k => (
+                                          <TableCell key={k} className="text-xs whitespace-nowrap py-1.5">{String((c as Record<string, unknown>)[k] ?? '')}</TableCell>
+                                        ))}
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </TabsContent>
 
                     </Tabs>
