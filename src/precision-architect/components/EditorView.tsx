@@ -754,7 +754,7 @@ export default function EditorView({
             className="fixed bottom-4 z-40 transition-all duration-300 pa-widget-settings-drawer"
             style={{
               left: '16rem',
-              right: 'calc(336px + 16px)',
+              right: showSettings ? 'calc(400px + 16px)' : '16px',
             }}
           >
         {(() => {
@@ -941,7 +941,7 @@ export default function EditorView({
         </button>
       )}
 
-      <div className={`fixed ${showSettings ? 'right-[336px]' : 'right-16'} ${activeWidget ? 'bottom-[316px]' : 'bottom-8'} z-[60] flex flex-col items-end gap-3 overflow-visible transition-all duration-300`}>
+      <div className={`fixed ${showSettings ? 'right-[416px]' : 'right-16'} ${activeWidget ? 'bottom-[316px]' : 'bottom-8'} z-[60] flex flex-col items-end gap-3 overflow-visible transition-all duration-300`}>
         <AnimatePresence>
           {toolboxOpen && (
             <motion.div
