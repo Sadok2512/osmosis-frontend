@@ -1178,6 +1178,32 @@ export const topoApi = {
         }
       }
     } catch { /* cache fallback failed */ }
+    // ── 4th fallback: static curated lists for geographic / categorical dims
+    // so the multi-select list is always available even when every backend
+    // source is unreachable and the in-memory cache is empty.
+    const STATIC_FALLBACKS: Record<string, string[]> = {
+      plaque: ['IDF', 'NORD-EST', 'SUD-EST', 'SUD-OUEST', 'OUEST', 'CENTRE-EST'],
+      plaque_site: ['IDF', 'NORD-EST', 'SUD-EST', 'SUD-OUEST', 'OUEST', 'CENTRE-EST'],
+      plaque_cellule: ['IDF', 'NORD-EST', 'SUD-EST', 'SUD-OUEST', 'OUEST', 'CENTRE-EST'],
+      dor: ['Paris', 'Lille', 'Lyon', 'Marseille', 'Bordeaux', 'Toulouse', 'Nantes', 'Rennes', 'Strasbourg', 'Nancy', 'Dijon', 'Clermont-Ferrand', 'Montpellier', 'Nice', 'Rouen', 'Orléans', 'Tours', 'Limoges', 'Reims', 'Caen'],
+      region: ['Île-de-France', 'Hauts-de-France', 'Grand Est', 'Normandie', 'Bretagne', 'Pays de la Loire', 'Centre-Val de Loire', 'Bourgogne-Franche-Comté', 'Nouvelle-Aquitaine', 'Occitanie', 'Auvergne-Rhône-Alpes', "Provence-Alpes-Côte d'Azur", 'Corse'],
+      zone_arcep: ['Zone très dense', 'Zone intermédiaire', 'Zone peu dense', 'Zone blanche'],
+      constructeur: ['Ericsson', 'Nokia', 'Huawei', 'Samsung'],
+      vendor: ['Ericsson', 'Nokia', 'Huawei', 'Samsung'],
+      techno: ['2G', '3G', '4G', '5G'],
+      bande: ['GSM900', 'GSM1800', 'UMTS900', 'UMTS2100', 'LTE700', 'LTE800', 'LTE1800', 'LTE2100', 'LTE2600', 'NR700', 'NR2100', 'NR3500'],
+      band: ['GSM900', 'GSM1800', 'UMTS900', 'UMTS2100', 'LTE700', 'LTE800', 'LTE1800', 'LTE2100', 'LTE2600', 'NR700', 'NR2100', 'NR3500'],
+      etat_cellule: ['ACTIVE', 'INACTIVE', 'BLOQUEE', 'EN COURS'],
+      essentiel: ['OUI', 'NON'],
+    };
+    const staticList = STATIC_FALLBACKS[dimension.toLowerCase()];
+    if (staticList && staticList.length > 0) {
+      const q = opts?.search?.toLowerCase();
+      let out = q ? staticList.filter(v => v.toLowerCase().includes(q)) : [...staticList];
+      out.sort((a, b) => a.localeCompare(b, 'fr'));
+      if (opts?.limit && opts.limit > 0) out = out.slice(0, opts.limit);
+      return out;
+    }
     return [];
   },
 
