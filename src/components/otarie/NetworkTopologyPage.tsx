@@ -537,6 +537,33 @@ const NetworkTopologyPage: React.FC = () => {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState('info');
 
+  // Neighbor sites (green dots) — fetched from Live Map Monitor neighbors API
+  const [neighborSites, setNeighborSites] = useState<{ name: string; lat: number; lng: number }[]>([]);
+  const neighborFetchRef = useRef(0);
+  useEffect(() => {
+    if (!selectedSite || !siteDetail?.cells?.length) { setNeighborSites([]); return; }
+    const reqId = ++neighborFetchRef.current;
+    const cells = siteDetail.cells.slice(0, 20); // cap to avoid hammering API
+    (async () => {
+      const acc = new Map<string, { name: string; lat: number; lng: number }>();
+      await Promise.all(cells.map(async (c: any) => {
+        const cellId = c.cell_id || c.cellId || c.id;
+        if (!cellId) return;
+        try {
+          const res = await fetchCellNeighbors(String(cellId), 'out', 20);
+          (res.neighbors || []).forEach(n => {
+            if (!n.targetSiteName || n.targetSiteName === selectedSite) return;
+            const [lat, lng] = n.targetCoords || [0, 0];
+            if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return;
+            if (!acc.has(n.targetSiteName)) acc.set(n.targetSiteName, { name: n.targetSiteName, lat, lng });
+          });
+        } catch { /* ignore per-cell failures */ }
+      }));
+      if (reqId === neighborFetchRef.current) setNeighborSites(Array.from(acc.values()));
+    })();
+  }, [selectedSite, siteDetail]);
+
+
   // Site alarms
   const [siteAlarms, setSiteAlarms] = useState<SiteAlarm[]>([]);
   const [alarmsLoading, setAlarmsLoading] = useState(false);
