@@ -190,7 +190,7 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
   return (
     <div className="h-[280px] max-h-[30vh] w-full bg-white border border-[hsl(165,12%,91%)] rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.06)] relative z-40 shrink-0 flex flex-col">
       {/* Header — sticky */}
-      <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low shrink-0 sticky top-0 z-10 rounded-t-2xl">
+      <div className="px-4 h-12 border-b border-[hsl(165,12%,93%)] flex items-center justify-between bg-white shrink-0 sticky top-0 z-10 rounded-t-xl">
         <div className="flex items-center gap-4">
           <span className="text-[10px] font-black uppercase tracking-widest text-primary">Widget Settings</span>
           <div className="h-4 w-px bg-outline-variant" />
