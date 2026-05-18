@@ -297,10 +297,18 @@ interface KpiFxAdvancedModeProps {
     unites: string; vendor: string; techno: string;
   };
   onCreated?: (created: any) => void;
+  // Optional editable metadata bound from parent wizard.
+  code?: string; setCode?: (v: string) => void;
+  name?: string; setName?: (v: string) => void;
+  vendor?: string; setVendor?: (v: string) => void;
+  tech?: string; setTech?: (v: string) => void;
+  category?: string; setCategory?: (v: string) => void;
+  unit?: string;
 }
 
 interface FxResult { kind: 'ok' | 'warn' | 'err'; html: string; }
-type RightTab = 'patterns' | 'keys' | 'explain' | 'validate' | 'test';
+type RightTab = 'patterns' | 'keys' | 'examples' | 'test';
+
 
 const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({ getMeta, onCreated }) => {
   const [intent, setIntent] = useState('');
