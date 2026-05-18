@@ -934,7 +934,7 @@ export default function EditorView({
         </button>
       )}
 
-      <div className={`fixed ${showSettings ? 'right-[336px]' : 'right-16'} ${activeWidget ? 'bottom-[calc(min(60vh,44rem)+1rem)]' : 'bottom-8'} z-[60] flex flex-col items-end gap-3 overflow-visible transition-all duration-300`}>
+      <div className={`fixed ${showSettings ? 'right-[336px]' : 'right-16'} ${activeWidget ? 'bottom-[316px]' : 'bottom-8'} z-[60] flex flex-col items-end gap-3 overflow-visible transition-all duration-300`}>
         <AnimatePresence>
           {toolboxOpen && (
             <motion.div
