@@ -29,7 +29,7 @@ export default function UserLogin() {
     } catch (err: any) {
       const msg = err?.message || 'Invalid credentials';
       setErrorMsg(msg);
-      toast({ title: 'Authentication failed', description: msg, variant: 'destructive' });
+      
     } finally {
       setLoading(false);
     }
