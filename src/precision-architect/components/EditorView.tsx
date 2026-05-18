@@ -127,8 +127,8 @@ export default function EditorView({
   
 
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
-  const widgets = activePage?.widgets ?? [];
-  const sections = activePage?.sections ?? [];
+  const widgets = Array.isArray(activePage?.widgets) ? activePage!.widgets : [];
+  const sections = Array.isArray(activePage?.sections) ? activePage!.sections : [];
   const theme = activePage?.theme;
   const pageBg = theme?.backgroundColor || (theme?.background === 'dark' ? '#0f172a' : theme?.background === 'gradient' ? '#1a1a2e' : undefined);
   const cardBg = theme?.cardColor || '#ffffff';
