@@ -302,19 +302,16 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
         </div>
         )}
 
-        {/* Content — Advanced FX mode (state owned by KpiFxAdvancedMode) */}
+        {/* Content — Advanced FX mode (full-height workspace, no inner scroll) */}
         {editorMode === 'advanced' && (
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <InputField label="KPI Code" value={code} onChange={setCode} placeholder="FX_BUSY_HOUR_DROP_RATE_4G" required mono />
-              <InputField label="Display Name" value={name} onChange={setName} placeholder="Busy Hour Drop Rate 4G" />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <SelectField label="Vendor" value={vendor} onChange={setVendor} options={['ALL', 'Nokia', 'Ericsson', 'Huawei', 'Samsung']} />
-              <SelectField label="Technology" value={tech} onChange={setTech} options={['ALL', 'LTE', 'NR']} />
-              <SelectField label="Category" value={category} onChange={setCategory} options={['Accessibility', 'Retainability', 'Throughput', 'Traffic', 'Mobility', 'Radio Quality', 'VoLTE', 'Latency', 'Integrity', 'Other']} />
-            </div>
+          <div className="flex-1 min-h-0 overflow-hidden">
             <KpiFxAdvancedMode
+              code={code} setCode={setCode}
+              name={name} setName={setName}
+              vendor={vendor} setVendor={setVendor}
+              tech={tech} setTech={setTech}
+              category={category} setCategory={setCategory}
+              unit={unit}
               getMeta={() => ({
                 kpi_code: code, nom_ihm: name, famille: category, unites: unit,
                 vendor, techno: tech,
@@ -323,6 +320,7 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
             />
           </div>
         )}
+
 
         {/* Content — Simple 6-step wizard */}
         {editorMode === 'simple' && (
