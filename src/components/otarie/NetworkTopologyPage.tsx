@@ -1764,31 +1764,41 @@ const NetworkTopologyPage: React.FC = () => {
 
                       {/* Cells tab */}
                       <TabsContent value="cells" className="mt-3">
-                        <div className="flex items-center justify-between mb-2 px-1">
-                          <span className="text-xs text-muted-foreground">
-                            Showing <span className="font-bold text-foreground">{siteDetail.cells.length}</span> cells
-                          </span>
-                        </div>
-                        <div className="border rounded-lg overflow-auto max-h-[70vh]">
-                          <Table>
-                            <TableHeader className="sticky top-0 bg-card z-10">
-                              <TableRow>
-                                {cellColumns.map(k => (
-                                  <TableHead key={k} className="text-[10px] whitespace-nowrap">{prettyLabel(k)}</TableHead>
-                                ))}
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {siteDetail.cells.map((c, i) => (
-                                <TableRow key={i}>
-                                  {cellColumns.map(k => (
-                                    <TableCell key={k} className="text-xs whitespace-nowrap py-1.5">{String((c as Record<string, unknown>)[k] ?? '')}</TableCell>
-                                  ))}
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
+                        {(() => {
+                          const filteredCells = siteDetail.cells.filter(c => {
+                            const tech = normTech(String((c as Record<string, unknown>).techno || (c as Record<string, unknown>).rat || ''));
+                            return enabledTechs.has(tech);
+                          });
+                          return (
+                            <>
+                              <div className="flex items-center justify-between mb-2 px-1">
+                                <span className="text-xs text-muted-foreground">
+                                  Showing <span className="font-bold text-foreground">{filteredCells.length}</span> of {siteDetail.cells.length} cells
+                                </span>
+                              </div>
+                              <div className="border rounded-lg overflow-auto max-h-[70vh]">
+                                <Table>
+                                  <TableHeader className="sticky top-0 bg-card z-10">
+                                    <TableRow>
+                                      {cellColumns.map(k => (
+                                        <TableHead key={k} className="text-[10px] whitespace-nowrap">{prettyLabel(k)}</TableHead>
+                                      ))}
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {filteredCells.map((c, i) => (
+                                      <TableRow key={i}>
+                                        {cellColumns.map(k => (
+                                          <TableCell key={k} className="text-xs whitespace-nowrap py-1.5">{String((c as Record<string, unknown>)[k] ?? '')}</TableCell>
+                                        ))}
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </TabsContent>
 
                     </Tabs>
