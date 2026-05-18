@@ -468,7 +468,7 @@ const FilterChip: React.FC<{
   cascadeContext?: FilterContext;
 }> = ({ dim, values, onToggleValue, onClear, onRemove, siteFilter, scopeAllowed, cascadeContext }) => {
   const [open, setOpen] = useState(false);
-  const { values: backendValues, labels: labelMap } = useBackendFilterValues(dim, cascadeContext);
+  const { values: backendValues, labels: labelMap, loaded: backendLoaded } = useBackendFilterValues(dim, cascadeContext);
   const [search, setSearch] = useState('');
   const [pendingValues, setPendingValues] = useState<string[]>([]);
   const [liveSearchResults, setLiveSearchResults] = useState<string[]>([]);
