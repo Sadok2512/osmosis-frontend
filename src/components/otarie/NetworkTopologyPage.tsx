@@ -25,7 +25,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { MapContainer, TileLayer, CircleMarker, Polyline, Tooltip as LTooltip, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Polygon, Tooltip as LTooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
 /* Destination point given start, bearing (deg) and distance (m) */
@@ -1582,20 +1582,38 @@ const NetworkTopologyPage: React.FC = () => {
                             if (seen.has(k)) return false;
                             seen.add(k); return true;
                           });
+                          // Tech ring order: 2G outermost → 5G innermost (concentric)
+                          const TECH_ORDER = ['2G', '3G', '4G', '5G'];
+                          const HALF_ANGLE = 32; // degrees
+                          const STEPS = 14;
+                          const BASE_LEN = 220;
+                          const STEP_LEN = 55;
+                          const buildWedge = (az: number, lenM: number): [number, number][] => {
+                            const pts: [number, number][] = [[sLat, sLng]];
+                            for (let k = 0; k <= STEPS; k++) {
+                              const a = az - HALF_ANGLE + (2 * HALF_ANGLE * k) / STEPS;
+                              pts.push(destPoint(sLat, sLng, a, lenM));
+                            }
+                            return pts;
+                          };
                           return (
                             <>
                               {unique.map((b, i) => {
                                 const color = TECH_COLOR[b.tech] || '#F39C12';
-                                const len = 250;
-                                const end = destPoint(sLat, sLng, b.az, len);
-                                const left = destPoint(sLat, sLng, b.az - 12, len * 0.85);
-                                const right = destPoint(sLat, sLng, b.az + 12, len * 0.85);
+                                const ringIdx = TECH_ORDER.indexOf(b.tech);
+                                const len = BASE_LEN + (ringIdx >= 0 ? (TECH_ORDER.length - 1 - ringIdx) * STEP_LEN : 0);
                                 return (
-                                  <React.Fragment key={`beam-${i}`}>
-                                    <Polyline positions={[[sLat, sLng], end]} pathOptions={{ color, weight: 3, opacity: 0.9 }} />
-                                    <Polyline positions={[[sLat, sLng], left]} pathOptions={{ color, weight: 1, opacity: 0.4, dashArray: '3 3' }} />
-                                    <Polyline positions={[[sLat, sLng], right]} pathOptions={{ color, weight: 1, opacity: 0.4, dashArray: '3 3' }} />
-                                  </React.Fragment>
+                                  <Polygon
+                                    key={`beam-${i}`}
+                                    positions={buildWedge(b.az, len)}
+                                    pathOptions={{
+                                      color: '#fff',
+                                      weight: 1,
+                                      opacity: 0.9,
+                                      fillColor: color,
+                                      fillOpacity: 0.78,
+                                    }}
+                                  />
                                 );
                               })}
                               {/* Permanent name label on the selected site */}
