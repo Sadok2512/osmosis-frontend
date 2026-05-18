@@ -139,7 +139,7 @@ export function ensureFilterLoaded(key: string, ctx?: FilterContext) {
   if (inFlight.has(cacheKey)) return;
 
   // PM dims and CLUSTER don't support cascading context yet
-  const loader = (dim === 'CLUSTER' ? fetchCluster() : isPmDimension(dim) ? fetchPm(dim) : fetchStandard(dim, ctx))
+  const loader = (dim === 'CLUSTER' ? fetchCluster(ctx) : isPmDimension(dim) ? fetchPm(dim, ctx) : fetchStandard(dim, ctx))
     .finally(() => {
       inFlight.delete(cacheKey);
     });
