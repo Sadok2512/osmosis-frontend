@@ -165,7 +165,7 @@ const buildCascadeContext = (active: Record<string, string[]>, selfDim: string):
   return Object.keys(ctx).length ? ctx : undefined;
 };
 
-const useBackendFilterValues = (dimension: string, ctx?: FilterContext): { values: string[]; labels: Record<string, string> } => {
+const useBackendFilterValues = (dimension: string, ctx?: FilterContext): { values: string[]; labels: Record<string, string>; loaded: boolean } => {
   const key = isPmDimension(dimension) ? dimension : dimToKey(dimension);
   // Stable string of the context for dependency tracking
   const ctxStr = React.useMemo(() => {
@@ -179,19 +179,19 @@ const useBackendFilterValues = (dimension: string, ctx?: FilterContext): { value
     );
   }, [ctx]);
 
-  const [result, setResult] = React.useState<{ values: string[]; labels: Record<string, string> }>(() => {
+  const [result, setResult] = React.useState<{ values: string[]; labels: Record<string, string>; loaded: boolean }>(() => {
     const e = getFilterValues(key, ctx);
-    return { values: e.values, labels: e.labels || {} };
+    return { values: e.values, labels: e.labels || {}, loaded: e.loaded };
   });
 
   React.useEffect(() => {
     ensureFilterLoaded(key, ctx);
     const unsub = subscribeCacheUpdates(() => {
       const entry = getFilterValues(key, ctx);
-      if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {} });
+      if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {}, loaded: true });
     });
     const entry = getFilterValues(key, ctx);
-    if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {} });
+    setResult({ values: entry.values, labels: entry.labels || {}, loaded: entry.loaded });
     return unsub;
   }, [key, ctxStr]);
 
@@ -468,7 +468,7 @@ const FilterChip: React.FC<{
   cascadeContext?: FilterContext;
 }> = ({ dim, values, onToggleValue, onClear, onRemove, siteFilter, scopeAllowed, cascadeContext }) => {
   const [open, setOpen] = useState(false);
-  const { values: backendValues, labels: labelMap } = useBackendFilterValues(dim, cascadeContext);
+  const { values: backendValues, labels: labelMap, loaded: backendLoaded } = useBackendFilterValues(dim, cascadeContext);
   const [search, setSearch] = useState('');
   const [pendingValues, setPendingValues] = useState<string[]>([]);
   const [liveSearchResults, setLiveSearchResults] = useState<string[]>([]);
@@ -626,8 +626,10 @@ const FilterChip: React.FC<{
 
           {/* Values list */}
           <div className="max-h-[240px] overflow-y-auto px-2 pb-1">
-            {backendValues.length === 0 && !liveSearching && liveSearchResults.length === 0 ? (
+            {!backendLoaded && backendValues.length === 0 && !liveSearching && liveSearchResults.length === 0 ? (
               <div className="px-3 py-4 text-[10px] text-muted-foreground animate-pulse text-center">Chargement...</div>
+            ) : backendLoaded && backendValues.length === 0 && !liveSearching && liveSearchResults.length === 0 && !search ? (
+              <div className="px-3 py-4 text-[10px] text-muted-foreground text-center">Aucune valeur disponible</div>
             ) : liveSearching ? (
               <div className="px-3 py-4 text-[10px] text-muted-foreground animate-pulse text-center">Recherche VPS...</div>
             ) : displayValues.length === 0 ? (
