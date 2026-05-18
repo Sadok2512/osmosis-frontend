@@ -65,7 +65,13 @@ async function catalogDelete(path: string): Promise<void> {
   if (!res.ok) { const e = await res.json().catch(() => ({ detail: `API ${res.status}` })); throw new Error(e.detail || e.message || `API ${res.status}`); }
 }
 
+// Light mapping for list rows — skips expensive parseCounters().
+// Raw counter strings are kept on the entry and parsed lazily when the
+// detail drawer opens (see enrichEntry below). With ~4800 KPIs this cuts
+// ~9600 regex+Set passes off the initial render.
 function mapToEntry(k: any): KpiCatalogEntry {
+  const rawNum = k.numerator_counters || k.numerateur || (typeof k.numerator === 'string' ? k.numerator : '') || '';
+  const rawDen = k.denominator_counters || k.denominateur || (typeof k.denominator === 'string' ? k.denominator : '') || '';
   return {
     id: k.id || k.kpi_key, kpi_code: k.kpi_key || k.kpi_code, kpi_key: k.kpi_key,
     display_name: k.display_name || k.nom_ihm || k.kpi_key,
@@ -77,13 +83,13 @@ function mapToEntry(k: any): KpiCatalogEntry {
     numerator: {
       name: k.numerator_name || (typeof k.numerator === 'string' ? k.numerator : '') || 'Numerator',
       description: k.numerator_desc || '',
-      counters: parseCounters(k.numerator_counters || k.numerateur || (typeof k.numerator === 'string' ? k.numerator : '') || ''),
+      counters: [], // lazy — filled by enrichEntry on selection
       source: k.num_source || 'OSS PM', granularity: k.num_granularity || '15min',
     },
     denominator: {
       name: k.denominator_name || (typeof k.denominator === 'string' ? k.denominator : '') || 'Denominator',
       description: k.denominator_desc || '',
-      counters: parseCounters(k.denominator_counters || k.denominateur || (typeof k.denominator === 'string' ? k.denominator : '') || ''),
+      counters: [], // lazy — filled by enrichEntry on selection
       source: k.den_source || 'OSS PM', granularity: k.den_granularity || '15min',
     },
     thresholds: { green: k.seuil_vert ?? k.threshold_green ?? null, orange: k.seuil_orange ?? k.threshold_orange ?? null, red: k.seuil_rouge ?? k.threshold_red ?? null },
@@ -91,6 +97,19 @@ function mapToEntry(k: any): KpiCatalogEntry {
     scope: k.scope || 'Cell', created_by: k.created_by || 'System',
     last_updated: k.updated_at || k.created_at || '—',
     is_normalized: k.is_normalized || false, supported_levels: k.supported_levels || [],
+    // Stash raw strings on the entry for lazy parsing.
+    _rawNumCounters: rawNum,
+    _rawDenCounters: rawDen,
+  } as KpiCatalogEntry & { _rawNumCounters: string; _rawDenCounters: string };
+}
+
+function enrichEntry(e: KpiCatalogEntry): KpiCatalogEntry {
+  const raw = e as any;
+  if (e.numerator.counters.length || e.denominator.counters.length) return e;
+  return {
+    ...e,
+    numerator: { ...e.numerator, counters: parseCounters(raw._rawNumCounters || '') },
+    denominator: { ...e.denominator, counters: parseCounters(raw._rawDenCounters || '') },
   };
 }
 
@@ -442,7 +461,7 @@ const KpiCatalogView: React.FC = () => {
 
                 return (
                   <div key={row.kpi_key || row.id}
-                    onClick={() => setSelectedKpi(row)}
+                    onClick={() => setSelectedKpi(enrichEntry(row))}
                     className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_60px] px-5 py-3.5 items-center cursor-pointer group hover:bg-primary/[0.02] transition-colors">
 
                     {/* Name */}
@@ -483,10 +502,10 @@ const KpiCatalogView: React.FC = () => {
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setActionMenuId(null)} />
                           <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-xl border border-border/30 bg-white shadow-xl py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
-                            <button onClick={() => { setSelectedKpi(row); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
+                            <button onClick={() => { setSelectedKpi(enrichEntry(row)); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
                               <Eye className="w-3.5 h-3.5" /> Voir détails
                             </button>
-                            <button onClick={() => { setEditingKpi(row); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
+                            <button onClick={() => { setEditingKpi(enrichEntry(row)); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
                               <Edit2 className="w-3.5 h-3.5" /> Modifier
                             </button>
                             <div className="border-t border-border/20 my-1" />
@@ -589,7 +608,7 @@ const KpiCatalogView: React.FC = () => {
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${(TECH_BADGE[selectedKpi.technology] || TECH_BADGE.ALL).bg} ${(TECH_BADGE[selectedKpi.technology] || TECH_BADGE.ALL).text}`}>{selectedKpi.technology}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => setEditingKpi(selectedKpi)} className="p-2 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Edit">
+                  <button onClick={() => setEditingKpi(enrichEntry(selectedKpi))} className="p-2 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Edit">
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button onClick={() => setSelectedKpi(null)} className="p-2 rounded-lg hover:bg-muted transition-colors">
