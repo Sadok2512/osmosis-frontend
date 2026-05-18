@@ -164,7 +164,7 @@ const AlarmCenter: React.FC = () => {
       item.site_name || '',
       item.cell_name || '',
       item.vendor || '',
-      (item.alarm_text || item.specific_problem || '').replaceAll('"', '""'),
+      (item.alarm_text || item.specific_problem || '').replace(/"/g, '""'),
       item.alarm_time || '',
       item.duration_min ?? '',
     ]);
