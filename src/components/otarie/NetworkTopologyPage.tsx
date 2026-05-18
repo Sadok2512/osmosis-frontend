@@ -516,6 +516,22 @@ const NetworkTopologyPage: React.FC = () => {
   /* ══════════════════ SITE DETAIL ══════════════════ */
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
   const [siteDetail, setSiteDetail] = useState<SiteDetail | null>(null);
+  const [enabledTechs, setEnabledTechs] = useState<Set<string>>(new Set(['2G', '3G', '4G', '5G']));
+  const toggleTech = useCallback((t: string) => {
+    setEnabledTechs(prev => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t); else next.add(t);
+      return next;
+    });
+  }, []);
+  const normTech = useCallback((raw: string): string => {
+    const u = (raw || '').toUpperCase();
+    if (u.includes('5G') || u.includes('NR')) return '5G';
+    if (u.includes('4G') || u.includes('LTE')) return '4G';
+    if (u.includes('3G') || u.includes('UMTS') || u.includes('WCDMA')) return '3G';
+    if (u.includes('2G') || u.includes('GSM')) return '2G';
+    return u || '4G';
+  }, []);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState('info');
