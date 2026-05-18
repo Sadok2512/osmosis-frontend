@@ -742,7 +742,15 @@ export default function EditorView({
         </div>
 
 
-        {activeWidget && (() => {
+        {activeWidget && (
+          <div
+            className="fixed bottom-4 z-40 transition-all duration-300 pa-widget-settings-drawer"
+            style={{
+              left: 'calc(16rem + 16px)',
+              right: showSettings ? 'calc(400px + 16px)' : '16px',
+            }}
+          >
+        {(() => {
           const w = widgets.find(x => x.id === activeWidget);
           if (!w) return null;
 
@@ -813,7 +821,7 @@ export default function EditorView({
           // Other widget kinds keep the legacy bottom panel.
           const widgetLabel = `${w.kind.toUpperCase()} · ${w.id.slice(0, 18)}`;
           return (
-            <div className="h-[clamp(22rem,60vh,44rem)] w-full max-w-[1100px] mx-auto bg-white border border-outline-variant/20 rounded-t-2xl shadow-2xl relative z-40 shrink-0 flex flex-col">
+            <div className="h-[280px] max-h-[32vh] w-full bg-white border border-outline-variant/20 rounded-2xl shadow-2xl relative z-40 shrink-0 flex flex-col">
               <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low shrink-0 sticky top-0 z-10 rounded-t-2xl">
                 <div className="flex items-center gap-4">
                   <span className="text-[10px] font-black uppercase tracking-widest text-primary">Widget Settings</span>
@@ -881,6 +889,8 @@ export default function EditorView({
             </div>
           );
         })()}
+          </div>
+        )}
       </div>
 
       {/* Floating right config sidebar — overlays canvas, never resizes the dashboard grid. */}
@@ -924,7 +934,7 @@ export default function EditorView({
         </button>
       )}
 
-      <div className={`fixed ${showSettings ? 'right-[336px]' : 'right-16'} ${activeWidget ? 'bottom-[calc(min(60vh,44rem)+1rem)]' : 'bottom-8'} z-[60] flex flex-col items-end gap-3 overflow-visible transition-all duration-300`}>
+      <div className={`fixed ${showSettings ? 'right-[336px]' : 'right-16'} ${activeWidget ? 'bottom-[316px]' : 'bottom-8'} z-[60] flex flex-col items-end gap-3 overflow-visible transition-all duration-300`}>
         <AnimatePresence>
           {toolboxOpen && (
             <motion.div
