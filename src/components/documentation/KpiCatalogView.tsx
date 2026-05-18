@@ -608,7 +608,7 @@ const KpiCatalogView: React.FC = () => {
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${(TECH_BADGE[selectedKpi.technology] || TECH_BADGE.ALL).bg} ${(TECH_BADGE[selectedKpi.technology] || TECH_BADGE.ALL).text}`}>{selectedKpi.technology}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => setEditingKpi(selectedKpi)} className="p-2 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Edit">
+                  <button onClick={() => setEditingKpi(enrichEntry(selectedKpi))} className="p-2 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Edit">
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button onClick={() => setSelectedKpi(null)} className="p-2 rounded-lg hover:bg-muted transition-colors">
