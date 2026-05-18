@@ -461,7 +461,7 @@ const KpiCatalogView: React.FC = () => {
 
                 return (
                   <div key={row.kpi_key || row.id}
-                    onClick={() => setSelectedKpi(row)}
+                    onClick={() => setSelectedKpi(enrichEntry(row))}
                     className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_60px] px-5 py-3.5 items-center cursor-pointer group hover:bg-primary/[0.02] transition-colors">
 
                     {/* Name */}
