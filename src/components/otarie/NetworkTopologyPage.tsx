@@ -555,11 +555,11 @@ const NetworkTopologyPage: React.FC = () => {
             if (!n.targetSiteName || n.targetSiteName === selectedSite) return;
             const [lat, lng] = n.targetCoords || [0, 0];
             if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return;
-            if (!acc.has(n.targetSiteName)) acc.set(n.targetSiteName, { name: n.targetSiteName, lat, lng });
+            if (!acc[n.targetSiteName]) acc[n.targetSiteName] = { name: n.targetSiteName, lat, lng };
           });
         } catch { /* ignore per-cell failures */ }
       }));
-      if (reqId === neighborFetchRef.current) setNeighborSites(Array.from(acc.values()));
+      if (reqId === neighborFetchRef.current) setNeighborSites(Object.values(acc));
     })();
   }, [selectedSite, siteDetail]);
 
