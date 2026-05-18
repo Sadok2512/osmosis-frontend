@@ -68,7 +68,7 @@ const MapLibre3DView: React.FC<MapLibre3DViewProps> = ({
       zoom: Number.isFinite(zoom) ? zoom : 7,
       pitch: 45,
       bearing: 0,
-      attributionControl: true,
+      attributionControl: {},
     });
 
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
