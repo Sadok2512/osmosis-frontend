@@ -27,6 +27,7 @@ import {
 import { toast } from 'sonner';
 import { MapContainer, TileLayer, CircleMarker, Polygon, Tooltip as LTooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { fetchCellNeighbors } from './map/neighborTypes';
 
 /* Destination point given start, bearing (deg) and distance (m) */
 const destPoint = (lat: number, lng: number, bearingDeg: number, distM: number): [number, number] => {
@@ -535,6 +536,33 @@ const NetworkTopologyPage: React.FC = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState('info');
+
+  // Neighbor sites (green dots) — fetched from Live Map Monitor neighbors API
+  const [neighborSites, setNeighborSites] = useState<{ name: string; lat: number; lng: number }[]>([]);
+  const neighborFetchRef = useRef(0);
+  useEffect(() => {
+    if (!selectedSite || !siteDetail?.cells?.length) { setNeighborSites([]); return; }
+    const reqId = ++neighborFetchRef.current;
+    const cells = siteDetail.cells.slice(0, 20); // cap to avoid hammering API
+    (async () => {
+      const acc: Record<string, { name: string; lat: number; lng: number }> = {};
+      await Promise.all(cells.map(async (c: any) => {
+        const cellId = c.cell_id || c.cellId || c.id;
+        if (!cellId) return;
+        try {
+          const res = await fetchCellNeighbors(String(cellId), 'out', 20);
+          (res.neighbors || []).forEach(n => {
+            if (!n.targetSiteName || n.targetSiteName === selectedSite) return;
+            const [lat, lng] = n.targetCoords || [0, 0];
+            if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return;
+            if (!acc[n.targetSiteName]) acc[n.targetSiteName] = { name: n.targetSiteName, lat, lng };
+          });
+        } catch { /* ignore per-cell failures */ }
+      }));
+      if (reqId === neighborFetchRef.current) setNeighborSites(Object.values(acc));
+    })();
+  }, [selectedSite, siteDetail]);
+
 
   // Site alarms
   const [siteAlarms, setSiteAlarms] = useState<SiteAlarm[]>([]);
@@ -1566,6 +1594,21 @@ const NetworkTopologyPage: React.FC = () => {
                           >
                             <LTooltip direction="top" offset={[0, -6]} className="!text-[10px] !font-semibold">
                               {p.name}
+                            </LTooltip>
+                          </CircleMarker>
+                        ))}
+
+                        {/* Neighbor sites (green dots) from Live Map Monitor API */}
+                        {selectedSite && neighborSites.map(ns => (
+                          <CircleMarker
+                            key={`nb-${ns.name}`}
+                            center={[ns.lat, ns.lng]}
+                            radius={5}
+                            pathOptions={{ color: '#fff', weight: 1.5, fillColor: '#22c55e', fillOpacity: 0.95 }}
+                            eventHandlers={{ click: () => viewSite(ns.name) }}
+                          >
+                            <LTooltip direction="top" offset={[0, -6]} className="!text-[10px] !font-semibold">
+                              {ns.name} (voisin)
                             </LTooltip>
                           </CircleMarker>
                         ))}
