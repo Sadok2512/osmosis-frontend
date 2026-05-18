@@ -25,7 +25,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { MapContainer, TileLayer, CircleMarker, Polyline, Tooltip as LTooltip, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Polygon, Tooltip as LTooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
 /* Destination point given start, bearing (deg) and distance (m) */
