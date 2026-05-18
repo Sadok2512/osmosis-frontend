@@ -8373,7 +8373,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   useEffect(() => {
     if (!selectedSiteId) return;
     setPanelCollapsed(false);
-    setInventoryTab('sites');
+    // Stay on the Tagged tab when the selected site is a tagged one,
+    // so users keep their inspection context on the tagger area.
+    setInventoryTab(prev => (prev === 'tagged' && isSiteTagged(selectedSiteId) ? 'tagged' : 'sites'));
     const tryScroll = (attempt = 0) => {
       const el = siteRowRefs.current.get(selectedSiteId);
       if (el) {
