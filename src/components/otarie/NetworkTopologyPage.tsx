@@ -1069,7 +1069,7 @@ const NetworkTopologyPage: React.FC = () => {
         .marker-cluster div { background: #3498DB !important; color: #fff !important; font-size: 11px !important; }
       `}</style>
 
-      <div className="px-8 py-6 max-w-[1600px] mx-auto space-y-4">
+      <div className="px-4 py-6 w-full space-y-4">
 
         {/* Stats row */}
         <div className="grid grid-cols-5 gap-3">
