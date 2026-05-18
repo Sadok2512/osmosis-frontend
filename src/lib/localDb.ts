@@ -1134,6 +1134,50 @@ export const topoApi = {
         }
       } catch { /* both upstream sources failed */ }
     }
+    // ── 3rd fallback: derive distinct values from the in-memory site cache
+    // (populated by SitesMonitor/PA map bbox loads). Covers geographic dims
+    // when VPS returns 422 and Supabase RPC times out.
+    try {
+      const { useMapSitesStore } = await import('@/stores/mapSitesStore');
+      const sites = useMapSitesStore.getState().cachedSites || [];
+      if (sites.length > 0) {
+        const CACHE_FIELD_MAP: Record<string, keyof typeof sites[number]> = {
+          plaque: 'plaque', plaque_site: 'plaque', plaque_cellule: 'plaque',
+          dor: 'dor', region: 'region', zone_arcep: 'zone_arcep',
+          constructeur: 'constructeur', vendor: 'constructeur',
+          nom_site: 'site_name', site_name: 'site_name', site: 'site_name',
+        };
+        const f = CACHE_FIELD_MAP[dimension.toLowerCase()];
+        if (f) {
+          const set = new Set<string>();
+          for (const s of sites) {
+            const v = (s as any)[f];
+            if (v === null || v === undefined || v === '') continue;
+            if (Array.isArray(v)) v.forEach(x => x && set.add(String(x)));
+            else set.add(String(v));
+          }
+          const q = opts?.search?.toLowerCase();
+          let out = Array.from(set);
+          if (q) out = out.filter(v => v.toLowerCase().includes(q));
+          out.sort((a, b) => a.localeCompare(b, 'fr'));
+          if (opts?.limit && opts.limit > 0) out = out.slice(0, opts.limit);
+          if (out.length > 0) return out;
+        }
+        // techno / bande are stored as arrays per site
+        if (dimension.toLowerCase() === 'techno') {
+          const set = new Set<string>();
+          sites.forEach(s => (s.technos || []).forEach((t: string) => t && set.add(t)));
+          return Array.from(set).sort();
+        }
+        if (dimension.toLowerCase() === 'bande' || dimension.toLowerCase() === 'band') {
+          const set = new Set<string>();
+          sites.forEach(s => (s.bandes || []).forEach((b: string) => {
+            String(b).split(',').map(x => x.trim()).filter(Boolean).forEach(x => set.add(x));
+          }));
+          return Array.from(set).sort();
+        }
+      }
+    } catch { /* cache fallback failed */ }
     return [];
   },
 
