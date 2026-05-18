@@ -545,7 +545,7 @@ const NetworkTopologyPage: React.FC = () => {
     const reqId = ++neighborFetchRef.current;
     const cells = siteDetail.cells.slice(0, 20); // cap to avoid hammering API
     (async () => {
-      const acc = new Map<string, { name: string; lat: number; lng: number }>();
+      const acc: Record<string, { name: string; lat: number; lng: number }> = {};
       await Promise.all(cells.map(async (c: any) => {
         const cellId = c.cell_id || c.cellId || c.id;
         if (!cellId) return;
