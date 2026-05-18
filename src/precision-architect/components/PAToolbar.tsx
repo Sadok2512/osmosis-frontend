@@ -122,9 +122,10 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
   // and must NOT appear in the chip-row dimension picker.
   const SCOPE_DIMENSIONS = new Set(['Vendor', 'Technology']);
   const dimensionOptions = useMemo(() => {
-    const base = (!filterCatalog || filterCatalog.length === 0)
+    const catalog = Array.isArray(filterCatalog) ? filterCatalog : [];
+    const base = catalog.length === 0
       ? FALLBACK_DIMENSIONS
-      : filterCatalog
+      : catalog
           .filter(f => (f as any).is_active !== false)
           .map(f => f.display_name || f.dimension_key);
     const filtered = base.filter(d => !SCOPE_DIMENSIONS.has(d));
@@ -137,7 +138,7 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
   // techno-aware hiding. Same source as the Investigator.
   const filterCategoriesMap = useMemo(() => {
     const cats: Record<string, string> = {};
-    if (filterCatalog) {
+    if (Array.isArray(filterCatalog)) {
       for (const f of filterCatalog) {
         const name = f.display_name || f.dimension_key;
         const cat = (f as any).category;
@@ -149,7 +150,7 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
   }, [filterCatalog]);
   const filterRatsMap = useMemo(() => {
     const rats: Record<string, string> = {};
-    if (filterCatalog) {
+    if (Array.isArray(filterCatalog)) {
       for (const f of filterCatalog) {
         const name = f.display_name || f.dimension_key;
         const rat = (f as any).rat;
