@@ -1598,6 +1598,21 @@ const NetworkTopologyPage: React.FC = () => {
                           </CircleMarker>
                         ))}
 
+                        {/* Neighbor sites (green dots) from Live Map Monitor API */}
+                        {selectedSite && neighborSites.map(ns => (
+                          <CircleMarker
+                            key={`nb-${ns.name}`}
+                            center={[ns.lat, ns.lng]}
+                            radius={5}
+                            pathOptions={{ color: '#fff', weight: 1.5, fillColor: '#22c55e', fillOpacity: 0.95 }}
+                            eventHandlers={{ click: () => viewSite(ns.name) }}
+                          >
+                            <LTooltip direction="top" offset={[0, -6]} className="!text-[10px] !font-semibold">
+                              {ns.name} (voisin)
+                            </LTooltip>
+                          </CircleMarker>
+                        ))}
+
                         {/* Beams + permanent label for the SELECTED site only */}
                         {flyTarget && selectedSite && (() => {
                           const [sLat, sLng] = flyTarget;
