@@ -25,8 +25,24 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { MapContainer, TileLayer, CircleMarker, Tooltip as LTooltip, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Polyline, Tooltip as LTooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+
+/* Destination point given start, bearing (deg) and distance (m) */
+const destPoint = (lat: number, lng: number, bearingDeg: number, distM: number): [number, number] => {
+  const R = 6371000;
+  const brng = (bearingDeg * Math.PI) / 180;
+  const lat1 = (lat * Math.PI) / 180;
+  const lng1 = (lng * Math.PI) / 180;
+  const d = distM / R;
+  const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
+  const lng2 = lng1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+  return [(lat2 * 180) / Math.PI, (lng2 * 180) / Math.PI];
+};
+
+const TECH_COLOR: Record<string, string> = {
+  '2G': '#8E44AD', '3G': '#3498DB', '4G': '#F39C12', '5G': '#27AE60',
+};
 
 /* Auto-fit bounds for sites map */
 const SitesFitBounds: React.FC<{ points: [number, number][] }> = ({ points }) => {
