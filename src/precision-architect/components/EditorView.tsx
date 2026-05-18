@@ -742,7 +742,15 @@ export default function EditorView({
         </div>
 
 
-        {activeWidget && (() => {
+        {activeWidget && (
+          <div
+            className="fixed bottom-4 z-40 transition-all duration-300 pa-widget-settings-drawer"
+            style={{
+              left: 'calc(16rem + 16px)',
+              right: showSettings ? 'calc(400px + 16px)' : '16px',
+            }}
+          >
+        {(() => {
           const w = widgets.find(x => x.id === activeWidget);
           if (!w) return null;
 
