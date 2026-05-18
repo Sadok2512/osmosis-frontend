@@ -1390,7 +1390,9 @@ const NetworkTopologyPage: React.FC = () => {
               onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0]); e.target.value = ''; }} />
 
             {/* Sites search + table */}
-            <Card className="overflow-hidden border-outline-variant/20 bg-white shadow-sm">
+            <div className="flex gap-4" style={{ minHeight: 'calc(100vh - 340px)' }}>
+              {/* Sites table */}
+              <Card className="flex-1 min-w-0 overflow-hidden border-outline-variant/20 bg-white shadow-sm">
               <Filter2
                 variant="panel"
                 title="Filter2"
@@ -1483,6 +1485,49 @@ const NetworkTopologyPage: React.FC = () => {
                 </Table>
               </div>
             </Card>
+
+              {/* Map alongside table */}
+              <Card className="w-[40%] min-w-[320px] overflow-hidden border-outline-variant/20 bg-white shadow-sm p-0">
+                {(() => {
+                  const mapPts = sites
+                    .filter(s => typeof s.latitude === 'number' && typeof s.longitude === 'number')
+                    .map(s => ({ name: s.site_name, lat: s.latitude as number, lng: s.longitude as number, selected: s.site_name === selectedSite }));
+                  const bounds: [number, number][] = mapPts.map(p => [p.lat, p.lng]);
+                  const center: [number, number] = bounds[0] || [46.6, 2.3];
+                  return (
+                    <div className="w-full h-full" style={{ minHeight: 'calc(100vh - 340px)', background: '#eef3f9' }}>
+                      <MapContainer center={center} zoom={6} style={{ height: '100%', width: '100%', minHeight: 'calc(100vh - 340px)' }} scrollWheelZoom>
+                        <TileLayer
+                          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                          maxZoom={19}
+                          subdomains="abcd"
+                        />
+                        <SitesFitBounds points={bounds} />
+                        {mapPts.map(p => (
+                          <CircleMarker
+                            key={p.name}
+                            center={[p.lat, p.lng]}
+                            radius={p.selected ? 9 : 6}
+                            pathOptions={{
+                              color: '#fff',
+                              weight: 2,
+                              fillColor: p.selected ? '#06b6d4' : '#10b981',
+                              fillOpacity: 0.9,
+                            }}
+                            eventHandlers={{ click: () => viewSite(p.name) }}
+                          >
+                            <LTooltip direction="top" offset={[0, -6]} className="!text-[10px] !font-semibold">
+                              {p.name}
+                            </LTooltip>
+                          </CircleMarker>
+                        ))}
+                      </MapContainer>
+                    </div>
+                  );
+                })()}
+              </Card>
+            </div>
+
 
             {/* Site detail */}
             {(selectedSite || detailLoading) && (
