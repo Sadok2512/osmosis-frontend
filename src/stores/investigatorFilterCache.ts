@@ -80,9 +80,10 @@ async function fetchStandard(dim: string, ctx?: FilterContext) {
   notify();
 }
 
-async function fetchPm(dim: string) {
+async function fetchPm(dim: string, ctx?: FilterContext) {
+  const cacheKey = makeKey(dim, ctx);
   const entry: CacheEntry = { values: [], labels: {}, loading: true, loaded: false };
-  cache.set(dim, entry);
+  cache.set(cacheKey, entry);
   try {
     const params = new URLSearchParams({ dimension_type: dim, limit: '200' });
     const res = await fetch(getApiUrl(`pm/counters/dimension-values?${params.toString()}`), { headers: getApiHeaders() });
@@ -99,13 +100,14 @@ async function fetchPm(dim: string) {
   } catch {}
   entry.loading = false;
   entry.loaded = true;
-  cache.set(dim, { ...entry });
+  cache.set(cacheKey, { ...entry });
   notify();
 }
 
-async function fetchCluster() {
+async function fetchCluster(ctx?: FilterContext) {
+  const cacheKey = makeKey('CLUSTER', ctx);
   const entry: CacheEntry = { values: [], labels: {}, loading: true, loaded: false };
-  cache.set('CLUSTER', entry);
+  cache.set(cacheKey, entry);
   try {
     const res = await fetch(getApiUrl('topo/filters'), { headers: getApiHeaders() });
     if (res.ok) {
@@ -125,7 +127,7 @@ async function fetchCluster() {
   }
   entry.loading = false;
   entry.loaded = true;
-  cache.set('CLUSTER', { ...entry });
+  cache.set(cacheKey, { ...entry });
   notify();
 }
 
