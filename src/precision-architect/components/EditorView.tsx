@@ -737,7 +737,7 @@ export default function EditorView({
                 </>
               );
             })()}
-            <div aria-hidden className="shrink-0" style={{ height: 120 }} />
+            <div aria-hidden className="shrink-0" style={{ height: activeWidget ? 340 : 120 }} />
           </div>
         </div>
 
