@@ -1824,6 +1824,11 @@ export interface CoverageCell {
    *  view is active — falling back to 'unknown' (No-data grey) for cells
    *  missing a value in the active KPI map. */
   kpi: 'green' | 'orange' | 'red' | 'unknown';
+  /** Radio identifiers — added 2026-05-18 for the PCI Overlay (party
+   *  decision). null when ref_cell_daily has no value (rare). */
+  pci?: number | null;
+  nci?: number | null;
+  eci?: string | null;
 }
 
 export interface CoverageCellsResponse {

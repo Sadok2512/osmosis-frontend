@@ -9,6 +9,7 @@ import { fetchCounterTimeSeriesFallback } from './investigatorApi';
 import {
   Layers, Calculator, Eye, EyeOff, Info, ChevronDown,
   Database, GitBranch, Cpu, TrendingUp, Filter, Sigma, Divide,
+  BarChart3, Table2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -204,6 +205,25 @@ const parseConstantDenominator = (value?: string): number | null => {
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' ? value as Record<string, unknown> : {};
+
+const asFiniteNumber = (value: unknown): number | null => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+const formatMetricValue = (value: number | null | undefined, unit?: string): string => {
+  if (value == null || !Number.isFinite(value)) return '—';
+  const abs = Math.abs(value);
+  const digits = abs >= 1000 ? 0 : abs >= 100 ? 1 : abs >= 10 ? 2 : 3;
+  const formatted = value.toLocaleString(undefined, {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: 0,
+  });
+  return unit ? `${formatted} ${unit}` : formatted;
+};
+
+const splitElementOf = (point: DataPoint): string =>
+  String(point.splitValue || point.networkElement || 'Aggregated').trim() || 'Aggregated';
 
 const normalizeKpiExplain = (payload: unknown, kpiId: string): KpiExplain => {
   const data = asRecord(payload);
@@ -489,6 +509,159 @@ const CounterDefinitionPanel: React.FC<{
   );
 };
 
+const KpiSummaryPanel: React.FC<{
+  kpiId: string;
+  explain: KpiExplain | null;
+  points: DataPoint[];
+  selectedElements: Set<string> | null;
+  splitActive: boolean;
+}> = ({ kpiId, explain, points, selectedElements, splitActive }) => {
+  const scopedPoints = useMemo(() => {
+    const base = points
+      .filter(d => matchesKpiSeries(d.kpi, kpiId))
+      .map(d => ({ ...d, value: asFiniteNumber(d.value) }))
+      .filter((d): d is DataPoint & { value: number } => d.value != null);
+    if (!splitActive || !selectedElements) return base;
+    return base.filter(d => selectedElements.has(splitElementOf(d)));
+  }, [points, kpiId, selectedElements, splitActive]);
+
+  const stats = useMemo(() => {
+    if (scopedPoints.length === 0) {
+      return { avg: null, min: null, max: null, latest: null, count: 0, elements: 0 };
+    }
+    const values = scopedPoints.map(p => p.value);
+    const sortedByTime = [...scopedPoints].sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+    return {
+      avg: values.reduce((a, b) => a + b, 0) / values.length,
+      min: Math.min(...values),
+      max: Math.max(...values),
+      latest: sortedByTime[sortedByTime.length - 1]?.value ?? null,
+      count: values.length,
+      elements: new Set(scopedPoints.map(splitElementOf)).size,
+    };
+  }, [scopedPoints]);
+
+  const unit = explain?.unit || '';
+  const cards = [
+    { label: 'Average', value: formatMetricValue(stats.avg, unit) },
+    { label: 'Latest', value: formatMetricValue(stats.latest, unit) },
+    { label: 'Min / Max', value: `${formatMetricValue(stats.min, unit)} / ${formatMetricValue(stats.max, unit)}` },
+    { label: 'Samples', value: stats.count.toLocaleString(), hint: splitActive ? `${stats.elements} elements` : undefined },
+  ];
+
+  return (
+    <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
+      <div className="px-5 py-3 border-b border-border/30 bg-muted/10 flex items-center gap-2">
+        <BarChart3 className="w-4 h-4 text-primary" />
+        <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">KPI Summary</span>
+        <span className="text-[10px] text-muted-foreground truncate">{explain?.display_name || kpiId}</span>
+      </div>
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 p-4">
+        {cards.map(card => (
+          <div key={card.label} className="rounded-lg border border-border/30 bg-muted/5 px-3 py-2.5 min-w-0">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{card.label}</div>
+            <div className="mt-1 text-sm font-black text-foreground truncate">{card.value}</div>
+            {card.hint && <div className="mt-0.5 text-[9px] text-muted-foreground">{card.hint}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const KpiContributionPanel: React.FC<{
+  kpiId: string;
+  explain: KpiExplain | null;
+  points: DataPoint[];
+  selectedElements: Set<string> | null;
+  splitActive: boolean;
+  elementColorMap: Map<string, string>;
+}> = ({ kpiId, explain, points, selectedElements, splitActive, elementColorMap }) => {
+  const rows = useMemo(() => {
+    if (!splitActive) return [];
+    const grouped = new Map<string, { total: number; absTotal: number; count: number; latestTs: string; latest: number | null }>();
+    for (const point of points) {
+      if (!matchesKpiSeries(point.kpi, kpiId)) continue;
+      const value = asFiniteNumber(point.value);
+      if (value == null) continue;
+      const element = splitElementOf(point);
+      if (selectedElements && !selectedElements.has(element)) continue;
+      const current = grouped.get(element) || { total: 0, absTotal: 0, count: 0, latestTs: '', latest: null };
+      current.total += value;
+      current.absTotal += Math.abs(value);
+      current.count += 1;
+      if (String(point.timestamp) >= current.latestTs) {
+        current.latestTs = String(point.timestamp);
+        current.latest = value;
+      }
+      grouped.set(element, current);
+    }
+    const denominator = [...grouped.values()].reduce((sum, item) => sum + item.absTotal, 0) || 1;
+    return [...grouped.entries()]
+      .map(([name, item]) => ({
+        name,
+        avg: item.total / item.count,
+        latest: item.latest,
+        count: item.count,
+        share: item.absTotal / denominator,
+      }))
+      .sort((a, b) => b.share - a.share)
+      .slice(0, 12);
+  }, [points, kpiId, selectedElements, splitActive]);
+
+  if (!splitActive || rows.length === 0) return null;
+  const unit = explain?.unit || '';
+
+  return (
+    <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
+      <div className="px-5 py-3 border-b border-border/30 bg-muted/10 flex items-center gap-2">
+        <Table2 className="w-4 h-4 text-primary" />
+        <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">Element Contribution</span>
+        <span className="text-[10px] text-muted-foreground">Top {rows.length} by absolute KPI contribution</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-border/30 text-[9px] uppercase tracking-wider text-muted-foreground">
+              <th className="px-4 py-2 font-bold">Element</th>
+              <th className="px-4 py-2 font-bold text-right">Share</th>
+              <th className="px-4 py-2 font-bold text-right">Average</th>
+              <th className="px-4 py-2 font-bold text-right">Latest</th>
+              <th className="px-4 py-2 font-bold text-right">Samples</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, idx) => {
+              const color = elementColorMap.get(row.name) || SPLIT_COLORS[idx % SPLIT_COLORS.length];
+              return (
+                <tr key={row.name} className="border-b border-border/20 last:border-0 hover:bg-muted/20">
+                  <td className="px-4 py-2 min-w-[220px]">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="font-mono text-[11px] font-bold text-foreground truncate">{row.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <div className="inline-flex items-center gap-2 min-w-[120px] justify-end">
+                      <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${Math.max(2, row.share * 100)}%`, backgroundColor: color }} />
+                      </div>
+                      <span className="text-[11px] font-bold text-foreground">{(row.share * 100).toFixed(1)}%</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2 text-right text-[11px] font-medium text-foreground">{formatMetricValue(row.avg, unit)}</td>
+                  <td className="px-4 py-2 text-right text-[11px] font-medium text-foreground">{formatMetricValue(row.latest, unit)}</td>
+                  <td className="px-4 py-2 text-right text-[11px] text-muted-foreground">{row.count.toLocaleString()}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 /* ──────────────────── Single KPI Tab Content ──────────────────── */
 
 /** Fully isolated breakdown for a single KPI – own state, own fetch */
@@ -711,6 +884,8 @@ const SingleKpiBreakdown: React.FC<{
     return map;
   }, [splitElements]);
 
+  const counterSplitByField = useMemo(() => splitFieldFor(splitBy), [splitBy]);
+  const counterSplitValue = useMemo(() => splitRequestValue(splitBy), [splitBy]);
 
   // (Multi-vendor block moved above the counter useEffect so that
   // hooks can depend on vendorList without TDZ.)
@@ -739,14 +914,14 @@ const SingleKpiBreakdown: React.FC<{
         dimension_key: point.splitValue || point.networkElement,
       })).filter(point => point.ts && point.counter);
 
-    fetchCounterTimeSeriesFallback(names, counterFetchRange.from, counterFetchRange.to, granularity, undefined, filters, undefined)
+    fetchCounterTimeSeriesFallback(names, counterFetchRange.from, counterFetchRange.to, granularity, counterSplitValue, filters, counterSplitByField)
       .then(async ({ data, isUnfiltered }) => {
         if (ctrl.signal.aborted) return;
         let norm = normalizeCounterPoints(data as CounterSeriesPoint[]);
         let usedUnfiltered = isUnfiltered;
 
         if (norm.length === 0 && filters.some(filter => filter.values?.length > 0)) {
-          const retry = await fetchCounterTimeSeriesFallback(names, counterFetchRange.from, counterFetchRange.to, granularity, undefined, [], undefined);
+          const retry = await fetchCounterTimeSeriesFallback(names, counterFetchRange.from, counterFetchRange.to, granularity, counterSplitValue, [], counterSplitByField);
           if (ctrl.signal.aborted) return;
           const retryNorm = normalizeCounterPoints(retry.data as CounterSeriesPoint[]);
           if (retryNorm.length > 0) {
@@ -766,7 +941,7 @@ const SingleKpiBreakdown: React.FC<{
         setLoading(false);
       });
     return () => ctrl.abort();
-  }, [counterInfos.map(c => c.name).join(','), counterFetchRange.from, counterFetchRange.to, granularity, JSON.stringify(filters), splitBy]);
+  }, [counterInfos.map(c => c.name).join(','), counterFetchRange.from, counterFetchRange.to, granularity, JSON.stringify(filters), counterSplitValue, counterSplitByField]);
 
   const toggleCounter = useCallback((name: string) => {
     setHiddenCounters(prev => {
@@ -982,6 +1157,23 @@ const SingleKpiBreakdown: React.FC<{
 
   return (
     <div className="space-y-4">
+      <KpiSummaryPanel
+        kpiId={kpiId}
+        explain={explain}
+        points={timeSeriesData || []}
+        selectedElements={selectedElements}
+        splitActive={splitActive}
+      />
+
+      <KpiContributionPanel
+        kpiId={kpiId}
+        explain={explain}
+        points={timeSeriesData || []}
+        selectedElements={selectedElements}
+        splitActive={splitActive}
+        elementColorMap={elementColorMap}
+      />
+
       <FormulaPanel
         explain={explain}
         numCounters={numInfos}

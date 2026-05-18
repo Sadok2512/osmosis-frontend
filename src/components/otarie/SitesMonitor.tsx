@@ -44,122 +44,7 @@ import type { TopoSearchPayload } from '@/components/sites-monitor/CreateViewMod
 import SiteChangesPanel from './SiteChangesPanel';
 import { siteMatchesViewConditions, hasAnyCellLevelCondition } from '@/lib/viewFilterHelpers';
 import { CreateViewModal, ViewConfig } from '@/components/sites-monitor/CreateViewModal';
-
-// Heatmap layer component using leaflet.heat
-const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.4 }: {
-  points: [number, number, number][];
-  radius?: number;
-  blur?: number;
-  maxZoom?: number;
-  minOpacity?: number;
-}) => {
-  const map = useMap();
-  useEffect(() => {
-    if (!points.length) return;
-    const zoom = maxZoom ?? Math.max(map.getZoom(), 10);
-    const heat = (L as any).heatLayer(points, {
-      radius,
-      blur,
-      maxZoom: zoom,
-      minOpacity,
-      max: 1.0,
-      gradient: { 0.1: '#3498DB', 0.3: '#10b981', 0.5: '#f59e0b', 0.7: '#F39C12', 0.9: '#ef4444' },
-    });
-    heat.addTo(map);
-    return () => { map.removeLayer(heat); };
-  }, [map, points, radius, blur, maxZoom, minOpacity]);
-  return null;
-};
-
-// Popup content: fetches and displays ALL parameters of ALL cells of a site (parameter mode click)
-const SiteAllParamsPopup: React.FC<{ siteName: string; activeParam: string | null }> = ({ siteName, activeParam }) => {
-  const [rows, setRows] = useState<Array<{ parameter: string; cell_name: string | null; value: string | null; bande: string | null }>>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from('parameter_dump')
-          .select('parameter, cell_name, value, bande')
-          .ilike('site_name', siteName)
-          .order('cell_name', { ascending: true })
-          .order('parameter', { ascending: true })
-          .limit(5000);
-        if (cancelled) return;
-        setRows((data || []).map((r: any) => ({
-          parameter: r.parameter || '',
-          cell_name: r.cell_name || null,
-          value: r.value ?? null,
-          bande: r.bande || null,
-        })));
-      } catch {
-        if (!cancelled) setRows([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [siteName]);
-
-  // Group by cell
-  const byCell = useMemo(() => {
-    const m = new Map<string, typeof rows>();
-    const f = filter.trim().toLowerCase();
-    for (const r of rows) {
-      if (f && !r.parameter.toLowerCase().includes(f) && !(r.value || '').toLowerCase().includes(f)) continue;
-      const key = r.cell_name || '(site)';
-      const arr = m.get(key) || [];
-      arr.push(r);
-      m.set(key, arr);
-    }
-    return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [rows, filter]);
-
-  return (
-    <div className="text-xs min-w-[320px] max-w-[420px]">
-      <div className="font-bold text-sm mb-1.5">{siteName}</div>
-      <input
-        type="text"
-        value={filter}
-        onChange={e => setFilter(e.target.value)}
-        placeholder="Filtrer paramètre / valeur…"
-        className="w-full mb-2 px-2 py-1 text-[11px] border border-border/60 rounded bg-background outline-none focus:ring-1 focus:ring-primary"
-      />
-      {loading ? (
-        <div className="text-[11px] text-muted-foreground italic py-2">Chargement de tous les paramètres…</div>
-      ) : rows.length === 0 ? (
-        <div className="text-[11px] text-muted-foreground italic py-2">Aucun paramètre trouvé pour ce site.</div>
-      ) : (
-        <div className="max-h-[320px] overflow-y-auto pr-1 space-y-2">
-          {byCell.map(([cellName, params]) => (
-            <div key={cellName} className="border border-border/40 rounded-md overflow-hidden">
-              <div className="bg-muted/60 px-2 py-1 flex items-center justify-between gap-2">
-                <span className="font-semibold text-[11px] truncate">{cellName}</span>
-                <span className="text-[9px] text-muted-foreground tabular-nums">{params.length}</span>
-              </div>
-              <div className="divide-y divide-border/30">
-                {params.map((p, i) => {
-                  const isActive = activeParam && p.parameter === activeParam;
-                  return (
-                    <div key={i} className={`flex items-center justify-between gap-2 px-2 py-0.5 text-[10.5px] ${isActive ? 'bg-primary/10' : ''}`}>
-                      <span className={`truncate flex-1 ${isActive ? 'font-bold text-primary' : 'text-muted-foreground'}`} title={p.parameter}>{p.parameter}</span>
-                      <span className={`tabular-nums shrink-0 max-w-[110px] truncate text-right ${isActive ? 'font-bold text-primary' : 'font-semibold text-foreground'}`} title={String(p.value ?? '')}>{p.value ?? '—'}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="mt-1.5 text-[9px] text-muted-foreground text-right">{rows.length} paramètres • {byCell.length} cellules</div>
-    </div>
-  );
-};
+import { HeatmapLayer, SiteAllParamsPopup } from './SitesMonitorPopups';
 import { fetchSiteDetails } from '../../services/api';
 import { getSectorNumber, getEquipmentPrefix } from '../../utils/sectorUtils';
 import { normalizeCoordinates, fmtCoord } from '../../utils/coordinateHelpers';
@@ -170,6 +55,7 @@ import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS,
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache } from '../../services/topoService';
 import VisualCoverageAdapter from './VisualCoverageAdapter';
+import PciOverlayAdapter from './PciOverlayAdapter';
 import KpiOverlayAdapter, { type KpiOverlayView, type KpiOverlayStats } from './KpiOverlayAdapter';
 import { BboxFilters, onCellsCacheUpdate, isCellsCacheLoading, getCellsFromCacheForSite, getCellsCacheCount } from '@/lib/localDb';
 import { SiteSummary, SiteDetail, Filters, CellProperties } from '../../types';
@@ -4388,6 +4274,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // and threaded down to DashboardInventoryTab.
   const [showVisualCoverage, setShowVisualCoverage] = useState(false);
   const [coveragePanelNode, setCoveragePanelNode] = useState<HTMLDivElement | null>(null);
+  // PCI Overlay (party 2026-05-18) — toggle ON/OFF + band picker + colorMode
+  // sont gérés par le module JS lui-même (sous le panel Visual Coverage).
+  // React n'a besoin de garder l'état que pour persister entre re-render.
+  const [pciOverlayEnabled, setPciOverlayEnabled] = useState(false);
+  const [pciOverlayBand, setPciOverlayBand] = useState<string | null>(null);
+  const [pciOverlayMode, setPciOverlayMode] = useState<'mod3' | 'hash'>('mod3');
   // KPI Overlay layer (2026-05-11) — driven by saved views of type
   // `kpi_overlay`. State holds the active view (or null when no KPI
   // overlay view is selected). The drop-in module no longer renders
@@ -8631,6 +8523,31 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           panelMount={activeKpiOverlayView ? null : coveragePanelNode}
           bbox={coverageBbox}
           onEnabledChange={setShowVisualCoverage}
+        />
+        {/* PCI Overlay adapter — Voronoï polygones colorés par PCI plan
+            (party 2026-05-18 — Best-Server PCI plan visualization).
+            Le module gère lui-même son toggle ON/OFF, son pill picker de
+            bande, et son toggle Mod3/Hash — réutilise le même DOM mount
+            que VisualCoverage pour rester dans la sidebar dashboards. */}
+        <PciOverlayAdapter
+          enabled={pciOverlayEnabled}
+          band={pciOverlayBand || undefined}
+          colorMode={pciOverlayMode}
+          panelMount={coveragePanelNode}
+          bbox={coverageBbox}
+          onEnabledChange={(flag) => {
+            setPciOverlayEnabled(flag);
+            // Mutex Sally : activer PCI Overlay éteint Visual Coverage
+            // simple ET annule toute KPI Overlay view active. Une seule
+            // couche colorée à la fois — sinon les polygones empilés
+            // donnent une bouillie illisible.
+            if (flag) {
+              setShowVisualCoverage(false);
+              setActiveKpiOverlayView(null);
+            }
+          }}
+          onBandChange={setPciOverlayBand}
+          onColorModeChange={setPciOverlayMode}
         />
         {/* KPI Overlay adapter — RE-ENABLED on 2026-05-11 (v6.3.0).
             Calls buildKpiOverlay() directly for the per-cell Voronoï

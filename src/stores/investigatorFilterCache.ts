@@ -167,12 +167,13 @@ export function preloadAllFilters() {
 /** Map UI dimension label → cache key */
 export function dimToKey(dimension: string): string {
   const map: Record<string, string> = {
-    Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'RAT',
-    Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'CLUSTER', Cluster: 'CLUSTER', 'Zone ARCEP': 'ARCEP',
+    Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'TECHNO', RAT: 'TECHNO',
+    Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'PLAQUE', Cluster: 'CLUSTER',
+    'Zone ARCEP': 'ARCEP', 'ARCEP Zone': 'ARCEP', Status: 'STATUS',
     Cluster_B: 'CLUSTER', bcluster: 'CLUSTER', CLUSTER_B: 'CLUSTER',
     // backward compat
     constructeur: 'VENDOR', Constructeur: 'VENDOR',
-    techno: 'RAT', Techno: 'RAT', TECHNO: 'RAT',
+    techno: 'TECHNO', Techno: 'TECHNO', TECHNO: 'TECHNO',
     // SITE aliases (backend may surface SITENAME / SITE_NAME / NIDT in dimension catalog)
     SITENAME: 'SITE', SITE_NAME: 'SITE', site_name: 'SITE', sitename: 'SITE', NIDT: 'SITE',
     CELLNAME: 'CELL', CELL_NAME: 'CELL', cell_name: 'CELL',
