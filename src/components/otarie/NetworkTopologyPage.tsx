@@ -27,6 +27,7 @@ import {
 import { toast } from 'sonner';
 import { MapContainer, TileLayer, CircleMarker, Polygon, Tooltip as LTooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { fetchCellNeighbors } from './map/neighborTypes';
 
 /* Destination point given start, bearing (deg) and distance (m) */
 const destPoint = (lat: number, lng: number, bearingDeg: number, distM: number): [number, number] => {
