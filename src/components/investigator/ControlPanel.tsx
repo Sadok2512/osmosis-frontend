@@ -165,7 +165,7 @@ const buildCascadeContext = (active: Record<string, string[]>, selfDim: string):
   return Object.keys(ctx).length ? ctx : undefined;
 };
 
-const useBackendFilterValues = (dimension: string, ctx?: FilterContext): { values: string[]; labels: Record<string, string> } => {
+const useBackendFilterValues = (dimension: string, ctx?: FilterContext): { values: string[]; labels: Record<string, string>; loaded: boolean } => {
   const key = isPmDimension(dimension) ? dimension : dimToKey(dimension);
   // Stable string of the context for dependency tracking
   const ctxStr = React.useMemo(() => {
@@ -179,19 +179,19 @@ const useBackendFilterValues = (dimension: string, ctx?: FilterContext): { value
     );
   }, [ctx]);
 
-  const [result, setResult] = React.useState<{ values: string[]; labels: Record<string, string> }>(() => {
+  const [result, setResult] = React.useState<{ values: string[]; labels: Record<string, string>; loaded: boolean }>(() => {
     const e = getFilterValues(key, ctx);
-    return { values: e.values, labels: e.labels || {} };
+    return { values: e.values, labels: e.labels || {}, loaded: e.loaded };
   });
 
   React.useEffect(() => {
     ensureFilterLoaded(key, ctx);
     const unsub = subscribeCacheUpdates(() => {
       const entry = getFilterValues(key, ctx);
-      if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {} });
+      if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {}, loaded: true });
     });
     const entry = getFilterValues(key, ctx);
-    if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {} });
+    setResult({ values: entry.values, labels: entry.labels || {}, loaded: entry.loaded });
     return unsub;
   }, [key, ctxStr]);
 
