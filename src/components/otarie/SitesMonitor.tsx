@@ -55,6 +55,7 @@ import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS,
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache } from '../../services/topoService';
 import VisualCoverageAdapter from './VisualCoverageAdapter';
+import PciOverlayAdapter from './PciOverlayAdapter';
 import KpiOverlayAdapter, { type KpiOverlayView, type KpiOverlayStats } from './KpiOverlayAdapter';
 import { BboxFilters, onCellsCacheUpdate, isCellsCacheLoading, getCellsFromCacheForSite, getCellsCacheCount } from '@/lib/localDb';
 import { SiteSummary, SiteDetail, Filters, CellProperties } from '../../types';
@@ -4273,6 +4274,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // and threaded down to DashboardInventoryTab.
   const [showVisualCoverage, setShowVisualCoverage] = useState(false);
   const [coveragePanelNode, setCoveragePanelNode] = useState<HTMLDivElement | null>(null);
+  // PCI Overlay (party 2026-05-18) — toggle ON/OFF + band picker + colorMode
+  // sont gérés par le module JS lui-même (sous le panel Visual Coverage).
+  // React n'a besoin de garder l'état que pour persister entre re-render.
+  const [pciOverlayEnabled, setPciOverlayEnabled] = useState(false);
+  const [pciOverlayBand, setPciOverlayBand] = useState<string | null>(null);
+  const [pciOverlayMode, setPciOverlayMode] = useState<'mod3' | 'hash'>('mod3');
   // KPI Overlay layer (2026-05-11) — driven by saved views of type
   // `kpi_overlay`. State holds the active view (or null when no KPI
   // overlay view is selected). The drop-in module no longer renders
@@ -8516,6 +8523,31 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           panelMount={activeKpiOverlayView ? null : coveragePanelNode}
           bbox={coverageBbox}
           onEnabledChange={setShowVisualCoverage}
+        />
+        {/* PCI Overlay adapter — Voronoï polygones colorés par PCI plan
+            (party 2026-05-18 — Best-Server PCI plan visualization).
+            Le module gère lui-même son toggle ON/OFF, son pill picker de
+            bande, et son toggle Mod3/Hash — réutilise le même DOM mount
+            que VisualCoverage pour rester dans la sidebar dashboards. */}
+        <PciOverlayAdapter
+          enabled={pciOverlayEnabled}
+          band={pciOverlayBand || undefined}
+          colorMode={pciOverlayMode}
+          panelMount={coveragePanelNode}
+          bbox={coverageBbox}
+          onEnabledChange={(flag) => {
+            setPciOverlayEnabled(flag);
+            // Mutex Sally : activer PCI Overlay éteint Visual Coverage
+            // simple ET annule toute KPI Overlay view active. Une seule
+            // couche colorée à la fois — sinon les polygones empilés
+            // donnent une bouillie illisible.
+            if (flag) {
+              setShowVisualCoverage(false);
+              setActiveKpiOverlayView(null);
+            }
+          }}
+          onBandChange={setPciOverlayBand}
+          onColorModeChange={setPciOverlayMode}
         />
         {/* KPI Overlay adapter — RE-ENABLED on 2026-05-11 (v6.3.0).
             Calls buildKpiOverlay() directly for the per-cell Voronoï
