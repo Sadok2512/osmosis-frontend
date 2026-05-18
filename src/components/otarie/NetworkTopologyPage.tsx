@@ -25,6 +25,22 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { MapContainer, TileLayer, CircleMarker, Tooltip as LTooltip, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+
+/* Auto-fit bounds for sites map */
+const SitesFitBounds: React.FC<{ points: [number, number][] }> = ({ points }) => {
+  const map = useMap();
+  React.useEffect(() => {
+    if (!points.length) return;
+    if (points.length === 1) {
+      map.setView(points[0], 11);
+    } else {
+      map.fitBounds(points as [number, number][], { padding: [30, 30], maxZoom: 12 });
+    }
+  }, [points, map]);
+  return null;
+};
 
 /* ────────────────────── Types ────────────────────── */
 
