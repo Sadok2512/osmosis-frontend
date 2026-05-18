@@ -753,7 +753,7 @@ export default function EditorView({
           <div
             className="fixed bottom-4 z-40 transition-all duration-300 pa-widget-settings-drawer"
             style={{
-              left: '16rem',
+              left: 'calc(var(--sidebar-width, 70px) + 16rem + 16px)',
               right: showSettings ? 'calc(400px + 16px)' : '16px',
             }}
           >
