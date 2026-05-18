@@ -626,8 +626,10 @@ const FilterChip: React.FC<{
 
           {/* Values list */}
           <div className="max-h-[240px] overflow-y-auto px-2 pb-1">
-            {backendValues.length === 0 && !liveSearching && liveSearchResults.length === 0 ? (
+            {!backendLoaded && backendValues.length === 0 && !liveSearching && liveSearchResults.length === 0 ? (
               <div className="px-3 py-4 text-[10px] text-muted-foreground animate-pulse text-center">Chargement...</div>
+            ) : backendLoaded && backendValues.length === 0 && !liveSearching && liveSearchResults.length === 0 && !search ? (
+              <div className="px-3 py-4 text-[10px] text-muted-foreground text-center">Aucune valeur disponible</div>
             ) : liveSearching ? (
               <div className="px-3 py-4 text-[10px] text-muted-foreground animate-pulse text-center">Recherche VPS...</div>
             ) : displayValues.length === 0 ? (
