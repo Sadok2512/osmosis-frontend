@@ -297,12 +297,55 @@ interface KpiFxAdvancedModeProps {
     unites: string; vendor: string; techno: string;
   };
   onCreated?: (created: any) => void;
+  // Optional editable metadata bound from parent wizard.
+  code?: string; setCode?: (v: string) => void;
+  name?: string; setName?: (v: string) => void;
+  vendor?: string; setVendor?: (v: string) => void;
+  tech?: string; setTech?: (v: string) => void;
+  category?: string; setCategory?: (v: string) => void;
+  unit?: string;
 }
 
 interface FxResult { kind: 'ok' | 'warn' | 'err'; html: string; }
-type RightTab = 'patterns' | 'keys' | 'explain' | 'validate' | 'test';
+type RightTab = 'patterns' | 'keys' | 'examples' | 'test';
 
-const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({ getMeta, onCreated }) => {
+
+// ─────────────────────────────────────────────────────────────────────
+// Full real-world telecom examples shown in the Examples tab.
+// ─────────────────────────────────────────────────────────────────────
+
+interface ExampleDef { id: string; label: string; useCase: string; fx: Record<string, any>; explanation: string; }
+const FX_EXAMPLES: ExampleDef[] = [
+  { id: 'lte_acc', label: 'LTE Accessibility — Worst Cells BH',
+    useCase: 'Find the worst LTE cells on Busy Hour RRC accessibility (working days).',
+    fx: { fx: '[RRC Setup Success Rate 4G]', statistics: 'MIN', statisticsKpi: '[Traffic DL 4G]', granularity: 'hour', includeHours: '6-22', includeDays: '1-5', sourceNeType: 'cell4G', aggregation: 'MIN' },
+    explanation: 'Picks the busiest hour per day on weekdays, selects the worst (MIN) RRC SR per cell.' },
+  { id: 'nr_bh_traffic', label: '5G Traffic at Busy Hour',
+    useCase: 'Daily 5G DL Traffic at network-level Busy Hour.',
+    fx: { fx: '[Traffic DL 5G]', statistics: 'MAX', statisticsKpi: '[Traffic DL 5G]', granularity: 'hour', sourceNeType: 'cell5G', aggregation: 'SUM' },
+    explanation: 'Sums cell-level 5G DL traffic at the peak hour per day.' },
+  { id: 'prb_sat', label: 'PRB Saturation Count',
+    useCase: 'Count of hour-cells where PRB DL utilisation > 80%.',
+    fx: { fx: 'IF([PRB Utilisation DL 4G] > 80, 1, 0)', statistics: 'SUM', granularity: 'hour', includeHours: '6-22', sourceNeType: 'cell4G', aggregation: 'SUM' },
+    explanation: 'Counts every hour-cell occurrence breaching the PRB threshold during business hours.' },
+  { id: 'drop_anom', label: 'Drop Rate Anomalies',
+    useCase: 'Anomaly counter when 4G Drop Rate exceeds 2% during night hours.',
+    fx: { fx: 'IF([Drop Rate 4G] > 2, 1, 0)', statistics: 'SUM', granularity: 'hour', includeHours: '0-6', sourceNeType: 'cell4G', aggregation: 'SUM' },
+    explanation: 'Aggregates night-time drop-rate breaches per cell.' },
+  { id: 'cssr_degrad', label: 'CSSR Week-over-Week Degradation',
+    useCase: 'CSSR vs same day last week to detect regressions.',
+    fx: { fx: '[CSSR]', statistics: 'AVG', samePeriod: 'week', timeshift: 1, granularity: 'day' },
+    explanation: 'Daily AVG CSSR, shifted by one week for delta computation.' },
+  { id: 'erab_fail', label: 'eRAB Setup Failures — Rolling Median',
+    useCase: '5-period rolling median of eRAB setup failure rate on working days.',
+    fx: { fx: '[eRAB Setup Failures Rate]', statistics: 'MEDIAN', samePeriod: 'weekWD', granularity: 'default', period: 5 },
+    explanation: 'Smooths short-term spikes by taking the median over the last 5 working periods.' },
+];
+
+const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({
+  getMeta, onCreated, code, setCode, name, setName, vendor, setVendor,
+  tech, setTech, category, setCategory,
+}) => {
   const [intent, setIntent] = useState('');
   const [fxJson, setFxJson] = useState('');
   const [status, setStatus] = useState<{ ok: boolean; msg: string }>({ ok: false, msg: '— empty —' });
@@ -356,20 +399,19 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({ getMeta, onCreate
     const obj = generateFxFromIntent(intent);
     setFxJson(JSON.stringify(obj, null, 2));
     setStatus({ ok: true, msg: '✓ JSON syntax OK' });
-    setTab('explain');
     setResult({ kind: 'warn', html: 'Generated heuristically — review FX and KPI refs before validating.' });
   }, [intent]);
-
-  const explainNow = useCallback(() => {
-    if (!parsedObj) { setResult({ kind: 'err', html: '✗ JSON invalid.' }); return; }
-    setTab('explain');
-  }, [parsedObj]);
 
   const loadPattern = useCallback((p: PatternDef) => {
     setFxJson(JSON.stringify(p.fx, null, 2));
     setStatus({ ok: true, msg: '✓ JSON syntax OK' });
     setIntent(p.intent);
-    setTab('explain');
+  }, []);
+
+  const loadExample = useCallback((e: ExampleDef) => {
+    setFxJson(JSON.stringify(e.fx, null, 2));
+    setStatus({ ok: true, msg: '✓ JSON syntax OK' });
+    setIntent(e.useCase);
   }, []);
 
   const insertKey = useCallback((k: InsertKeyDef) => {
@@ -387,7 +429,6 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({ getMeta, onCreate
     setStatus({ ok: true, msg: '✓ JSON syntax OK' });
   }, [fxJson, parseNow]);
 
-  // Backend validate
   const validateRemote = useCallback(async () => {
     const obj = parseNow(fxJson);
     if (!obj) { setResult({ kind: 'err', html: '✗ JSON invalid — fix syntax first.' }); return; }
@@ -427,10 +468,7 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({ getMeta, onCreate
         body: JSON.stringify({ formula_fx: obj, ...testCfg }),
       });
       const d = await r.json();
-      if (!r.ok) {
-        setTestOut({ error: d.detail || `HTTP ${r.status}` });
-        return;
-      }
+      if (!r.ok) { setTestOut({ error: d.detail || `HTTP ${r.status}` }); return; }
       setTestOut(d);
     } catch (e: any) {
       setTestOut({ error: e.message });
@@ -440,7 +478,7 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({ getMeta, onCreate
   const create = useCallback(async () => {
     const meta = getMeta();
     if (!meta.kpi_code.trim()) {
-      setResult({ kind: 'err', html: '<b>KPI Code required</b> — fill metadata above.' });
+      setResult({ kind: 'err', html: '<b>KPI Code required</b> — fill metadata in the header.' });
       return;
     }
     const obj = parseNow(fxJson);
@@ -475,23 +513,11 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({ getMeta, onCreate
     } finally { setBusy(false); }
   }, [fxJson, parseNow, getMeta, onCreated]);
 
-  // ── Derived panels ──
   const explanation = useMemo(() => parsedObj ? explainFx(parsedObj) : null, [parsedObj]);
   const issues = useMemo(() => parsedObj ? validateFx(parsedObj) : [], [parsedObj]);
-  const issueCount = useMemo(() => issues.filter(i => i.level === 'err').length, [issues]);
+  const errCount = useMemo(() => issues.filter(i => i.level === 'err').length, [issues]);
+  const warnCount = useMemo(() => issues.filter(i => i.level === 'warn').length, [issues]);
 
-  const resultBlock = useMemo(() => {
-    if (!result) return null;
-    const cls = result.kind === 'ok' ? 'border-emerald-500 bg-emerald-500/5'
-      : result.kind === 'warn' ? 'border-amber-500 bg-amber-500/5'
-      : 'border-destructive bg-destructive/5';
-    return (
-      <div className={`mt-3 p-3 rounded-lg text-xs border-l-2 ${cls} text-foreground`}
-           dangerouslySetInnerHTML={{ __html: result.html }} />
-    );
-  }, [result]);
-
-  // ESC to leave fullscreen
   useEffect(() => {
     if (!fullscreen) return;
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') setFullscreen(false); };
@@ -499,24 +525,211 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({ getMeta, onCreate
     return () => window.removeEventListener('keydown', h);
   }, [fullscreen]);
 
-  // ── Right panel content ──
-  const rightPanel = (
-    <div className="flex flex-col h-full min-h-0">
-      <div className="flex items-center gap-1 px-2 pt-2 pb-2 border-b border-border flex-wrap">
+  // ── Sticky top header ──
+  const headerBar = (
+    <div className="shrink-0 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/70 px-5 py-3">
+      <div className="grid grid-cols-[1.4fr_1.4fr_0.8fr_0.8fr_1.1fr_auto] gap-3 items-end">
+        <label className="block">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-1">KPI Code <span className="text-destructive">*</span></div>
+          <input value={code ?? ''} onChange={e => setCode?.(e.target.value)}
+            placeholder="FX_BUSY_HOUR_DROP_RATE_4G"
+            className="w-full px-2.5 py-1.5 rounded-md border border-border bg-background text-foreground text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary/30" />
+        </label>
+        <label className="block">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Display Name</div>
+          <input value={name ?? ''} onChange={e => setName?.(e.target.value)}
+            placeholder="Busy Hour Drop Rate 4G"
+            className="w-full px-2.5 py-1.5 rounded-md border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-primary/30" />
+        </label>
+        <label className="block">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Vendor</div>
+          <select value={vendor ?? ''} onChange={e => setVendor?.(e.target.value)}
+            className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-foreground text-xs">
+            {['ALL','Nokia','Ericsson','Huawei','Samsung'].map(o => <option key={o}>{o}</option>)}
+          </select>
+        </label>
+        <label className="block">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Techno</div>
+          <select value={tech ?? ''} onChange={e => setTech?.(e.target.value)}
+            className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-foreground text-xs">
+            {['ALL','LTE','NR'].map(o => <option key={o}>{o}</option>)}
+          </select>
+        </label>
+        <label className="block">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Category</div>
+          <select value={category ?? ''} onChange={e => setCategory?.(e.target.value)}
+            className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-foreground text-xs">
+            {['Accessibility','Retainability','Throughput','Traffic','Mobility','Radio Quality','VoLTE','Latency','Integrity','Other'].map(o => <option key={o}>{o}</option>)}
+          </select>
+        </label>
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={format}
+            className="px-2.5 py-1.5 rounded-md border border-border text-[10px] font-bold uppercase tracking-wider hover:bg-muted flex items-center gap-1">
+            <Wand2 className="w-3 h-3" /> Format
+          </button>
+          <button type="button" onClick={validateRemote} disabled={busy}
+            className="px-2.5 py-1.5 rounded-md border border-border text-[10px] font-bold uppercase tracking-wider hover:bg-muted disabled:opacity-50 flex items-center gap-1">
+            <ShieldCheck className="w-3 h-3" /> Validate
+          </button>
+          <button type="button" onClick={test} disabled={busy}
+            className="px-2.5 py-1.5 rounded-md border border-border text-[10px] font-bold uppercase tracking-wider hover:bg-muted disabled:opacity-50 flex items-center gap-1">
+            <FlaskConical className="w-3 h-3" /> Test KPI
+          </button>
+          <button type="button" onClick={create} disabled={busy}
+            className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 flex items-center gap-1">
+            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Create KPI
+          </button>
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-3 text-[10px]">
+        <span className={status.ok ? 'text-emerald-500' : 'text-amber-500'}>{status.msg}</span>
+        <span className="text-muted-foreground">·</span>
+        <span className={errCount ? 'text-destructive' : 'text-muted-foreground'}>{errCount} errors</span>
+        <span className={warnCount ? 'text-amber-500' : 'text-muted-foreground'}>{warnCount} warnings</span>
+        {parsedObj && (
+          <>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground">
+              complexity: {Object.keys(parsedObj).length <= 3 ? '🟢 low' : Object.keys(parsedObj).length <= 6 ? '🟡 medium' : '🔴 high'}
+              {' '}({Object.keys(parsedObj).length} keys)
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── LEFT — Operational intent + explain + validate ──
+  const leftCol = (
+    <div className="flex flex-col h-full min-h-0 overflow-y-auto p-4 gap-4 bg-muted/20">
+      <div>
+        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+          <Sparkles className="w-3 h-3 text-primary" /> What do you want to calculate?
+        </div>
+        <textarea
+          value={intent}
+          onChange={e => setIntent(e.target.value)}
+          placeholder={'e.g. Number of 4G cells with Drop Rate > 2% between 02h and 04h excluding weekends'}
+          className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-foreground text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/30"
+          style={{ minHeight: 180 }}
+        />
+        <button type="button" onClick={generate}
+          className="w-full mt-2 px-2.5 py-2 rounded-md bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider hover:bg-primary/20 flex items-center justify-center gap-1">
+          <Wand2 className="w-3 h-3" /> Generate FX
+        </button>
+      </div>
+
+      <div>
+        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+          <ScrollText className="w-3 h-3" /> Explanation
+        </div>
+        <div className="p-3 rounded-lg bg-card border border-border text-xs text-foreground leading-relaxed min-h-[60px]">
+          {!parsedObj && <span className="text-muted-foreground">FX JSON invalid or empty. Generate or write JSON to see the explanation.</span>}
+          {parsedObj && explanation && (
+            <>
+              <div>{explanation.sentence}</div>
+              {explanation.features.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {explanation.features.map((f, i) => (
+                    <span key={i} className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-mono">{f}</span>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+          <ShieldCheck className="w-3 h-3" /> Validation
+        </div>
+        <div className="space-y-1.5">
+          {!parsedObj && <div className="text-[11px] text-muted-foreground">JSON invalid — fix syntax first.</div>}
+          {parsedObj && issues.length === 0 && <div className="text-[11px] text-emerald-500">✓ All client-side checks pass.</div>}
+          {parsedObj && issues.map((i, idx) => (
+            <div key={idx} className={`p-2 rounded-md border-l-2 text-[11px] ${
+              i.level === 'ok' ? 'border-emerald-500 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400'
+              : i.level === 'warn' ? 'border-amber-500 bg-amber-500/5 text-amber-600 dark:text-amber-400'
+              : 'border-destructive bg-destructive/5 text-destructive'
+            }`}>
+              {i.level === 'ok' ? '✔' : i.level === 'warn' ? '⚠' : '✖'} {i.msg}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {result && (
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Last action</div>
+          <div className={`p-3 rounded-lg text-xs border-l-2 ${
+              result.kind === 'ok' ? 'border-emerald-500 bg-emerald-500/5'
+              : result.kind === 'warn' ? 'border-amber-500 bg-amber-500/5'
+              : 'border-destructive bg-destructive/5'} text-foreground`}
+            dangerouslySetInnerHTML={{ __html: result.html }} />
+        </div>
+      )}
+    </div>
+  );
+
+  // ── CENTER — Dominant JSON editor ──
+  const centerCol = (
+    <div className="flex flex-col h-full min-h-0 p-4">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-foreground">
+          <Code2 className="w-3.5 h-3.5 text-primary" /> formula_fx (JSON)
+          <span className="text-destructive">*</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={format} title="Auto-format"
+            className="p-1.5 rounded-md border border-border hover:bg-muted"><Wand2 className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={copy} title="Copy"
+            className="p-1.5 rounded-md border border-border hover:bg-muted"><ClipboardCopy className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={() => setFullscreen(f => !f)} title="Editor fullscreen"
+            className="p-1.5 rounded-md border border-border hover:bg-muted">
+            {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+      </div>
+      <textarea
+        value={fxJson}
+        onChange={e => onEdit(e.target.value)}
+        spellCheck={false}
+        placeholder={`{\n  "fx": "IF([Drop Rate 4G] > 2, 1, 0)",\n  "statistics": "MAX",\n  "granularity": "hour",\n  "includeHours": "2-4",\n  "includeDays": "1-5",\n  "sourceNeType": "cell4G",\n  "aggregation": "SUM"\n}`}
+        className="flex-1 min-h-0 w-full px-4 py-3 rounded-xl border border-border bg-[#1e1e2e] text-[#cdd6f4] text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+        style={{ lineHeight: 1.6, tabSize: 2 }}
+      />
+      <div className="mt-2 px-3 py-2 rounded-md bg-muted/40 border border-border text-[10px] text-muted-foreground flex flex-wrap gap-3">
+        <span>{status.ok ? '✔ valid JSON' : '✗ invalid JSON'}</span>
+        {parsedObj?.statistics && <span>✔ temporal aggregation ({parsedObj.statistics})</span>}
+        {parsedObj?.aggregation && <span>✔ spatial aggregation ({parsedObj.aggregation})</span>}
+        {parsedObj?.samePeriod && <span>✔ reference period</span>}
+        {parsedObj?.period && <span>✔ rolling window</span>}
+        {parsedObj && (
+          <span>estimated cost: {Object.keys(parsedObj).length <= 3 ? 'low' : Object.keys(parsedObj).length <= 6 ? 'medium' : 'high'}</span>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── RIGHT — Assistant tabs ──
+  const rightCol = (
+    <div className="flex flex-col h-full min-h-0 border-l border-border bg-muted/10">
+      <div className="flex items-center gap-1 px-3 pt-3 pb-2 border-b border-border flex-wrap">
         <TabBtn active={tab === 'patterns'} onClick={() => setTab('patterns')} icon={<Lightbulb className="w-3 h-3" />} label="Patterns" />
         <TabBtn active={tab === 'keys'} onClick={() => setTab('keys')} icon={<Puzzle className="w-3 h-3" />} label="Keys" />
-        <TabBtn active={tab === 'explain'} onClick={() => setTab('explain')} icon={<ScrollText className="w-3 h-3" />} label="Explain" />
-        <TabBtn active={tab === 'validate'} onClick={() => setTab('validate')} icon={<ShieldCheck className="w-3 h-3" />} label={`Validate${issueCount ? ` (${issueCount})` : ''}`} />
-        <TabBtn active={tab === 'test'} onClick={() => setTab('test')} icon={<FlaskConical className="w-3 h-3" />} label="Test" />
+        <TabBtn active={tab === 'examples'} onClick={() => setTab('examples')} icon={<ScrollText className="w-3 h-3" />} label="Examples" />
+        <TabBtn active={tab === 'test'} onClick={() => setTab('test')} icon={<FlaskConical className="w-3 h-3" />} label="Test Results" />
       </div>
       <div className="flex-1 overflow-y-auto p-3 text-xs">
         {tab === 'patterns' && (
           <div className="grid grid-cols-1 gap-2">
             {FX_PATTERNS.map(p => (
               <button key={p.id} type="button" onClick={() => loadPattern(p)}
-                className="text-left p-2.5 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors">
-                <div className="text-[11px] font-bold text-foreground">{p.label}</div>
-                <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{p.intent}</div>
+                className="text-left p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors">
+                <div className="text-[12px] font-bold text-foreground">{p.label}</div>
+                <div className="text-[10px] text-muted-foreground mt-1 leading-snug">{p.intent}</div>
+                <pre className="mt-2 p-2 rounded bg-[#1e1e2e] text-[#cdd6f4] text-[9px] font-mono overflow-x-auto leading-tight">{JSON.stringify(p.fx, null, 2)}</pre>
               </button>
             ))}
           </div>
@@ -524,66 +737,43 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({ getMeta, onCreate
         {tab === 'keys' && (
           <div className="space-y-1.5">
             {INSERT_KEYS.map(k => (
-              <button key={k.key} type="button" onClick={() => insertKey(k)}
-                className="w-full text-left p-2 rounded-md border border-dashed border-border hover:border-primary hover:bg-muted transition-colors">
-                <div className="flex items-center justify-between gap-2">
+              <details key={k.key} className="rounded-md border border-border bg-card open:bg-muted/30">
+                <summary className="cursor-pointer p-2 flex items-center justify-between gap-2">
                   <code className="text-[11px] font-bold text-primary">{k.key}</code>
                   <span className="text-[9px] text-muted-foreground font-mono truncate max-w-[140px]">{JSON.stringify(k.sample)}</span>
+                </summary>
+                <div className="p-2 pt-0 space-y-1.5">
+                  <div className="text-[10px] text-muted-foreground">{k.hint}</div>
+                  {k.allowed && (
+                    <div className="flex flex-wrap gap-1">
+                      {k.allowed.map(a => (
+                        <span key={a} className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[9px] font-mono">{a}</span>
+                      ))}
+                    </div>
+                  )}
+                  <button type="button" onClick={() => insertKey(k)}
+                    className="w-full px-2 py-1 rounded border border-dashed border-border hover:border-primary hover:bg-primary/5 text-[10px] font-bold uppercase tracking-wider">
+                    Insert into FX
+                  </button>
                 </div>
-                <div className="text-[10px] text-muted-foreground mt-0.5">{k.hint}</div>
-                {k.allowed && (
-                  <div className="text-[9px] text-muted-foreground/70 mt-1 font-mono">{k.allowed.join(' · ')}</div>
-                )}
-              </button>
+              </details>
             ))}
           </div>
         )}
-        {tab === 'explain' && (
-          <div className="space-y-3">
-            {!parsedObj && <div className="text-muted-foreground">FX JSON invalid or empty. Generate or write JSON to see the explanation.</div>}
-            {parsedObj && explanation && (
-              <>
-                <div className="p-3 rounded-lg bg-muted/40 border border-border leading-relaxed text-foreground">
-                  {explanation.sentence}
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Detected features</div>
-                  {explanation.features.length === 0
-                    ? <div className="text-muted-foreground text-[11px]">— none</div>
-                    : <div className="flex flex-wrap gap-1.5">
-                        {explanation.features.map((f, i) => (
-                          <span key={i} className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-mono">{f}</span>
-                        ))}
-                      </div>}
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Estimated complexity</div>
-                  <div className="text-[11px]">
-                    {Object.keys(parsedObj).length <= 3 ? '🟢 Low' : Object.keys(parsedObj).length <= 6 ? '🟡 Medium' : '🔴 High'}
-                    <span className="text-muted-foreground"> · {Object.keys(parsedObj).length} keys</span>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-        {tab === 'validate' && (
-          <div className="space-y-1.5">
-            {!parsedObj && <div className="text-muted-foreground">JSON invalid — fix syntax first.</div>}
-            {parsedObj && issues.length === 0 && <div className="text-emerald-500">✓ All client-side checks pass.</div>}
-            {parsedObj && issues.map((i, idx) => (
-              <div key={idx} className={`p-2 rounded-md border-l-2 text-[11px] ${
-                i.level === 'ok' ? 'border-emerald-500 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400'
-                : i.level === 'warn' ? 'border-amber-500 bg-amber-500/5 text-amber-600 dark:text-amber-400'
-                : 'border-destructive bg-destructive/5 text-destructive'
-              }`}>
-                {i.level === 'ok' ? '✔' : i.level === 'warn' ? '⚠' : '✖'} {i.msg}
+        {tab === 'examples' && (
+          <div className="grid grid-cols-1 gap-2">
+            {FX_EXAMPLES.map(ex => (
+              <div key={ex.id} className="p-3 rounded-lg border border-border bg-card">
+                <div className="text-[12px] font-bold text-foreground">{ex.label}</div>
+                <div className="text-[10px] text-muted-foreground mt-1 leading-snug">{ex.useCase}</div>
+                <pre className="mt-2 p-2 rounded bg-[#1e1e2e] text-[#cdd6f4] text-[9px] font-mono overflow-x-auto leading-tight">{JSON.stringify(ex.fx, null, 2)}</pre>
+                <div className="text-[10px] text-muted-foreground mt-2 italic">{ex.explanation}</div>
+                <button type="button" onClick={() => loadExample(ex)}
+                  className="w-full mt-2 px-2 py-1.5 rounded border border-border hover:border-primary hover:bg-primary/5 text-[10px] font-bold uppercase tracking-wider">
+                  Load into editor
+                </button>
               </div>
             ))}
-            <button type="button" onClick={validateRemote} disabled={busy || !parsedObj}
-              className="w-full mt-2 px-2 py-1.5 rounded-md border border-border text-[10px] font-bold uppercase tracking-wider hover:bg-muted disabled:opacity-50 flex items-center justify-center gap-1">
-              {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />} Run backend validation
-            </button>
           </div>
         )}
         {tab === 'test' && (
@@ -656,103 +846,28 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({ getMeta, onCreate
     </div>
   );
 
-  // ── Main editor area ──
-  const editorArea = (
-    <div className="flex flex-col h-full min-h-0">
-      {/* Intent */}
-      <div className="mb-3">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          <Sparkles className="w-3 h-3 text-primary" /> What do you want to calculate?
-        </label>
-        <textarea
-          value={intent}
-          onChange={e => setIntent(e.target.value)}
-          placeholder={'e.g. Number of 4G cells with Drop Rate > 2% between 02h and 04h excluding weekends'}
-          className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-foreground text-xs resize-y focus:outline-none focus:ring-2 focus:ring-primary/30"
-          style={{ minHeight: 60 }}
-        />
-        <div className="flex gap-2 mt-2">
-          <button type="button" onClick={generate}
-            className="px-2.5 py-1.5 rounded-md bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider hover:bg-primary/20 flex items-center gap-1">
-            <Wand2 className="w-3 h-3" /> Generate FX
-          </button>
-          <button type="button" onClick={explainNow} disabled={!parsedObj}
-            className="px-2.5 py-1.5 rounded-md border border-border text-[10px] font-bold uppercase tracking-wider hover:bg-muted disabled:opacity-50 flex items-center gap-1">
-            <ScrollText className="w-3 h-3" /> Explain FX
-          </button>
-        </div>
-      </div>
-
-      {/* JSON editor */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-          <span className="flex items-center gap-1.5"><Code2 className="w-3 h-3" /> formula_fx (JSON) <span className="text-destructive">*</span></span>
-          <span className={`font-normal text-[10px] ${status.ok ? 'text-emerald-500' : 'text-amber-500'}`}>{status.msg}</span>
-        </label>
-        <div className="relative flex-1 min-h-0 mt-1">
-          <textarea
-            value={fxJson}
-            onChange={e => onEdit(e.target.value)}
-            spellCheck={false}
-            placeholder={`{\n  "fx": "IF([Drop Rate 4G] > 2, 1, 0)",\n  "statistics": "MAX",\n  "granularity": "hour",\n  "includeHours": "2-4",\n  "includeDays": "1-5",\n  "sourceNeType": "cell4G",\n  "aggregation": "SUM"\n}`}
-            className="w-full h-full px-3 py-2.5 rounded-xl border border-border bg-[#1e1e2e] text-[#cdd6f4] text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-            style={{ minHeight: fullscreen ? '60vh' : 240, lineHeight: 1.5 }}
-          />
-          <div className="absolute top-2 right-2 flex gap-1">
-            <button type="button" onClick={format} title="Format"
-              className="p-1.5 rounded bg-background/80 hover:bg-background border border-border"><Wand2 className="w-3 h-3" /></button>
-            <button type="button" onClick={copy} title="Copy"
-              className="p-1.5 rounded bg-background/80 hover:bg-background border border-border"><Copy className="w-3 h-3" /></button>
-            <button type="button" onClick={() => setFullscreen(f => !f)} title="Fullscreen"
-              className="p-1.5 rounded bg-background/80 hover:bg-background border border-border">
-              {fullscreen ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 mt-3">
-          <button type="button" onClick={validateRemote} disabled={busy}
-            className="px-2.5 py-1.5 rounded-lg border border-border text-[10px] font-bold uppercase tracking-wider hover:bg-muted disabled:opacity-50 flex items-center gap-1">
-            <ShieldCheck className="w-3 h-3" /> Validate
-          </button>
-          <button type="button" onClick={test} disabled={busy}
-            className="px-2.5 py-1.5 rounded-lg border border-border text-[10px] font-bold uppercase tracking-wider hover:bg-muted disabled:opacity-50 flex items-center gap-1">
-            <FlaskConical className="w-3 h-3" /> Test KPI
-          </button>
-          <div className="flex-1" />
-          <button type="button" onClick={create} disabled={busy}
-            className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:opacity-90 disabled:opacity-50 flex items-center gap-1">
-            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Create KPI
-          </button>
-        </div>
-        {resultBlock}
-      </div>
-    </div>
-  );
-
-  // ── Render ──
   if (fullscreen) {
     return (
-      <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col">
+      <div className="fixed inset-0 z-[60] bg-background flex flex-col">
         <div className="flex items-center justify-between px-4 py-2 border-b border-border">
           <div className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-            <Code2 className="w-4 h-4 text-primary" /> FX KPI Author — Fullscreen
+            <Code2 className="w-4 h-4 text-primary" /> FX Editor — Fullscreen
           </div>
           <button type="button" onClick={() => setFullscreen(false)}
             className="p-1.5 rounded hover:bg-muted"><X className="w-4 h-4" /></button>
         </div>
-        <div className="flex-1 grid grid-cols-[1fr_360px] gap-4 p-4 min-h-0">
-          {editorArea}
-          <div className="border border-border rounded-lg overflow-hidden min-h-0">{rightPanel}</div>
-        </div>
+        <div className="flex-1 min-h-0">{centerCol}</div>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-[1fr_360px] gap-4" style={{ minHeight: 520 }}>
-      {editorArea}
-      <div className="border border-border rounded-lg overflow-hidden min-h-0 flex flex-col" style={{ maxHeight: 640 }}>
-        {rightPanel}
+    <div className="flex flex-col h-full min-h-0">
+      {headerBar}
+      <div className="flex-1 min-h-0 grid grid-cols-[25%_50%_25%]">
+        {leftCol}
+        {centerCol}
+        {rightCol}
       </div>
     </div>
   );
