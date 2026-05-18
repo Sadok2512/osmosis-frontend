@@ -65,7 +65,13 @@ async function catalogDelete(path: string): Promise<void> {
   if (!res.ok) { const e = await res.json().catch(() => ({ detail: `API ${res.status}` })); throw new Error(e.detail || e.message || `API ${res.status}`); }
 }
 
+// Light mapping for list rows — skips expensive parseCounters().
+// Raw counter strings are kept on the entry and parsed lazily when the
+// detail drawer opens (see enrichEntry below). With ~4800 KPIs this cuts
+// ~9600 regex+Set passes off the initial render.
 function mapToEntry(k: any): KpiCatalogEntry {
+  const rawNum = k.numerator_counters || k.numerateur || (typeof k.numerator === 'string' ? k.numerator : '') || '';
+  const rawDen = k.denominator_counters || k.denominateur || (typeof k.denominator === 'string' ? k.denominator : '') || '';
   return {
     id: k.id || k.kpi_key, kpi_code: k.kpi_key || k.kpi_code, kpi_key: k.kpi_key,
     display_name: k.display_name || k.nom_ihm || k.kpi_key,
@@ -77,13 +83,13 @@ function mapToEntry(k: any): KpiCatalogEntry {
     numerator: {
       name: k.numerator_name || (typeof k.numerator === 'string' ? k.numerator : '') || 'Numerator',
       description: k.numerator_desc || '',
-      counters: parseCounters(k.numerator_counters || k.numerateur || (typeof k.numerator === 'string' ? k.numerator : '') || ''),
+      counters: [], // lazy — filled by enrichEntry on selection
       source: k.num_source || 'OSS PM', granularity: k.num_granularity || '15min',
     },
     denominator: {
       name: k.denominator_name || (typeof k.denominator === 'string' ? k.denominator : '') || 'Denominator',
       description: k.denominator_desc || '',
-      counters: parseCounters(k.denominator_counters || k.denominateur || (typeof k.denominator === 'string' ? k.denominator : '') || ''),
+      counters: [], // lazy — filled by enrichEntry on selection
       source: k.den_source || 'OSS PM', granularity: k.den_granularity || '15min',
     },
     thresholds: { green: k.seuil_vert ?? k.threshold_green ?? null, orange: k.seuil_orange ?? k.threshold_orange ?? null, red: k.seuil_rouge ?? k.threshold_red ?? null },
@@ -91,6 +97,19 @@ function mapToEntry(k: any): KpiCatalogEntry {
     scope: k.scope || 'Cell', created_by: k.created_by || 'System',
     last_updated: k.updated_at || k.created_at || '—',
     is_normalized: k.is_normalized || false, supported_levels: k.supported_levels || [],
+    // Stash raw strings on the entry for lazy parsing.
+    _rawNumCounters: rawNum,
+    _rawDenCounters: rawDen,
+  } as KpiCatalogEntry & { _rawNumCounters: string; _rawDenCounters: string };
+}
+
+function enrichEntry(e: KpiCatalogEntry): KpiCatalogEntry {
+  const raw = e as any;
+  if (e.numerator.counters.length || e.denominator.counters.length) return e;
+  return {
+    ...e,
+    numerator: { ...e.numerator, counters: parseCounters(raw._rawNumCounters || '') },
+    denominator: { ...e.denominator, counters: parseCounters(raw._rawDenCounters || '') },
   };
 }
 
