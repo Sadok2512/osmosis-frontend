@@ -124,6 +124,13 @@ export default function EditorView({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [showSettings]);
+
+  // When a widget is selected for editing, ensure the right settings sidebar
+  // stays open so the bottom Widget Settings drawer never overlaps it.
+  useEffect(() => {
+    if (activeWidget) setShowSettings(true);
+  }, [activeWidget]);
+
   
 
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
