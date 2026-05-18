@@ -1654,10 +1654,29 @@ const NetworkTopologyPage: React.FC = () => {
             {/* Site detail */}
             {(selectedSite || detailLoading) && (
               <Card className="p-5" id="topo-site-detail">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <Info className="w-5 h-5 text-emerald-500" />
                     <h2 className="text-sm font-bold uppercase tracking-wide">Site Detail — {selectedSite}</h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mr-1">Techno</span>
+                    {(['2G', '3G', '4G', '5G'] as const).map(t => {
+                      const active = enabledTechs.has(t);
+                      const colors: Record<string, string> = {
+                        '2G': '#8E44AD', '3G': '#3498DB', '4G': '#F39C12', '5G': '#27AE60',
+                      };
+                      return (
+                        <button
+                          key={t}
+                          onClick={() => toggleTech(t)}
+                          className={`text-[11px] font-bold px-2.5 py-1 rounded-md border transition-all ${active ? 'text-white shadow-sm' : 'bg-muted text-muted-foreground opacity-50 hover:opacity-75'}`}
+                          style={active ? { backgroundColor: colors[t], borderColor: colors[t] } : undefined}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => { setSelectedSite(null); setSiteDetail(null); }}>
                     <X className="w-4 h-4 mr-1" /> Close
