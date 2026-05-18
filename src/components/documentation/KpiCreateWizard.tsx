@@ -235,9 +235,15 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
     </div>
   );
 
-  return (
+    const isAdvanced = editorMode === 'advanced';
+    return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-2xl mx-4 rounded-2xl bg-card border border-border shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col">
+      <div
+        className={`rounded-2xl bg-card border border-border shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col ${
+          isAdvanced ? '' : 'w-full max-w-2xl mx-4 max-h-[85vh]'
+        }`}
+        style={isAdvanced ? { width: '92vw', height: '92vh' } : undefined}
+      >
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-border">
           <div>
