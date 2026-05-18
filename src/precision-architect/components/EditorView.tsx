@@ -124,6 +124,13 @@ export default function EditorView({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [showSettings]);
+
+  // When a widget is selected for editing, ensure the right settings sidebar
+  // stays open so the bottom Widget Settings drawer never overlaps it.
+  useEffect(() => {
+    if (activeWidget) setShowSettings(true);
+  }, [activeWidget]);
+
   
 
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
@@ -747,7 +754,7 @@ export default function EditorView({
             className="fixed bottom-4 z-40 transition-all duration-300 pa-widget-settings-drawer"
             style={{
               left: '16rem',
-              right: showSettings ? 'calc(336px + 16px)' : '16px',
+              right: 'calc(336px + 16px)',
             }}
           >
         {(() => {
