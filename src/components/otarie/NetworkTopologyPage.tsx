@@ -1574,20 +1574,13 @@ const NetworkTopologyPage: React.FC = () => {
                         {flyTarget && selectedSite && (() => {
                           const [sLat, sLng] = flyTarget;
                           const cells = (siteDetail?.cells || []) as Record<string, unknown>[];
-                          const normT = (t: string) => {
-                            const u = (t || '').toUpperCase();
-                            if (u.includes('5G') || u.includes('NR')) return '5G';
-                            if (u.includes('4G') || u.includes('LTE')) return '4G';
-                            if (u.includes('3G') || u.includes('UMTS') || u.includes('WCDMA')) return '3G';
-                            if (u.includes('2G') || u.includes('GSM')) return '2G';
-                            return u || '4G';
-                          };
                           const beams = cells
                             .map(c => {
                               const azRaw = c.azimuth ?? c.azimut ?? c.az;
                               const az = typeof azRaw === 'string' ? parseFloat(azRaw) : (azRaw as number);
                               if (!Number.isFinite(az)) return null;
-                              const tech = normT(String(c.techno || c.rat || ''));
+                              const tech = normTech(String(c.techno || c.rat || ''));
+                              if (!enabledTechs.has(tech)) return null;
                               return { az: az as number, tech };
                             })
                             .filter(Boolean) as { az: number; tech: string }[];
