@@ -1416,7 +1416,7 @@ const NetworkTopologyPage: React.FC = () => {
               />
 
 
-              <div className="max-h-[420px] overflow-y-auto">
+              <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 360px)' }}>
                 <Table>
                   <TableHeader className="sticky top-0 bg-card z-10">
                     <TableRow>
