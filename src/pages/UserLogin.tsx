@@ -18,6 +18,7 @@ export default function UserLogin() {
     e.preventDefault();
     if (!username.trim() || !password.trim()) return;
     setLoading(true);
+    setErrorMsg(null);
     try {
       const user = await loginAdmin(username, password);
       if (user.status === 'inactive') {
@@ -26,7 +27,9 @@ export default function UserLogin() {
       toast({ title: 'Welcome back', description: `Signed in as ${username}` });
       navigate('/');
     } catch (err: any) {
-      toast({ title: 'Authentication failed', description: err.message, variant: 'destructive' });
+      const msg = err?.message || 'Invalid credentials';
+      setErrorMsg(msg);
+      toast({ title: 'Authentication failed', description: msg, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
