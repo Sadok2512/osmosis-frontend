@@ -8385,12 +8385,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     } else if (settings.mapDisplayMode === 'sites' && settings.sectorColorMode !== 'topo') {
       setShowBeamSectors(true);
     }
-    // Fly to saved center/zoom — only when no dashboard is active. When a
-    // dashboard IS active, the dashboardFitKey refit below already centers
-    // the camera on the actual dashboard sites; flying to the saved center
-    // first (often a stale default like Marseille [43.29, 5.36]) produces
-    // an ugly Marseille → Nantes double jump.
-    if (!isCoverageView && !dashboardActive && settings.center && settings.center[0] > 41 && settings.center[0] < 52 && settings.center[1] > -6 && settings.center[1] < 11) setFlyTarget(settings.center);
+    // Fly to saved center/zoom — only when no dashboard is active and not a
+    // KPI Overlay view. When a dashboard IS active, dashboardFitKey below
+    // centers on the actual sites. For KPI Overlay views, the overlay's own
+    // bbox fit handles centering. Flying to a stale saved center first
+    // (often Marseille [43.29, 5.36]) produces an ugly double jump.
+    const isKpiOverlayView = (settings as any).viewType === 'kpi_overlay';
+    if (!isCoverageView && !isKpiOverlayView && !dashboardActive && settings.center && settings.center[0] > 41 && settings.center[0] < 52 && settings.center[1] > -6 && settings.center[1] < 11) setFlyTarget(settings.center);
     // 2026-05-12 — also trigger a refit on the current dashboard sites
     // when activating any view. Saved `settings.center` is often stale
     // (or missing entirely on freshly-saved views), so falling back to
