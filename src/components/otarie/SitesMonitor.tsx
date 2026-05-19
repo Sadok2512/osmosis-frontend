@@ -1366,9 +1366,13 @@ interface DashboardSettingsPanelProps {
   onSetDashboards: React.Dispatch<React.SetStateAction<any[]>>;
   backendFilterDefs?: { id: string; label: string; values: string[] }[];
   onSiteFiltersChange?: (filters: DashboardSiteFilters) => void;
+  /** View type (when editing a view rather than a dashboard). Drives the
+   *  contextual "About this view" info card + view-specific controls
+   *  (e.g. polygon opacity slider for Cell Footprint). */
+  viewType?: string | null;
 }
 
-const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared, beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, onClose, onActivate, onSetDashboards, backendFilterDefs, onSiteFiltersChange }) => {
+const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared, beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, onClose, onActivate, onSetDashboards, backendFilterDefs, onSiteFiltersChange, viewType }) => {
   const [localName, setLocalName] = useState(currentName || '');
   const [localMapStyle, setLocalMapStyle] = useState(settings.mapStyle || settings.mapLayer || 'street');
   const [localThemeMode, setLocalThemeMode] = useState(settings.themeMode || 'light');
