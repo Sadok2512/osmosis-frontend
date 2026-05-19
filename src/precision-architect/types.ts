@@ -259,6 +259,8 @@ export type ReferencePeriodRule =
   | { type: 'quarter_to_date' }
   | { type: 'custom'; from: string; to: string };
 
+export type CompareMode = 'overlay' | 'delta' | 'trend' | 'baseline';
+
 export interface ReferencePeriod {
   id: string;
   name: string;
@@ -273,6 +275,8 @@ export interface ReferencePeriod {
   scope?: 'global' | 'user';
   /** Derived: rule.type. Backend mirrors this in the response for convenience. */
   type?: string;
+  /** How this reference should be compared with the current data. */
+  compareMode?: CompareMode;
 }
 
 export const DEFAULT_DIVIDER_CONFIG: DividerWidgetConfig = {

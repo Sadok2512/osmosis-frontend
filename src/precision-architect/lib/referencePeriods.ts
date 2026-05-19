@@ -63,6 +63,10 @@ function normalizeReferencePeriod(raw: any): ReferencePeriod | null {
     createdBy: raw.createdBy || raw.created_by || undefined,
     scope: raw.scope === 'global' || raw.scope === 'user' ? raw.scope : undefined,
     type: raw.type || (rule && typeof rule === 'object' ? rule.type : undefined) || undefined,
+    compareMode: (() => {
+      const v = raw.compareMode || raw.compare_mode;
+      return v === 'overlay' || v === 'delta' || v === 'trend' || v === 'baseline' ? v : undefined;
+    })(),
   };
 }
 

@@ -19,7 +19,7 @@ import {
   listReferencePeriods, createReferencePeriod, updateReferencePeriod,
   disableReferencePeriod, resolveReferencePeriodRange,
 } from '@/precision-architect/lib/referencePeriods';
-import type { ReferencePeriod, ReferencePeriodRule } from '@/precision-architect/types';
+import type { CompareMode, ReferencePeriod, ReferencePeriodRule } from '@/precision-architect/types';
 
 const PINNED_STORAGE_KEY = 'osmosis_reference_periods_pinned_v1';
 const PAGE_SIZE = 20;
@@ -116,6 +116,13 @@ const REL_UNITS: { value: 'hours'|'days'|'weeks'|'months'; label: string }[] = [
   { value: 'months', label: 'months' },
 ];
 
+const COMPARE_MODES: { value: CompareMode; label: string; help: string }[] = [
+  { value: 'overlay',  label: 'Overlay',  help: 'Plot the reference series on top of the current one.' },
+  { value: 'delta',    label: 'Delta %',  help: 'Show percent change vs. the reference.' },
+  { value: 'trend',    label: 'Trend',    help: 'Use the reference as a moving trend line.' },
+  { value: 'baseline', label: 'Baseline', help: 'Use the reference as a static baseline for thresholding.' },
+];
+
 const EditDialog: React.FC<EditDialogProps> = ({ open, initial, onClose, onSaved }) => {
   const isCreate = !initial;
   const [id, setId]                       = useState('');
@@ -129,6 +136,7 @@ const EditDialog: React.FC<EditDialogProps> = ({ open, initial, onClose, onSaved
   const [absTo,   setAbsTo]               = useState('');
   const [enabled, setEnabled]             = useState(true);
   const [isDefault, setIsDefault]         = useState(false);
+  const [compareMode, setCompareMode]     = useState<CompareMode>('overlay');
   const [saving, setSaving]               = useState(false);
 
   useEffect(() => {
@@ -140,6 +148,7 @@ const EditDialog: React.FC<EditDialogProps> = ({ open, initial, onClose, onSaved
       setColor(initial.color || PALETTE[0]);
       setEnabled(initial.enabled !== false);
       setIsDefault(Boolean(initial.isDefault));
+      setCompareMode((initial.compareMode as CompareMode) || 'overlay');
       const r = initial.rule;
       setRuleType(r.type);
       if (r.type === 'relative') {
@@ -162,6 +171,7 @@ const EditDialog: React.FC<EditDialogProps> = ({ open, initial, onClose, onSaved
       setAbsTo('');
       setEnabled(true);
       setIsDefault(false);
+      setCompareMode('overlay');
     }
   }, [open, initial]);
 
@@ -203,6 +213,7 @@ const EditDialog: React.FC<EditDialogProps> = ({ open, initial, onClose, onSaved
         color,
         enabled,
         isDefault,
+        compareMode,
       };
       const saved = isCreate
         ? await createReferencePeriod(payload)
@@ -301,6 +312,64 @@ const EditDialog: React.FC<EditDialogProps> = ({ open, initial, onClose, onSaved
               </div>
             </div>
           )}
+
+          {/* ── Preview ──────────────────────────────────────────── */}
+          {(() => {
+            const previewRule = buildRule();
+            let label = 'Invalid rule';
+            let fromTxt = '—';
+            let toTxt   = '—';
+            if (previewRule) {
+              try {
+                const r = resolveReferencePeriodRange({
+                  id: id || 'preview',
+                  name: name || 'preview',
+                  rule: previewRule,
+                });
+                fromTxt = r.from.replace('T', ' ').slice(0, 16);
+                toTxt   = r.to.replace('T', ' ').slice(0, 16);
+                label   = r.label || name || 'Generated range';
+              } catch { /* keep defaults */ }
+            }
+            return (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Generated range</p>
+                <p className="mt-1 font-mono text-xs text-foreground">
+                  <span className="text-muted-foreground">From</span>{' '}
+                  <span className="font-bold">{fromTxt}</span>{' '}
+                  <span className="text-muted-foreground">to</span>{' '}
+                  <span className="font-bold">{toTxt}</span>
+                </p>
+                <p className="mt-1 text-[10px] text-muted-foreground">{label}</p>
+              </div>
+            );
+          })()}
+
+          {/* ── Compare Mode ─────────────────────────────────────── */}
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Compare mode</label>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {COMPARE_MODES.map(m => (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => setCompareMode(m.value)}
+                  className={cn(
+                    'flex flex-col gap-1 rounded-lg border px-3 py-2 text-left transition',
+                    compareMode === m.value
+                      ? 'border-primary bg-primary/10 shadow-sm'
+                      : 'border-border bg-card hover:bg-muted/40'
+                  )}
+                  title={m.help}
+                >
+                  <span className={cn('text-xs font-bold', compareMode === m.value ? 'text-primary' : 'text-foreground')}>
+                    {m.label}
+                  </span>
+                  <span className="text-[10px] leading-tight text-muted-foreground">{m.help}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="flex flex-wrap gap-4 pt-2">
             <label className="flex items-center gap-2 text-sm">
@@ -582,7 +651,14 @@ const ReferencePeriodManager: React.FC = () => {
                           </Badge>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-xs text-muted-foreground">{p.createdBy || 'system'}</td>
+                      <td className="px-3 py-3 text-xs text-muted-foreground">
+                        <div>{p.createdBy || 'system'}</div>
+                        {p.compareMode && p.compareMode !== 'overlay' && (
+                          <div className="mt-0.5 inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                            {p.compareMode}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-3 py-3">
                         <button
                           type="button"
