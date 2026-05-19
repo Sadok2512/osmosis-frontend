@@ -2663,14 +2663,17 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
           Object.entries(config.paramFilters || {}).filter(([, v]) => String(v || '').trim())
         );
       } else if (config.type === 'coverage') {
-        // Visual Coverage view — flip the layer ON in the saved settings
-        // so that loading the view auto-enables the Voronoi tessellation.
-        // The max-radius cap is the only knob: persisted as
-        // coverageMaxRadiusM so the consumer can pass it to
-        // fetchVisualCoverage when applying the view.
+        // Cell Footprint view (formerly "Visual Coverage") — flip the
+        // layer ON in the saved settings so that loading the view
+        // auto-enables the Voronoi tessellation. Persist radius cap +
+        // band perimeter so the consumer narrows fetchVisualCoverage
+        // to the bands the operator picked.
         settings.showVisualCoverage = true;
         if (config.coverageMaxRadiusM != null) {
           settings.coverageMaxRadiusM = config.coverageMaxRadiusM;
+        }
+        if (Array.isArray(config.coverageBands) && config.coverageBands.length > 0) {
+          settings.coverageBands = config.coverageBands;
         }
       }
       await mapViewsApi.create({
