@@ -1,7 +1,7 @@
 # OSMOSIS Frontend — Vite/React build, served by nginx.
 #
-# Build:    docker build -t osmosis-frontend:7.1 -f qoebit-frontend/Dockerfile qoebit-frontend
-# Run:      docker run -p 3000:80 osmosis-frontend:7.1
+# Build:    docker build -t osmosis-frontend:8.5 -f qoebit-frontend/Dockerfile qoebit-frontend
+# Run:      docker run -p 3000:80 osmosis-frontend:8.5
 
 FROM node:20-alpine AS build
 
