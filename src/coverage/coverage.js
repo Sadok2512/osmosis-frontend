@@ -233,6 +233,25 @@ function buildCellPciPolygons(cells, cfg, t0) {
   const seedsTotal = seeds.length;
   if (seeds.length === 0) return empty();
 
+  const siteSeedCounts = new Map();
+  for (const seed of seeds) {
+    const key = seed.siteId || seed.siteName || seed.id;
+    siteSeedCounts.set(key, (siteSeedCounts.get(key) || 0) + 1);
+  }
+  seeds = seeds.map((seed) => {
+    const siteKey = seed.siteId || seed.siteName || seed.id;
+    const isOmni = (siteSeedCounts.get(siteKey) || 0) === 1;
+    if (!isOmni) return { ...seed, isOmni: false };
+    return {
+      ...seed,
+      isOmni: true,
+      x: seed.lon * M_PER_DEG_LNG,
+      y: seed.lat * M_PER_DEG_LAT,
+      azimuth: 0,
+      beamwidth: 360,
+    };
+  });
+
   if (seeds.length > cfg.maxVoronoiCells) {
     const centreLat = Number(cfg.mapCenter?.lat);
     const centreLon = Number(cfg.mapCenter?.lon);
@@ -264,8 +283,12 @@ function buildCellPciPolygons(cells, cfg, t0) {
     const poly = polys[i];
     if (!poly || poly.length < 3) return;
 
-    const disk = approximateDisk({ x: cell.x, y: cell.y }, cfg.visualRadiusMeters, cfg.visualRadiusSegments);
-    const clippedPoly = polygonIntersection(poly, disk);
+    const clipShape = approximateDisk(
+      { x: cell.x, y: cell.y },
+      cfg.visualRadiusMeters,
+      cell.isOmni ? 6 : cfg.visualRadiusSegments,
+    );
+    const clippedPoly = polygonIntersection(poly, clipShape);
     if (!clippedPoly || clippedPoly.length < 3) return;
     const clipped = clippedPoly.map((p) => [p.x / M_PER_DEG_LNG, p.y / M_PER_DEG_LAT]);
     clipped.push(clipped[0]);
@@ -284,6 +307,7 @@ function buildCellPciPolygons(cells, cfg, t0) {
         lon: cell.lon,
         azimuth: cell.azimuth,
         beamwidth: cell.beamwidth,
+        shape: cell.isOmni ? 'omni_hexagon' : 'sector_voronoi',
         tech: cell.tech,
         band: cell.band,
         pci: cell.pci,

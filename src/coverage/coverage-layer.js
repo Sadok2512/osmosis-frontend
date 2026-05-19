@@ -81,6 +81,8 @@ export function initVisualCoverage(options) {
   let baseLayer = null;   // Leaflet GeoJSON: site footprints
   let wedgeLayer = null;  // Leaflet GeoJSON: sector wedges
   let enabled = defaultEnabled;
+  let destroyed = false;
+  let rebuildSeq = 0;
   const paneName = 'paneVisualCoverage';
 
   if (!map.getPane(paneName)) {
@@ -104,18 +106,22 @@ export function initVisualCoverage(options) {
     : null;
 
   function rebuild(newCells) {
+    if (destroyed) return;
     if (newCells) cells = newCells;
+    const seq = ++rebuildSeq;
     setStatus('Loading');
 
     // Defer one tick so the panel paints "Loading" before the (possibly
     // CPU-heavy) Voronoi compute blocks the main thread.
     setTimeout(() => {
       try {
+        if (destroyed || seq !== rebuildSeq) return;
         const centre = map.getCenter();
         coverageResult = buildSiteCoverage(cells, {
           maxRadiusMeters,
           mapCenter: { lat: centre.lat, lon: centre.lng },
         });
+        if (destroyed || seq !== rebuildSeq) return;
 
         // Tear down any previous layers cleanly before installing new ones.
         if (baseLayer)  { map.removeLayer(baseLayer);  baseLayer = null; }
@@ -215,6 +221,7 @@ export function initVisualCoverage(options) {
   }
 
   function setEnabled(on) {
+    if (destroyed) return;
     enabled = !!on;
     if (panel) panel.setEnabled(enabled);
     // Both layers toggle as a pair so the wedges never appear without
@@ -243,6 +250,8 @@ export function initVisualCoverage(options) {
       return api;
     },
     destroy() {
+      destroyed = true;
+      rebuildSeq++;
       if (baseLayer)  map.removeLayer(baseLayer);
       if (wedgeLayer) map.removeLayer(wedgeLayer);
       baseLayer = null;
