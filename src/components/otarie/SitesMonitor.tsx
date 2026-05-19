@@ -8295,6 +8295,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [viewport.bounds]);
 
   const handleLoadView = useCallback((settings: MapViewSettings) => {
+    const isCoverageView = (settings as any).viewType === 'coverage' || Boolean((settings as any).showVisualCoverage);
     setMapLayer(settings.mapLayer);
     if (MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
     setMapTechnoFilter(settings.mapTechnoFilter as any);
@@ -8322,7 +8323,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // the camera on the actual dashboard sites; flying to the saved center
     // first (often a stale default like Marseille [43.29, 5.36]) produces
     // an ugly Marseille → Nantes double jump.
-    if (!dashboardActive && settings.center && settings.center[0] > 41 && settings.center[0] < 52 && settings.center[1] > -6 && settings.center[1] < 11) setFlyTarget(settings.center);
+    if (!isCoverageView && !dashboardActive && settings.center && settings.center[0] > 41 && settings.center[0] < 52 && settings.center[1] > -6 && settings.center[1] < 11) setFlyTarget(settings.center);
     // 2026-05-12 — also trigger a refit on the current dashboard sites
     // when activating any view. Saved `settings.center` is often stale
     // (or missing entirely on freshly-saved views), so falling back to
@@ -8330,7 +8331,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // rather than on the wrong region or wherever the camera was. The
     // refit only runs while a dashboard is active — without one, the
     // bbox-loader already owns the viewport.
-    if (dashboardActive) setDashboardFitKey(k => k + 1);
+    if (!isCoverageView && dashboardActive) setDashboardFitKey(k => k + 1);
     if ((settings as any).beamVisibility != null) {
       setBeamVisibility((settings as any).beamVisibility);
       localStorage.setItem('osmosis_beam_visibility', String((settings as any).beamVisibility));
@@ -14546,6 +14547,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     return null;
                   }}
                   onApplyView={(settings) => {
+                    const isCoverageView = settings.viewType === 'coverage' || Boolean((settings as any).showVisualCoverage);
+                    const isCoverageToggleOff = Boolean(settings._isDashboardOnly && activeViewType === 'coverage');
+                    const isCoverageOverlayOnly = isCoverageView || isCoverageToggleOff;
+
                     // Track view activation
                     if (settings._viewId) {
                       setActiveViewId(settings._viewId);
@@ -14746,15 +14751,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     // layer (otherwise activating the view does nothing visible)
                     // AND must NOT mutate the dashboard's map style / KPI / camera
                     // (the user just wants polygons drawn on top of what's there).
-                    const isCoverageView = settings.viewType === 'coverage';
-                    if (isCoverageView || (settings as any).showVisualCoverage) {
+                    if (isCoverageView) {
                       setShowVisualCoverage(true);
-                    } else if (settings._isDashboardOnly) {
+                    } else if (isCoverageToggleOff || settings._isDashboardOnly) {
                       // Deactivating a view → turn coverage layer back off so
                       // the dashboard reverts to its plain state.
                       setShowVisualCoverage(false);
                     }
-                    if (!isCoverageView) {
+                    if (!isCoverageOverlayOnly) {
                       if (settings.mapLayer) setMapLayer(settings.mapLayer);
                       if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
                     }
@@ -14764,79 +14768,81 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       // must stay put — otherwise we briefly fly to a stale saved
                       // center like Marseille before refitting to Nantes).
                       const c = settings.center as [number, number];
-                      if (!dashboardActive && !isCoverageView && c[0] > 41 && c[0] < 52) setFlyTarget(c);
+                      if (!dashboardActive && !isCoverageOverlayOnly && c[0] > 41 && c[0] < 52) setFlyTarget(c);
                     }
 
-                    // Reset all local filters first, then apply merged siteFilters
-                    setLocalDor('ALL');
-                    setLocalVendor('ALL');
-                    setLocalPlaque('ALL');
-                    setLocalBande('ALL');
-                    setLocalTechno('ALL');
-                    setLocalZoneArcep('ALL');
+                    if (!isCoverageOverlayOnly) {
+                      // Reset all local filters first, then apply merged siteFilters
+                      setLocalDor('ALL');
+                      setLocalVendor('ALL');
+                      setLocalPlaque('ALL');
+                      setLocalBande('ALL');
+                      setLocalTechno('ALL');
+                      setLocalZoneArcep('ALL');
 
-                    // Determine new effective filters
-                    const newFilters = (settings.siteFilters && Object.keys(settings.siteFilters).length > 0)
-                      ? settings.siteFilters as DashboardSiteFilters
-                      : null;
-                    const nextScope = settings.siteScope || null;
+                      // Determine new effective filters
+                      const newFilters = (settings.siteFilters && Object.keys(settings.siteFilters).length > 0)
+                        ? settings.siteFilters as DashboardSiteFilters
+                        : null;
+                      const nextScope = settings.siteScope || null;
 
-                    // Invalidate cache & force reload when filters change
-                    // Always invalidate caches on view/dashboard apply to avoid stale data
-                    invalidateDashboardSitesCache();
-                    invalidateBboxCache();
-                    invalidateSiteCellsCache();
-                    cellLoadingRef.current.clear();
-                    cellLoadAttemptedRef.current.clear();
+                      // Invalidate cache & force reload when filters change
+                      // Always invalidate caches on view/dashboard apply to avoid stale data
+                      invalidateDashboardSitesCache();
+                      invalidateBboxCache();
+                      invalidateSiteCellsCache();
+                      cellLoadingRef.current.clear();
+                      cellLoadAttemptedRef.current.clear();
 
-                    // Apply merged site filters (dashboard + view already merged via mergeSiteFilters)
-                    setActiveSiteScope(nextScope);
-                    if (newFilters) {
-                      setActiveDashboardFilters(newFilters);
-                      if (newFilters.dor?.length) setLocalDor(newFilters.dor[0]);
-                      if (newFilters.vendor?.length) setLocalVendor(newFilters.vendor[0]);
-                      if (newFilters.plaque?.length) setLocalPlaque(newFilters.plaque[0]);
-                      if (newFilters.techno?.length) setLocalTechno(newFilters.techno[0] as any);
-                      if (newFilters.bande?.length) setLocalBande(newFilters.bande[0]);
-                      if (newFilters.zone_arcep?.length) setLocalZoneArcep(newFilters.zone_arcep[0]);
-                    } else if (settings.siteScope) {
-                      setActiveSiteScope(settings.siteScope);
-                      setActiveDashboardFilters(null);
-                      const scope = settings.siteScope as SiteScope;
-                      if (scope.type === 'DOR' && scope.value) setLocalDor(scope.value);
-                      else if (scope.type === 'Plaque' && scope.value) setLocalPlaque(scope.value);
-                    } else if (settings._isDashboardOnly) {
-                      setActiveDashboardFilters(null);
-                    }
-
-                    // Force data reload
-                    setDashboardRefreshTick(t => t + 1);
-                    // Apply view filters (topo + qoe)
-                    if (Array.isArray(settings.viewFilters) && settings.viewFilters.length > 0) {
-                      setActiveViewFilters(settings.viewFilters);
-                      for (const f of settings.viewFilters) {
-                        if (f.mode === 'topo') {
-                          if (f.tech) {
-                            const t = f.tech === '4G' ? '4G' : f.tech === '5G' ? '5G' : 'ALL';
-                            setLocalTechno(t as any);
-                          }
-                          if ((f.attribute === 'vendor' || f.attribute === 'constructeur') && f.value) setLocalVendor(f.value);
-                          if (f.attribute === 'bande' && f.value) setLocalBande(f.value);
-                          if (f.attribute === 'zone_arcep' && f.value) setLocalZoneArcep(f.value);
-                        }
+                      // Apply merged site filters (dashboard + view already merged via mergeSiteFilters)
+                      setActiveSiteScope(nextScope);
+                      if (newFilters) {
+                        setActiveDashboardFilters(newFilters);
+                        if (newFilters.dor?.length) setLocalDor(newFilters.dor[0]);
+                        if (newFilters.vendor?.length) setLocalVendor(newFilters.vendor[0]);
+                        if (newFilters.plaque?.length) setLocalPlaque(newFilters.plaque[0]);
+                        if (newFilters.techno?.length) setLocalTechno(newFilters.techno[0] as any);
+                        if (newFilters.bande?.length) setLocalBande(newFilters.bande[0]);
+                        if (newFilters.zone_arcep?.length) setLocalZoneArcep(newFilters.zone_arcep[0]);
+                      } else if (settings.siteScope) {
+                        setActiveSiteScope(settings.siteScope);
+                        setActiveDashboardFilters(null);
+                        const scope = settings.siteScope as SiteScope;
+                        if (scope.type === 'DOR' && scope.value) setLocalDor(scope.value);
+                        else if (scope.type === 'Plaque' && scope.value) setLocalPlaque(scope.value);
+                      } else if (settings._isDashboardOnly) {
+                        setActiveDashboardFilters(null);
                       }
-                    } else {
-                      setActiveViewFilters([]);
-                    }
-                    // Apply advanced view conditions
-                    if (Array.isArray(settings.viewConditions) && settings.viewConditions.length > 0) {
-                      setActiveViewConditions(settings.viewConditions);
-                    } else {
-                      setActiveViewConditions([]);
-                    }
-                    // Apply map label fields
-                    if (Array.isArray(settings.mapLabelFields)) {
-                      setMapLabelFields(new Set(settings.mapLabelFields));
+
+                      // Force data reload
+                      setDashboardRefreshTick(t => t + 1);
+                      // Apply view filters (topo + qoe)
+                      if (Array.isArray(settings.viewFilters) && settings.viewFilters.length > 0) {
+                        setActiveViewFilters(settings.viewFilters);
+                        for (const f of settings.viewFilters) {
+                          if (f.mode === 'topo') {
+                            if (f.tech) {
+                              const t = f.tech === '4G' ? '4G' : f.tech === '5G' ? '5G' : 'ALL';
+                              setLocalTechno(t as any);
+                            }
+                            if ((f.attribute === 'vendor' || f.attribute === 'constructeur') && f.value) setLocalVendor(f.value);
+                            if (f.attribute === 'bande' && f.value) setLocalBande(f.value);
+                            if (f.attribute === 'zone_arcep' && f.value) setLocalZoneArcep(f.value);
+                          }
+                        }
+                      } else {
+                        setActiveViewFilters([]);
+                      }
+                      // Apply advanced view conditions
+                      if (Array.isArray(settings.viewConditions) && settings.viewConditions.length > 0) {
+                        setActiveViewConditions(settings.viewConditions);
+                      } else {
+                        setActiveViewConditions([]);
+                      }
+                      // Apply map label fields
+                      if (Array.isArray(settings.mapLabelFields)) {
+                        setMapLabelFields(new Set(settings.mapLabelFields));
+                      }
                     }
                   }}
                   onDashboardActiveChange={(active, scope, siteFilters) => {
