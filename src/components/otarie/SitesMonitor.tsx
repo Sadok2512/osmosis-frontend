@@ -3322,7 +3322,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
                                   {view.is_default && <Star size={8} className="text-amber-500 fill-amber-500 shrink-0" />}
-                                  <span className={`text-[11px] font-semibold truncate ${isViewActive ? 'text-primary font-bold' : 'text-foreground'}`}>{view.name}</span>
+                                  <span className={`text-[11px] font-semibold truncate ${isViewActive ? 'text-primary font-bold' : 'text-foreground'}`}>{vs.viewType === 'coverage' ? 'Cell Footprint' : view.name}</span>
                                   {vs.viewType === 'coverage' ? (
                                     <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide border ${isViewActive ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40' : 'bg-muted text-muted-foreground border-border'}`}>
                                       {isViewActive ? 'ON' : 'OFF'}
@@ -14577,7 +14577,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     if (settings.mapLayer) setMapLayer(settings.mapLayer);
                     if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
                     if (settings.center && Array.isArray(settings.center)) {
-                      if (settings.center && (settings.center as [number, number])[0] > 41 && (settings.center as [number, number])[0] < 52) setFlyTarget(settings.center as [number, number]);
+                      // Skip flyTarget when:
+                      //  - a dashboard is active (its sites refit handles centering)
+                      //  - the view is a Cell Footprint toggle (camera must stay put;
+                      //    otherwise we briefly fly to a stale saved center like
+                      //    Marseille before refitting to Nantes).
+                      const isCoverageView = settings.viewType === 'coverage';
+                      const c = settings.center as [number, number];
+                      if (!dashboardActive && !isCoverageView && c[0] > 41 && c[0] < 52) setFlyTarget(c);
                     }
 
                     // Reset all local filters first, then apply merged siteFilters
