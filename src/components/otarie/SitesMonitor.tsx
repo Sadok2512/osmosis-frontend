@@ -153,6 +153,21 @@ const DEFAULT_BAND_COLORS: Record<string, string> = {
   '5G_GROUP': '#27AE60',
   '4G_GROUP': '#F39C12',
 };
+
+const COVERAGE_BAND_ALIASES: Record<string, string[]> = {
+  GSM900: ['GSM900'],
+  GSM1800: ['GSM1800', 'DCS1800'],
+  UMTS900: ['UMTS900', 'WCDMA900'],
+  UMTS2100: ['UMTS2100', 'WCDMA2100'],
+  NR3500: ['NR3500', 'NR_3500', 'N78', '3500'],
+  NR700: ['NR700', 'NR_700', 'N28'],
+  NR2100: ['NR2100', 'NR_2100', 'N1'],
+  L2600: ['LTE2600', 'L2600', 'B7'],
+  L2100: ['LTE2100', 'L2100', 'B1'],
+  L1800: ['LTE1800', 'L1800', 'B3'],
+  L800: ['LTE800', 'L800', 'B20'],
+  L700: ['LTE700', 'L700', 'B28'],
+};
 // Load custom colors from localStorage
 const loadCustomBandColors = (): Record<string, string> => {
   try {
@@ -7347,6 +7362,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     return 'ALL';
   }, [localBande, dashboardActive, activeDashboardFilters]);
+  const coverageBandFilter = useMemo(() => {
+    if (localBande !== 'ALL') return localBande;
+    if (dashboardActive && activeDashboardFilters?.bande?.length) {
+      return activeDashboardFilters.bande.join(',');
+    }
+    if (!isBandFilterActive) return undefined;
+
+    const aliases = new Set<string>();
+    for (const key of enabledBands) {
+      if (key.endsWith('_GROUP')) continue;
+      const mapped = COVERAGE_BAND_ALIASES[key] || [key];
+      mapped.forEach(v => aliases.add(v));
+    }
+    return aliases.size > 0 ? Array.from(aliases).join(',') : '__NO_BAND_SELECTED__';
+  }, [localBande, dashboardActive, activeDashboardFilters, isBandFilterActive, enabledBands]);
 
   // Sites visible in current viewport (for map rendering) — gated by zoom and count
   const MAX_CELL_RESOLUTION_SITES = 250;
@@ -8753,12 +8783,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return list.length ? list.join(',') : undefined;
           })()}
           band={(() => {
-            const df = dashboardActive ? activeDashboardFilters : null;
-            const csv = (arr: string[] | undefined | null): string | undefined => {
-              const list = (arr || []).map(s => String(s).trim()).filter(Boolean);
-              return list.length ? list.join(',') : undefined;
-            };
-            return localBande !== 'ALL' ? localBande : csv(df?.bande);
+            return coverageBandFilter;
           })()}
           selectedPciKeys={selectedCoveragePciKeys}
           onCellsChanged={handleCoverageCellsChanged}
