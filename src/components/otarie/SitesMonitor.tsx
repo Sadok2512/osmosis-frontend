@@ -14577,7 +14577,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     if (settings.mapLayer) setMapLayer(settings.mapLayer);
                     if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
                     if (settings.center && Array.isArray(settings.center)) {
-                      if (settings.center && (settings.center as [number, number])[0] > 41 && (settings.center as [number, number])[0] < 52) setFlyTarget(settings.center as [number, number]);
+                      // Skip flyTarget when:
+                      //  - a dashboard is active (its sites refit handles centering)
+                      //  - the view is a Cell Footprint toggle (camera must stay put;
+                      //    otherwise we briefly fly to a stale saved center like
+                      //    Marseille before refitting to Nantes).
+                      const isCoverageView = settings.viewType === 'coverage';
+                      const c = settings.center as [number, number];
+                      if (!dashboardActive && !isCoverageView && c[0] > 41 && c[0] < 52) setFlyTarget(c);
                     }
 
                     // Reset all local filters first, then apply merged siteFilters
