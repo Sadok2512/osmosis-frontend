@@ -44,17 +44,15 @@ export function findKpi(catalog, name) {
 }
 
 /* ============================================================================
- * COLOR GRADIENT
- *   - 5-stop palette: red → orange → yellow → light green → green
- *   - colorFromScore(t in [0..1]) where 1 = best (green), 0 = worst (red)
+ * COLOR GRADIENT — aligned with SitesMonitor KPI legend tiers
+ *   - 3-stop palette: Critique (violet) → Moyen (orange) → Bon (green)
+ *   - colorFromScore(t in [0..1]) where 1 = best (green), 0 = worst (violet)
  * ============================================================================ */
 
 export const GRADIENT_STOPS = [
-  { t: 0.0,  color: [217,  76,  90] }, // red
-  { t: 0.25, color: [241, 149,  63] }, // orange
-  { t: 0.5,  color: [245, 208,  80] }, // yellow
-  { t: 0.75, color: [168, 220, 106] }, // light green
-  { t: 1.0,  color: [ 58, 138,  79] }, // green
+  { t: 0.0, color: [142,  68, 173] }, // #8E44AD — Critique (violet)
+  { t: 0.5, color: [245, 158,  11] }, // #F59E0B — Moyen (orange)
+  { t: 1.0, color: [ 39, 174,  96] }, // #27AE60 — Bon (green)
 ];
 
 export function colorFromScore(t) {
