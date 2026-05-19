@@ -3270,14 +3270,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                           vanilla module still receives a DOM node and does
                           not error; UI is intentionally not displayed. */}
                       <div className="hidden" ref={onCoveragePanelMount} />
-                      {/* PCI Overlay panel mount (party 2026-05-18) — VISIBLE.
-                          The pci-overlay-layer JS module attaches its
-                          interactive panel (toggle on/off + band pills +
-                          colorMode + legend) here. Separate from the hidden
-                          Visual Coverage mount so the PCI controls surface
-                          to the operator without re-exposing the legacy VC
-                          panel. */}
-                      <div ref={onPciOverlayPanelMount} />
+                      {/* PCI Overlay panel mount kept hidden (panel removed
+                          from UI per user request — adapter still mounts a
+                          DOM node so the vanilla module doesn't error). */}
+                      <div className="hidden" ref={onPciOverlayPanelMount} />
                     </div>
                   );
                 })()}
@@ -3327,7 +3323,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                 <div className="flex items-center gap-1.5">
                                   {view.is_default && <Star size={8} className="text-amber-500 fill-amber-500 shrink-0" />}
                                   <span className={`text-[11px] font-semibold truncate ${isViewActive ? 'text-primary font-bold' : 'text-foreground'}`}>{view.name}</span>
-                                  {isViewActive && <span className="text-[7px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold uppercase">actif</span>}
+                                  {vs.viewType === 'coverage' ? (
+                                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide border ${isViewActive ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40' : 'bg-muted text-muted-foreground border-border'}`}>
+                                      {isViewActive ? 'ON' : 'OFF'}
+                                    </span>
+                                  ) : (
+                                    isViewActive && <span className="text-[7px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold uppercase">actif</span>
+                                  )}
                                   {hasOwnSettings && <span className="text-[7px] px-1 py-0.5 rounded bg-accent/10 text-accent-foreground font-bold uppercase">custom</span>}
                                   {condCount > 0 && <span className="text-[7px] px-1 py-0.5 rounded bg-primary/10 text-primary font-bold">{condCount} filtre{condCount > 1 ? 's' : ''}</span>}
                                   {vs.viewType === 'kpi_overlay' && <span className="text-[7px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold uppercase">KPI</span>}
@@ -8542,51 +8544,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           bbox={coverageBbox}
           onEnabledChange={setShowVisualCoverage}
         />
-        {/* PCI Overlay adapter — Voronoï polygones colorés par PCI plan
-            (party 2026-05-18 — Best-Server PCI plan visualization).
-            Le module gère lui-même son toggle ON/OFF, son pill picker de
-            bande, et son toggle Mod3/Hash — réutilise le même DOM mount
-            que VisualCoverage pour rester dans la sidebar dashboards. */}
-        <PciOverlayAdapter
-          enabled={pciOverlayEnabled}
-          band={pciOverlayBand || undefined}
-          colorMode={pciOverlayMode}
-          panelMount={pciOverlayPanelNode}
-          bbox={coverageBbox}
-          // Forward dashboard scope (plaque/dor/cluster) au backend pour
-          // que /cells-for-coverage ne ramène que les cellules du périmètre
-          // NANTES (et non 5000 cellules de France entière, ce qui faisait
-          // sauter la carte ailleurs au moment du fitBounds).
-          plaque={(() => {
-            const df = dashboardActive ? activeDashboardFilters : null;
-            const csv = (arr: string[] | undefined | null): string | undefined => {
-              const list = (arr || []).map(s => String(s).trim()).filter(Boolean);
-              return list.length ? list.join(',') : undefined;
-            };
-            return localPlaque !== 'ALL' ? localPlaque : csv(df?.plaque);
-          })()}
-          dor={(() => {
-            const df = dashboardActive ? activeDashboardFilters : null;
-            const csv = (arr: string[] | undefined | null): string | undefined => {
-              const list = (arr || []).map(s => String(s).trim()).filter(Boolean);
-              return list.length ? list.join(',') : undefined;
-            };
-            return localDor !== 'ALL' ? localDor : csv(df?.dor);
-          })()}
-          onEnabledChange={(flag) => {
-            setPciOverlayEnabled(flag);
-            // Mutex Sally : activer PCI Overlay éteint Visual Coverage
-            // simple ET annule toute KPI Overlay view active. Une seule
-            // couche colorée à la fois — sinon les polygones empilés
-            // donnent une bouillie illisible.
-            if (flag) {
-              setShowVisualCoverage(false);
-              setActiveKpiOverlayView(null);
-            }
-          }}
-          onBandChange={setPciOverlayBand}
-          onColorModeChange={setPciOverlayMode}
-        />
+        {/* PCI Overlay adapter removed per user request (panel + on-map
+            Voronoï coloring deleted). Cell Footprint (Visual Coverage)
+            is now the only ON/OFF coverage layer surfaced in the UI. */}
         {/* KPI Overlay adapter — RE-ENABLED on 2026-05-11 (v6.3.0).
             Calls buildKpiOverlay() directly for the per-cell Voronoï
             pavage (continuous territory tessellation), then overrides
