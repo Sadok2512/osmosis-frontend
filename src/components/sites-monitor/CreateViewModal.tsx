@@ -61,11 +61,11 @@ export interface ViewConfig {
   topoSearch?: TopoSearchPayload;
   // Parameter
   paramFilters?: Record<string, string>;
-  // Visual Coverage (replaces the previous RSRP "Coverage Prediction").
-  // Pure-topology Voronoi dominance polygons; the only knob is the
-  // max-radius cap that prevents large gaps at the bbox edge from
-  // generating unrealistic tiles.
+  // Cell Footprint (formerly "Visual Coverage") — pure-topology Voronoi
+  // dominance polygons. Knobs: max-radius cap + band selection so the
+  // operator only paints the cells of the bands they care about.
   coverageMaxRadiusM?: number;
+  coverageBands?: string[];
 }
 
 interface Props {
