@@ -10,6 +10,9 @@ interface KpiCreateWizardProps {
   onClose: () => void;
   initialData?: KpiCatalogEntry | null;
   mode?: 'create' | 'edit';
+  /** When true, render inline (no modal overlay, no fixed positioning) so
+   * the wizard can sit inside a tab panel. */
+  embedded?: boolean;
 }
 
 const STEPS = ['General Info', 'Formula', 'Numerator', 'Denominator', 'Test KPI', 'Review'];
@@ -104,7 +107,7 @@ const FormulaEditor: React.FC<{
   );
 };
 
-const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, initialData, mode = 'create' }) => {
+const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, initialData, mode = 'create', embedded = false }) => {
   const isEdit = mode === 'edit';
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -237,13 +240,18 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
   );
 
     const isAdvanced = editorMode === 'advanced';
+    const outerClass = embedded
+      ? 'w-full'
+      : 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm';
+    const cardClass = embedded
+      ? `rounded-2xl bg-card border border-border shadow-sm flex flex-col w-full ${isAdvanced ? '' : 'max-w-4xl mx-auto'}`
+      : `rounded-2xl bg-card border border-border shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col ${isAdvanced ? '' : 'w-full max-w-2xl mx-4 max-h-[85vh]'}`;
+    const cardStyle = !embedded && isAdvanced ? { width: '92vw', height: '92vh' } : undefined;
     return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className={outerClass}>
       <div
-        className={`rounded-2xl bg-card border border-border shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col ${
-          isAdvanced ? '' : 'w-full max-w-2xl mx-4 max-h-[85vh]'
-        }`}
-        style={isAdvanced ? { width: '92vw', height: '92vh' } : undefined}
+        className={cardClass}
+        style={cardStyle}
       >
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-border">

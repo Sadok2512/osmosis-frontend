@@ -267,6 +267,12 @@ export interface ReferencePeriod {
   order?: number;
   isDefault?: boolean;
   enabled?: boolean;
+  color?: string;
+  createdBy?: string;
+  /** Derived backend-side: 'global' | 'user'. */
+  scope?: 'global' | 'user';
+  /** Derived: rule.type. Backend mirrors this in the response for convenience. */
+  type?: string;
 }
 
 export const DEFAULT_DIVIDER_CONFIG: DividerWidgetConfig = {

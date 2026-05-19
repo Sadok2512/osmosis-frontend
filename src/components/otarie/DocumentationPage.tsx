@@ -3,7 +3,7 @@ import {
   Search, BookOpen, Database, BarChart3, Layers, Wifi, Cpu, Globe, Zap,
   ArrowDownUp, Timer, ShieldAlert, Activity, Signal, Gauge, Users,
   Download, Filter, ChevronRight, Info, Plus, Pencil, Trash2, X, Check, Save,
-  Sliders, Loader2, Bell, History
+  Sliders, Loader2, Bell, History, CalendarRange
 } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
@@ -13,10 +13,11 @@ const KpiCatalogView = lazy(() => import('@/components/documentation/KpiCatalogV
 const FilterRepositoryView3 = lazy(() => import('@/components/documentation/FilterRepositoryView3'));
 const QosNetworkView = lazy(() => import('@/components/documentation/QosNetworkView'));
 const TopologiePage = lazy(() => import('@/components/otarie/TopologiePage'));
+const ReferencePeriodManager = lazy(() => import('@/components/documentation/ReferencePeriodManager'));
 const NetworkTopologyPage = lazy(() => import('@/components/otarie/NetworkTopologyPage'));
 const KpiReferenceWorkspace2 = lazy(() => import('@/components/kpi-monitor/KpiReferenceWorkspace2'));
 
-type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'kpi_reference2' | 'filters' | 'filter3' | 'dimensions' | 'qos_network' | 'parameters_hub' | 'alarms' | 'cm_history' | 'topology';
+type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'kpi_reference2' | 'filters' | 'filter3' | 'dimensions' | 'qos_network' | 'parameters_hub' | 'alarms' | 'cm_history' | 'topology' | 'reference_periods';
 
 /* ─────────── TOPO DATA ─────────── */
 const topoFields = [
@@ -196,6 +197,7 @@ const DocumentationPage: React.FC = () => {
   const tabs: { id: DocTab; label: string; icon: React.ReactNode }[] = [
     { id: 'filter3', label: 'Filters', icon: <Filter className="w-4 h-4" /> },
     { id: 'kpi_reference2', label: 'KPI Reference', icon: <BookOpen className="w-4 h-4" /> },
+    { id: 'reference_periods', label: 'Reference Periods', icon: <CalendarRange className="w-4 h-4" /> },
     { id: 'topo', label: 'Topologie', icon: <Globe className="w-4 h-4" /> },
   ];
 
@@ -271,6 +273,10 @@ const DocumentationPage: React.FC = () => {
         ) : activeTab === 'kpi_reference2' ? (
           <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
             <KpiReferenceWorkspace2 />
+          </Suspense>
+        ) : activeTab === 'reference_periods' ? (
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+            <ReferencePeriodManager />
           </Suspense>
         ) : activeTab === 'topology' ? (
           <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>

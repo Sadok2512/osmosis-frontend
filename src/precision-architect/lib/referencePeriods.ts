@@ -59,6 +59,10 @@ function normalizeReferencePeriod(raw: any): ReferencePeriod | null {
     order: Number.isFinite(Number(raw.order ?? raw.sort_order)) ? Number(raw.order ?? raw.sort_order) : undefined,
     isDefault: Boolean(raw.isDefault ?? raw.is_default),
     enabled: raw.enabled ?? raw.is_active ?? true,
+    color: raw.color || undefined,
+    createdBy: raw.createdBy || raw.created_by || undefined,
+    scope: raw.scope === 'global' || raw.scope === 'user' ? raw.scope : undefined,
+    type: raw.type || (rule && typeof rule === 'object' ? rule.type : undefined) || undefined,
   };
 }
 
