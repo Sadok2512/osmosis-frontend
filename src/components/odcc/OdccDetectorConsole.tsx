@@ -716,9 +716,6 @@ export default function OdccDetectorConsole({
             <button onClick={() => { setDraft(emptyDetector()); setEditingId(null); setTab('builder'); }} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.28)] transition-all hover:bg-primary/90">
               <Plus className="mr-2 inline h-4 w-4" /> Create Detector
             </button>
-            <button onClick={exportCsv} className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
-              <Download className="mr-2 inline h-4 w-4" /> Export Results
-            </button>
           </div>
         </div>
       </header>
