@@ -14909,11 +14909,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     }
                     if (settings.center && Array.isArray(settings.center)) {
                       // Skip flyTarget when a dashboard is active (its sites refit
-                      // handles centering) or on a Cell Footprint toggle (camera
-                      // must stay put — otherwise we briefly fly to a stale saved
-                      // center like Marseille before refitting to Nantes).
+                      // handles centering), on a Cell Footprint toggle, or on a
+                      // KPI Overlay activation — the overlay's own bbox fit will
+                      // center the camera. Otherwise a stale saved center
+                      // (often the Marseille [43.29, 5.36] default) briefly
+                      // jumps the camera before it snaps back to the data.
                       const c = settings.center as [number, number];
-                      if (!dashboardActive && !isCoverageOverlayOnly && c[0] > 41 && c[0] < 52) setFlyTarget(c);
+                      const isKpiOverlayView = settings.viewType === 'kpi_overlay';
+                      if (!dashboardActive && !isCoverageOverlayOnly && !isKpiOverlayView && c[0] > 41 && c[0] < 52) setFlyTarget(c);
                     }
 
                     if (!isCoverageOverlayOnly) {
