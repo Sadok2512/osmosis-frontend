@@ -763,10 +763,11 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
         Object.entries(paramFilters).filter(([, v]) => v.trim())
       );
     } else if (viewType === 'coverage') {
-      // Visual Coverage — only carries the max-radius cap. The layer
-      // ON/OFF state is wired by the consumer (handleCreateViewFromModal)
-      // which flips settings.showVisualCoverage on save.
+      // Cell Footprint — radius cap + selected bands. Layer ON/OFF
+      // is wired by the consumer (handleCreateViewFromModal) which
+      // flips settings.showVisualCoverage on save.
       config.coverageMaxRadiusM = coverageMaxRadiusM;
+      if (coverageBands.length > 0) config.coverageBands = [...coverageBands];
     }
     onSave(config);
   };
