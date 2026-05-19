@@ -806,7 +806,12 @@ const AlarmCenterPage: React.FC = () => {
         {/* FLOATING LEFT DRAWER — Details + AI */}
         {detailsOpen && (
           <div className="fixed inset-0 z-[60] pointer-events-none">
-            {/* No backdrop — map stays visible in background, sidebar floats on top */}
+            {/* Transparent click-catcher: map reste visible, clic en dehors ferme la sidebar */}
+            <div
+              className="absolute inset-0 pointer-events-auto"
+              onClick={() => setDetailsOpen(false)}
+            />
+
 
             <aside className="pointer-events-auto absolute right-0 top-0 h-full w-[440px] max-w-[92vw] bg-[#f6f8fb] shadow-[-8px_0_28px_rgba(15,23,42,0.12)] border-l border-[#e7edf5] overflow-y-auto p-4 space-y-4 animate-in slide-in-from-right duration-300">
           {selected && (
