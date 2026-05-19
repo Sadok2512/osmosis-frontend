@@ -40,6 +40,9 @@ const DEFAULTS = {
   sectorOffsetMeters: 100,
   visualRadiusMeters: 10000,
   visualRadiusSegments: 32,
+  minRfRadiusMeters: 180,
+  maxRfRadiusMeters: 5200,
+  maxRfAreaSqKm: 42,
 };
 
 // 'unknown' is the No-data tier (grey) used when every cell of a site is
@@ -82,6 +85,64 @@ function representativePci(cells) {
     if (pci != null) return pci;
   }
   return null;
+}
+
+function clampNumber(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function siteKeyOf(seed) {
+  return seed.siteId || seed.siteName || seed.id || '';
+}
+
+function computeAdaptiveRfRadii(seeds, cfg) {
+  const maxByArea = Math.sqrt((Number(cfg.maxRfAreaSqKm || 42) * 1_000_000) / Math.PI);
+  const hardMax = Math.min(Number(cfg.maxRfRadiusMeters || 5200), maxByArea);
+  const minR = Number(cfg.minRfRadiusMeters || 450);
+  return seeds.map((seed, i) => {
+    const distances = [];
+    const key = siteKeyOf(seed);
+    const sx = Number.isFinite(seed.siteX) ? seed.siteX : seed.x;
+    const sy = Number.isFinite(seed.siteY) ? seed.siteY : seed.y;
+    for (let j = 0; j < seeds.length; j++) {
+      if (i === j) continue;
+      const other = seeds[j];
+      if (siteKeyOf(other) === key) continue;
+      const ox = Number.isFinite(other.siteX) ? other.siteX : other.x;
+      const oy = Number.isFinite(other.siteY) ? other.siteY : other.y;
+      const d = Math.hypot(ox - sx, oy - sy);
+      if (Number.isFinite(d) && d > 1) distances.push(d);
+    }
+    distances.sort((a, b) => a - b);
+    if (distances.length === 0) return Math.min(hardMax, 2600);
+    const d1 = distances[0];
+    const d2 = distances[1] ?? d1;
+    const d3 = distances[2] ?? d2;
+    const densityDistance = (d1 * 0.58) + (d2 * 0.27) + (d3 * 0.15);
+    const urbanFactor = d1 < 450 ? 0.34 : d1 < 900 ? 0.42 : d1 < 1600 ? 0.52 : 0.72;
+    const nearestCap = d1 * urbanFactor;
+    const densityCap = densityDistance * (d1 < 900 ? 0.30 : 0.42);
+    const raw = Math.min(nearestCap, densityCap, hardMax);
+    return clampNumber(raw, minR, hardMax);
+  });
+}
+
+function orientedRfClip(seed, radiusMeters, cfg) {
+  if (seed.isOmni) {
+    return approximateDisk({ x: seed.siteX ?? seed.x, y: seed.siteY ?? seed.y }, radiusMeters, 6);
+  }
+  const beam = Number(seed.beamwidth);
+  const realisticBeam = Number.isFinite(beam) && beam > 0
+    ? clampNumber(beam * 1.75, 95, 155)
+    : 120;
+  const az = Number.isFinite(Number(seed.azimuth)) ? Number(seed.azimuth) : 0;
+  return approximateWedge(
+    { x: seed.siteX ?? seed.x, y: seed.siteY ?? seed.y },
+    radiusMeters,
+    az - realisticBeam / 2,
+    az + realisticBeam / 2,
+    cfg.wedgeSegments,
+  );
 }
 
 //#region wedge-dedup
@@ -188,9 +249,10 @@ function buildCellPciPolygons(cells, cfg, t0) {
 
   // Match the live KPI overlay adapter, not the older JS demo helper:
   // project to flat metres, merge colocated cells by site+azimuth bucket,
-  // offset each sector seed a little along azimuth, then clip the Voronoi
-  // polygon with a 10 km disk. Raw lon/lat seeds collapse colocated sectors
-  // into one site polygon, which is the bug reported on Cell Footprint.
+  // offset each sector seed a little along azimuth, then clip the Voronoï
+  // polygon by adaptive site density and sector direction. Raw lon/lat
+  // seeds collapse colocated sectors into one site polygon, which is the
+  // bug reported on Cell Footprint.
   const latRef = validCells.reduce((sum, c) => sum + Number(c.lat), 0) / validCells.length;
   const M_PER_DEG_LAT = 111000;
   const M_PER_DEG_LNG = 111000 * Math.cos((latRef * Math.PI) / 180);
@@ -204,8 +266,10 @@ function buildCellPciPolygons(cells, cfg, t0) {
     const siteKey = raw.siteId || raw.siteName || raw.id || `${lat},${lon}`;
     const key = `${siteKey}|${azBucket}`;
     const rad = (az * Math.PI) / 180;
-    const x = lon * M_PER_DEG_LNG + Math.sin(rad) * cfg.sectorOffsetMeters;
-    const y = lat * M_PER_DEG_LAT + Math.cos(rad) * cfg.sectorOffsetMeters;
+    const siteX = lon * M_PER_DEG_LNG;
+    const siteY = lat * M_PER_DEG_LAT;
+    const x = siteX + Math.sin(rad) * cfg.sectorOffsetMeters;
+    const y = siteY + Math.cos(rad) * cfg.sectorOffsetMeters;
     const id = raw.id || `${siteKey}-${azBucket}`;
     const pci = pciNumber(raw.pci);
     const acc = seedMap.get(key);
@@ -218,7 +282,10 @@ function buildCellPciPolygons(cells, cfg, t0) {
         lon,
         x,
         y,
+        siteX,
+        siteY,
         azimuth: az,
+        beamwidth: Number(raw.beamwidth),
         pci,
       });
     } else {
@@ -245,8 +312,8 @@ function buildCellPciPolygons(cells, cfg, t0) {
     return {
       ...seed,
       isOmni: true,
-      x: seed.lon * M_PER_DEG_LNG,
-      y: seed.lat * M_PER_DEG_LAT,
+      x: seed.siteX,
+      y: seed.siteY,
       azimuth: 0,
       beamwidth: 360,
     };
@@ -276,6 +343,7 @@ function buildCellPciPolygons(cells, cfg, t0) {
     bbox,
     { neighborLimit: cfg.neighborLimit },
   );
+  const adaptiveRadii = computeAdaptiveRfRadii(seeds, cfg);
 
   const features = [];
   let totalNeighbors = 0;
@@ -283,12 +351,15 @@ function buildCellPciPolygons(cells, cfg, t0) {
     const poly = polys[i];
     if (!poly || poly.length < 3) return;
 
-    const clipShape = approximateDisk(
-      { x: cell.x, y: cell.y },
-      cfg.visualRadiusMeters,
+    const radius = adaptiveRadii[i] || Math.min(cfg.visualRadiusMeters, cfg.maxRfRadiusMeters);
+    const diskClip = approximateDisk(
+      { x: cell.siteX ?? cell.x, y: cell.siteY ?? cell.y },
+      radius,
       cell.isOmni ? 6 : cfg.visualRadiusSegments,
     );
-    const clippedPoly = polygonIntersection(poly, clipShape);
+    const boundedPoly = polygonIntersection(poly, diskClip);
+    const sectorClip = orientedRfClip(cell, radius, cfg);
+    const clippedPoly = polygonIntersection(boundedPoly, sectorClip);
     if (!clippedPoly || clippedPoly.length < 3) return;
     const clipped = clippedPoly.map((p) => [p.x / M_PER_DEG_LNG, p.y / M_PER_DEG_LAT]);
     clipped.push(clipped[0]);
@@ -315,6 +386,7 @@ function buildCellPciPolygons(cells, cfg, t0) {
         color: colorForCellPci(cell),
         colorSource: cell.pci == null ? 'fallback' : 'pci',
         neighbors,
+        rfRadiusMeters: Math.round(radius),
         cellCount: 1,
       },
     });
