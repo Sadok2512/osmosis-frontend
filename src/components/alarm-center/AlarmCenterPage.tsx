@@ -1165,18 +1165,23 @@ const SitesMiniMap: React.FC<{
     return () => clearTimeout(id);
   }, [fullscreen]);
 
-  // Render all-network site dots (de-duplicate against alarm sites)
+  // Render all-network site dots (de-duplicate against alarm sites).
+  // Only display when zoomed in (>= 12) and cap rendering at 500 markers.
   useEffect(() => {
     const layer = allSitesLayerRef.current;
     if (!layer) return;
     layer.clearLayers();
-    const alarmNames = new Set(sites.map(s => s.site));
     const zoom = mapRef.current?.getZoom() ?? 6;
-    const r = zoom >= 11 ? 4 : zoom >= 8 ? 3 : 2;
-    allSites.forEach((s) => {
+    if (zoom < 12) return;
+    const alarmNames = new Set(sites.map(s => s.site));
+    const r = zoom >= 14 ? 4 : 3;
+    const MAX = 500;
+    let rendered = 0;
+    for (const s of allSites) {
+      if (rendered >= MAX) break;
       const [lat, lng] = s.coordinates || [];
-      if (typeof lat !== "number" || typeof lng !== "number") return;
-      if (alarmNames.has(s.site_name)) return;
+      if (typeof lat !== "number" || typeof lng !== "number") continue;
+      if (alarmNames.has(s.site_name)) continue;
       const dot = L.circleMarker([lat, lng], {
         radius: r,
         color: "#64748b",
@@ -1188,7 +1193,8 @@ const SitesMiniMap: React.FC<{
         direction: "top",
       });
       dot.addTo(layer);
-    });
+      rendered++;
+    }
   }, [allSites, sites]);
 
   // Render alarm markers (top layer)
