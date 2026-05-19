@@ -864,8 +864,7 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({
   return (
     <div className="flex flex-col h-full min-h-0">
       {headerBar}
-      <div className="flex-1 min-h-0 grid grid-cols-[25%_50%_25%]">
-        {leftCol}
+      <div className="flex-1 min-h-0 grid grid-cols-[65%_35%]">
         {centerCol}
         {rightCol}
       </div>
