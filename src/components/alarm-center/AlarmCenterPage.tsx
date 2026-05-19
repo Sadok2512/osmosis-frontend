@@ -1049,8 +1049,13 @@ const SitesMiniMap: React.FC<{
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  const allSitesLayerRef = useRef<L.LayerGroup | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const [mapHeight, setMapHeight] = useState<number>(320);
   const resizingRef = useRef(false);
+  const [allSites, setAllSites] = useState<SiteSummary[]>([]);
+  const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Drag-to-resize handlers (disabled in fullscreen)
   useEffect(() => {
@@ -1082,6 +1087,32 @@ const SitesMiniMap: React.FC<{
     return () => clearTimeout(id);
   }, [mapHeight]);
 
+  // Load all-network sites for the current viewport (bbox + zoom aware).
+  const loadBboxSites = React.useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const b = map.getBounds();
+    const zoom = map.getZoom();
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    fetchSitesByBbox(
+      {
+        minLat: b.getSouth(),
+        maxLat: b.getNorth(),
+        minLng: b.getWest(),
+        maxLng: b.getEast(),
+      },
+      undefined,
+      ctrl.signal,
+      zoom,
+    )
+      .then(({ sites }) => setAllSites(sites))
+      .catch((err) => {
+        if (err?.name !== "AbortError") console.warn("[AlarmMap] bbox load failed", err);
+      });
+  }, []);
+
   // Init map once
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -1102,15 +1133,31 @@ const SitesMiniMap: React.FC<{
       subdomains: "abcd",
     }).addTo(map);
     map.getContainer().style.background = "#eef3f9";
+    allSitesLayerRef.current = L.layerGroup().addTo(map);
     layerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
-    setTimeout(() => map.invalidateSize(), 50);
+    setTimeout(() => {
+      map.invalidateSize();
+      loadBboxSites();
+    }, 50);
+
+    let t: number | undefined;
+    const onMoveEnd = () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(loadBboxSites, 250);
+    };
+    map.on("moveend", onMoveEnd);
+
     return () => {
+      map.off("moveend", onMoveEnd);
+      window.clearTimeout(t);
+      abortRef.current?.abort();
       map.remove();
       mapRef.current = null;
       layerRef.current = null;
+      allSitesLayerRef.current = null;
     };
-  }, []);
+  }, [loadBboxSites]);
 
   // Invalidate on fullscreen toggle / resize
   useEffect(() => {
@@ -1118,7 +1165,33 @@ const SitesMiniMap: React.FC<{
     return () => clearTimeout(id);
   }, [fullscreen]);
 
-  // Render markers
+  // Render all-network site dots (de-duplicate against alarm sites)
+  useEffect(() => {
+    const layer = allSitesLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    const alarmNames = new Set(sites.map(s => s.site));
+    const zoom = mapRef.current?.getZoom() ?? 6;
+    const r = zoom >= 11 ? 4 : zoom >= 8 ? 3 : 2;
+    allSites.forEach((s) => {
+      const [lat, lng] = s.coordinates || [];
+      if (typeof lat !== "number" || typeof lng !== "number") return;
+      if (alarmNames.has(s.site_name)) return;
+      const dot = L.circleMarker([lat, lng], {
+        radius: r,
+        color: "#64748b",
+        weight: 1,
+        fillColor: "#94a3b8",
+        fillOpacity: 0.7,
+      });
+      dot.bindTooltip(`<b>${s.site_name}</b><br/>${s.dor || ""} · ${s.vendor || ""}`, {
+        direction: "top",
+      });
+      dot.addTo(layer);
+    });
+  }, [allSites, sites]);
+
+  // Render alarm markers (top layer)
   useEffect(() => {
     if (!mapRef.current || !layerRef.current) return;
     layerRef.current.clearLayers();
@@ -1153,6 +1226,37 @@ const SitesMiniMap: React.FC<{
     }
   }, [sites]);
 
+  // Search suggestions (alarm sites + all-network sites)
+  const suggestions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [] as Array<{ name: string; lat: number; lng: number; sub: string }>;
+    const out: Array<{ name: string; lat: number; lng: number; sub: string }> = [];
+    const seen = new Set<string>();
+    sites.forEach((s) => {
+      if (s.lat == null || s.lng == null) return;
+      if (!s.site.toLowerCase().includes(q)) return;
+      if (seen.has(s.site)) return;
+      seen.add(s.site);
+      out.push({ name: s.site, lat: s.lat, lng: s.lng, sub: `${s.region} · ${s.critical} crit` });
+    });
+    allSites.forEach((s) => {
+      const [lat, lng] = s.coordinates || [];
+      if (typeof lat !== "number" || typeof lng !== "number") return;
+      if (!s.site_name.toLowerCase().includes(q)) return;
+      if (seen.has(s.site_name)) return;
+      seen.add(s.site_name);
+      out.push({ name: s.site_name, lat, lng, sub: `${s.dor || ""} · ${s.vendor || ""}` });
+    });
+    return out.slice(0, 12);
+  }, [search, sites, allSites]);
+
+  const flyToSite = (lat: number, lng: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.flyTo([lat, lng], Math.max(map.getZoom(), 13), { duration: 0.6 });
+    setSearchOpen(false);
+  };
+
   return (
     <div
       ref={wrapperRef}
@@ -1160,6 +1264,40 @@ const SitesMiniMap: React.FC<{
       style={fullscreen ? undefined : { height: mapHeight }}
     >
       <div ref={containerRef} className="absolute inset-0" />
+
+      {/* Search box */}
+      <div className="absolute top-2 left-12 z-[500] w-[260px]">
+        <div className="flex items-center gap-1.5 rounded-md bg-white/95 backdrop-blur ring-1 ring-[#e7edf5] shadow-sm px-2 py-1.5">
+          <Search size={13} className="text-slate-500" />
+          <input
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setSearchOpen(true); }}
+            onFocus={() => setSearchOpen(true)}
+            placeholder="Search site…"
+            className="flex-1 bg-transparent outline-none text-[12px] text-slate-800 placeholder:text-slate-400"
+          />
+          {search && (
+            <button onClick={() => { setSearch(""); setSearchOpen(false); }} className="text-slate-400 hover:text-slate-700">
+              <X size={12} />
+            </button>
+          )}
+        </div>
+        {searchOpen && suggestions.length > 0 && (
+          <div className="mt-1 max-h-[260px] overflow-y-auto rounded-md bg-white ring-1 ring-[#e7edf5] shadow-lg">
+            {suggestions.map((s) => (
+              <button
+                key={s.name}
+                onClick={() => flyToSite(s.lat, s.lng)}
+                className="block w-full text-left px-2.5 py-1.5 text-[11.5px] hover:bg-blue-50 border-b border-slate-50 last:border-0"
+              >
+                <div className="font-semibold text-slate-800">{s.name}</div>
+                <div className="text-[10px] text-slate-500">{s.sub}</div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {!fullscreen && (
         <div
           onMouseDown={(e) => {
@@ -1178,9 +1316,10 @@ const SitesMiniMap: React.FC<{
         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" /> Critical ≥4</span>
         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" /> ≥2</span>
         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" /> Low</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-400" /> Site</span>
       </div>
       <div className="absolute top-2 right-2 z-[400] rounded-md bg-white/95 backdrop-blur px-2 py-1 ring-1 ring-[#e7edf5] text-[10px] font-semibold text-slate-700 shadow-sm">
-        {sites.filter(s => s.lat != null && s.lng != null).length} / {sites.length} sites located
+        {sites.filter(s => s.lat != null && s.lng != null).length} alarm · {allSites.length} sites
       </div>
     </div>
   );
