@@ -1736,15 +1736,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                 barMaxWidth: 20,
                 stack: sp.isStacked ? 'total' : undefined,
-                areaStyle: sp.showArea ? {
-                  color: {
-                    type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                    colorStops: [
-                      { offset: 0, color: `${color}66` },
-                      { offset: 1, color: `${color}08` },
-                    ],
-                  },
-                } : undefined,
+                areaStyle: sp.showArea ? buildModernAreaStyle(color, sp.isModernArea) : undefined,
               }];
             }
 
@@ -1787,15 +1779,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                   itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                   barMaxWidth: 20,
                   stack: sp.isStacked ? 'total' : undefined,
-                  areaStyle: sp.showArea ? {
-                    color: {
-                      type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                      colorStops: [
-                        { offset: 0, color: `${color}66` },
-                        { offset: 1, color: `${color}08` },
-                      ],
-                    },
-                  } : undefined,
+                  areaStyle: sp.showArea ? buildModernAreaStyle(color, sp.isModernArea) : undefined,
                 };
               });
             }
@@ -1829,15 +1813,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                 barMaxWidth: 20,
                 stack: sp.isStacked ? 'total' : undefined,
-                areaStyle: sp.showArea ? {
-                  color: {
-                    type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                    colorStops: [
-                      { offset: 0, color: `${color}66` },
-                      { offset: 1, color: `${color}08` },
-                    ],
-                  },
-                } : undefined,
+                areaStyle: sp.showArea ? buildModernAreaStyle(color, sp.isModernArea) : undefined,
               };
             });
           });
@@ -1867,15 +1843,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               itemStyle: { color: def.color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
               barMaxWidth: 20,
               stack: sp.isStacked ? 'total' : undefined,
-              areaStyle: sp.showArea ? {
-                color: {
-                  type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                  colorStops: [
-                    { offset: 0, color: `${def.color}66` },
-                    { offset: 1, color: `${def.color}08` },
-                  ],
-                },
-              } : undefined,
+              areaStyle: sp.showArea ? buildModernAreaStyle(def.color, sp.isModernArea) : undefined,
             };
           });
         }
@@ -1930,15 +1898,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
               barMaxWidth: 20,
               stack: sp.isStacked ? 'total_counters' : undefined,
-              areaStyle: sp.showArea ? {
-                color: {
-                  type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                  colorStops: [
-                    { offset: 0, color: `${color}30` },
-                    { offset: 1, color: `${color}08` },
-                  ],
-                },
-              } : undefined,
+              areaStyle: sp.showArea ? buildModernAreaStyle(color, sp.isModernArea) : undefined,
               // yAxisIndex will be set later based on hasRightAxis
               yAxisIndex: 1,
             });
@@ -1997,15 +1957,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
               barMaxWidth: 20,
               stack: sp.isStacked ? 'total_counters' : undefined,
-              areaStyle: sp.showArea ? {
-                color: {
-                  type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                  colorStops: [
-                    { offset: 0, color: `${color}30` },
-                    { offset: 1, color: `${color}08` },
-                  ],
-                },
-              } : undefined,
+              areaStyle: sp.showArea ? buildModernAreaStyle(color, sp.isModernArea) : undefined,
               yAxisIndex: series.length > 1 ? 1 : 0,
             });
             hasCounterSeries = true;
