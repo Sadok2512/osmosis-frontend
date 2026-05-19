@@ -92,6 +92,8 @@ const Index: React.FC = () => {
   const [highlightedCellIds, setHighlightedCellIds] = useState<string[]>([]);
   const [aiInitialPrompt, setAiInitialPrompt] = useState<string | undefined>();
   const [investigatorResetKey, setInvestigatorResetKey] = useState(0);
+  const [paEverMounted, setPaEverMounted] = useState(false);
+  useEffect(() => { if (activeTab === 'precision_architect') setPaEverMounted(true); }, [activeTab]);
   const [enabledModules, setEnabledModules] = useState<Record<string, boolean>>(() => {
     const saved = localStorage.getItem('osmosis_enabled_modules');
     if (saved) return JSON.parse(saved);
