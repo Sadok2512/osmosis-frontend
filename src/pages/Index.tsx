@@ -92,6 +92,8 @@ const Index: React.FC = () => {
   const [highlightedCellIds, setHighlightedCellIds] = useState<string[]>([]);
   const [aiInitialPrompt, setAiInitialPrompt] = useState<string | undefined>();
   const [investigatorResetKey, setInvestigatorResetKey] = useState(0);
+  const [paEverMounted, setPaEverMounted] = useState(false);
+  useEffect(() => { if (activeTab === 'precision_architect') setPaEverMounted(true); }, [activeTab]);
   const [enabledModules, setEnabledModules] = useState<Record<string, boolean>>(() => {
     const saved = localStorage.getItem('osmosis_enabled_modules');
     if (saved) return JSON.parse(saved);
@@ -257,7 +259,7 @@ const Index: React.FC = () => {
       case 'topology':
         return <NetworkTopologyPage />;
       case 'precision_architect':
-        return <PrecisionArchitectPage />;
+        return null;
       default:
         return null;
     }
@@ -288,8 +290,13 @@ const Index: React.FC = () => {
             <div style={{ display: activeTab === 'sites' || activeTab === 'list' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
               <SitesMonitor isVisible={activeTab === 'sites' || activeTab === 'list'} filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />
             </div>
+            {paEverMounted && (
+              <div style={{ display: activeTab === 'precision_architect' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+                <PrecisionArchitectPage />
+              </div>
+            )}
           </Suspense>
-          {activeTab !== 'sites' && activeTab !== 'list' && (
+          {activeTab !== 'sites' && activeTab !== 'list' && activeTab !== 'precision_architect' && (
             <Suspense fallback={<LazyFallback />}>
               {renderContent()}
             </Suspense>
