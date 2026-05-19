@@ -3322,7 +3322,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
                                   {view.is_default && <Star size={8} className="text-amber-500 fill-amber-500 shrink-0" />}
-                                  <span className={`text-[11px] font-semibold truncate ${isViewActive ? 'text-primary font-bold' : 'text-foreground'}`}>{view.name}</span>
+                                  <span className={`text-[11px] font-semibold truncate ${isViewActive ? 'text-primary font-bold' : 'text-foreground'}`}>{vs.viewType === 'coverage' ? 'Cell Footprint' : view.name}</span>
                                   {vs.viewType === 'coverage' ? (
                                     <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide border ${isViewActive ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40' : 'bg-muted text-muted-foreground border-border'}`}>
                                       {isViewActive ? 'ON' : 'OFF'}
