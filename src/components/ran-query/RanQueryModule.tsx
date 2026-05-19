@@ -192,6 +192,11 @@ const FALLBACK_AGGREGATION_OPTIONS: { value: string; label: string }[] = [
   { value: 'arcep', label: 'Zone ARCEP' },
 ];
 const DEFAULT_DIMENSIONS = ['Neighbors', 'PMQAP', 'Transport'];
+const REPORT_WARN_KPI_COUNT = 20;
+const REPORT_HARD_KPI_COUNT = 50;
+const REPORT_KPI_BATCH_TIMEOUT_MS = 180_000;
+const REPORT_COUNTER_BATCH_TIMEOUT_MS = 120_000;
+const REPORT_BACKEND_CONCURRENCY_LIMIT = 4;
 
 const DEFAULT_FORM = (): CreateFormState => {
   const now = new Date();
@@ -482,7 +487,66 @@ function getReportDimensionValue(row: Record<string, any>, aggregation: string |
   return value == null ? undefined : String(value);
 }
 
-const MAX_CONCURRENT = 4;
+const MAX_CONCURRENT = REPORT_BACKEND_CONCURRENCY_LIMIT;
+
+interface ReportSelectionValidation {
+  kpiKeys: string[];
+  counterKeys: string[];
+  unknownKeys: string[];
+  warnings: string[];
+  errors: string[];
+  isValid: boolean;
+}
+
+function validateReportSelection(
+  selectedKeys: string[],
+  kpiKeySet: Set<string>,
+  counterKeySet: Set<string>,
+  options?: {
+    vendors?: string[];
+    aggregations?: string[];
+    sites?: string[];
+  },
+): ReportSelectionValidation {
+  const uniqueKeys = Array.from(new Set((selectedKeys || []).map(key => String(key || '').trim()).filter(Boolean)));
+  const kpiKeys = uniqueKeys.filter(key => kpiKeySet.has(key));
+  const counterKeys = uniqueKeys.filter(key => counterKeySet.has(key));
+  const unknownKeys = uniqueKeys.filter(key => !kpiKeySet.has(key) && !counterKeySet.has(key));
+  const warnings: string[] = [];
+  const errors: string[] = [];
+
+  if (uniqueKeys.length === 0) errors.push('Select at least one normalized KPI or PM counter.');
+  if (unknownKeys.length > 0) {
+    errors.push(`Unknown KPI / counter key(s): ${unknownKeys.slice(0, 8).join(', ')}${unknownKeys.length > 8 ? ` +${unknownKeys.length - 8} more` : ''}. Unknown normalized KPIs are not routed as raw counters.`);
+  }
+  if (uniqueKeys.length >= REPORT_HARD_KPI_COUNT) {
+    errors.push(`Report has ${uniqueKeys.length} selected metrics. Hard limit is ${REPORT_HARD_KPI_COUNT}. Reduce the selection before creating or executing.`);
+  } else if (uniqueKeys.length >= REPORT_WARN_KPI_COUNT) {
+    warnings.push(`Large report: ${uniqueKeys.length} selected metrics. Expect slower execution; consider splitting the report.`);
+  }
+
+  const vendors = options?.vendors || [];
+  const aggregations = (options?.aggregations || []).map(a => canonicalAggKey(a) || a);
+  const hasSiteAggregation = aggregations.includes('site') || aggregations.includes('cell');
+  if (vendors.length > 1 && hasSiteAggregation && uniqueKeys.length >= REPORT_WARN_KPI_COUNT) {
+    warnings.push('Heavy scope: multi-vendor + site/cell aggregation + large metric set. Backend will batch per vendor; narrow scope if possible.');
+  }
+  if ((options?.sites?.length || 0) > 50 && uniqueKeys.length >= REPORT_WARN_KPI_COUNT) {
+    warnings.push(`Heavy site filter: ${options?.sites?.length || 0} sites with ${uniqueKeys.length} metrics.`);
+  }
+  if (kpiKeys.length > 0 && counterKeys.length > 0) {
+    warnings.push(`Mixed execution: ${kpiKeys.length} normalized KPI(s) use KPI pipeline; ${counterKeys.length} raw counter(s) use PM counter pipeline.`);
+  }
+
+  return {
+    kpiKeys,
+    counterKeys,
+    unknownKeys,
+    warnings,
+    errors,
+    isValid: errors.length === 0,
+  };
+}
 
 /** Run promises with concurrency limit. */
 async function pLimit<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[]> {
@@ -502,6 +566,7 @@ async function pLimit<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[
 async function executeReportApi(
   report: RanReport,
   kpiKeySet: Set<string>,
+  counterKeySet: Set<string>,
 ): Promise<{ rows: ReportResultRow[]; errors: string[]; denseFillNotice?: string }> {
   const { vendors, base } = buildFilterPayload(report);
   const errors: string[] = [];
@@ -511,9 +576,19 @@ async function executeReportApi(
   // can warn the user that the timeline is sparse.
   let denseFillNotice: string | undefined;
 
-  // Separate KPIs from counters
-  const kpiKeys = report.kpis.filter(k => kpiKeySet.has(k));
-  const counterKeys = report.kpis.filter(k => !kpiKeySet.has(k));
+  const validation = validateReportSelection(report.kpis, kpiKeySet, counterKeySet, {
+    vendors,
+    aggregations: report.aggregations || (report.aggregation ? [report.aggregation] : ['site']),
+    sites: report.sites,
+  });
+  if (!validation.isValid) {
+    return { rows: [], errors: validation.errors };
+  }
+
+  // Separate KPIs from counters. Unknown keys were rejected above; never
+  // silently route an unmapped normalized KPI through PM counters.
+  const kpiKeys = validation.kpiKeys;
+  const counterKeys = validation.counterKeys;
 
   // ── Fetch KPIs (batch per vendor: 1 request per vendor with all KPI codes) ──
   const kpiTasks = kpiKeys.length === 0 ? [] : vendors.map(vendor => async (): Promise<ReportResultRow[]> => {
@@ -521,7 +596,7 @@ async function executeReportApi(
       const payload = buildMonitorQueryPayload(report, vendor, kpiKeys);
       const url = getApiUrl('monitor/query/table');
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 180_000);
+      const timeout = setTimeout(() => controller.abort(), REPORT_KPI_BATCH_TIMEOUT_MS);
       logBackendRequest('Rapport Builder KPI Table', 'POST', url, payload);
       const res = await fetch(url, {
         method: 'POST',
@@ -597,7 +672,7 @@ async function executeReportApi(
         split_by_field: base.split_by_field || 'cell_name',
       };
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 120_000);
+      const timeout = setTimeout(() => controller.abort(), REPORT_COUNTER_BATCH_TIMEOUT_MS);
       logBackendRequest('Rapport Builder Counter Timeseries', 'POST', url, body);
       const res = await fetch(url, {
         method: 'POST',
@@ -963,8 +1038,16 @@ const RanQueryModule: React.FC = () => {
   // Split current selection into KPI keys vs counter keys
   const kpiKeySet = useMemo(() => new Set(allKpiCatalog.map(k => k.kpi_key)), [allKpiCatalog]);
   const selectedKpiKeys = useMemo(() => form.selectedKpis.filter(k => kpiKeySet.has(k)), [form.selectedKpis, kpiKeySet]);
-  const counterKeySet = useMemo(() => new Set(counterCatalog.map((c: any) => c.counter_name)), [counterCatalog]);
+  const counterKeySet = useMemo(() => new Set(
+    counterCatalog.flatMap((c: any) => [c.counter_name, c.counter_id, c.name, c.key].filter(Boolean).map(String))
+  ), [counterCatalog]);
   const selectedCounterKeys = useMemo(() => form.selectedKpis.filter(k => counterKeySet.has(k)), [form.selectedKpis, counterKeySet]);
+  const reportSelectionValidation = useMemo(() => validateReportSelection(form.selectedKpis, kpiKeySet, counterKeySet, {
+    vendors: form.vendors,
+    aggregations: form.aggregations,
+    sites: form.sites,
+  }), [counterKeySet, form.aggregations, form.selectedKpis, form.sites, form.vendors, kpiKeySet]);
+  const canCreateReport = Boolean(form.name.trim()) && form.selectedKpis.length > 0 && form.technologies.length > 0 && reportSelectionValidation.isValid;
   const selectedMetricRows = useMemo(() => {
     const normalizeValues = (values: Array<string | undefined | null>, fallback: string[]) => {
       const parsed = values
@@ -974,7 +1057,10 @@ const RanQueryModule: React.FC = () => {
       return Array.from(new Set(parsed.length > 0 ? parsed : fallback));
     };
     const kpiByKey = new Map([...allKpiCatalog, ...kpiCatalog].map(kpi => [kpi.kpi_key, kpi]));
-    const counterByName = new Map(counterCatalog.map((counter: any) => [counter.counter_name, counter]));
+    const counterByName = new Map<string, any>();
+    counterCatalog.forEach((counter: any) => {
+      [counter.counter_name, counter.counter_id, counter.name, counter.key].filter(Boolean).forEach(key => counterByName.set(String(key), counter));
+    });
     return form.selectedKpis.map(key => {
       const kpi = kpiByKey.get(key);
       if (kpi) {
@@ -1001,8 +1087,8 @@ const RanQueryModule: React.FC = () => {
       return {
         key,
         label: key,
-        secondary: 'Manual entry',
-        type: 'Manual' as const,
+        secondary: 'Unknown key - not in KPI or PM counter catalog',
+        type: 'Unknown' as const,
         vendors: normalizeValues([], form.vendors),
         technos: normalizeValues([], form.technologies),
       };
@@ -1013,6 +1099,14 @@ const RanQueryModule: React.FC = () => {
     () => reports.find(report => report.id === selectedReportId) || null,
     [reports, selectedReportId]
   );
+  const selectedReportValidation = useMemo(() => {
+    if (!selectedReport) return null;
+    return validateReportSelection(selectedReport.kpis, kpiKeySet, counterKeySet, {
+      vendors: selectedReport.vendor ? selectedReport.vendor.split(',').map(s => s.trim()).filter(Boolean) : [],
+      aggregations: selectedReport.aggregations || (selectedReport.aggregation ? [selectedReport.aggregation] : ['site']),
+      sites: selectedReport.sites,
+    });
+  }, [counterKeySet, kpiKeySet, selectedReport]);
 
   const filteredReports = useMemo(() => {
     return reports.filter(report => {
@@ -1189,7 +1283,7 @@ const RanQueryModule: React.FC = () => {
   };
 
   const createReport = () => {
-    if (!form.name.trim() || form.selectedKpis.length === 0 || form.technologies.length === 0) return;
+    if (!canCreateReport) return;
     const now = new Date().toISOString();
 
     // Edit mode: update the existing report in place
@@ -1285,7 +1379,15 @@ const RanQueryModule: React.FC = () => {
       // Read fresh report state
       const report = reports.find(r => r.id === reportId);
       if (!report) throw new Error('Report not found');
-      const { rows, errors, denseFillNotice } = await executeReportApi(report, kpiKeySet);
+      const validation = validateReportSelection(report.kpis, kpiKeySet, counterKeySet, {
+        vendors: report.vendor ? report.vendor.split(',').map(s => s.trim()).filter(Boolean) : [],
+        aggregations: report.aggregations || (report.aggregation ? [report.aggregation] : ['site']),
+        sites: report.sites,
+      });
+      if (!validation.isValid) {
+        throw new Error(validation.errors.join(' | '));
+      }
+      const { rows, errors, denseFillNotice } = await executeReportApi(report, kpiKeySet, counterKeySet);
       const errorMsg = errors.length > 0 ? errors.join(' | ') : undefined;
       // A row with value=null is a dense-fill / empty-scope stub — useful to
       // render the table skeleton, but doesn't count as "data found".
@@ -1357,7 +1459,7 @@ const RanQueryModule: React.FC = () => {
     } finally {
       setIsExecutingId(current => current === reportId ? null : current);
     }
-  }, [reports, kpiKeySet]);
+  }, [counterKeySet, reports, kpiKeySet]);
 
   const openReport = (reportId: string) => {
     setSelectedReportId(reportId);
@@ -1519,7 +1621,7 @@ const RanQueryModule: React.FC = () => {
                     'w-fit rounded-full border px-2 py-0.5 text-[10px] font-bold',
                     item.type === 'KPI' ? 'border-primary/20 bg-primary/10 text-primary' :
                     item.type === 'Counter' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700' :
-                    'border-slate-500/20 bg-slate-500/10 text-slate-600'
+                    'border-destructive/30 bg-destructive/10 text-destructive'
                   )}>
                     {item.type}
                   </span>
@@ -1550,6 +1652,25 @@ const RanQueryModule: React.FC = () => {
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">No KPI or counter selected yet.</p>
+        )}
+        {form.selectedKpis.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {reportSelectionValidation.warnings.map((warning, idx) => (
+              <div key={`report-warning-${idx}`} className="flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/8 px-3 py-2 text-[11px] font-medium text-amber-700">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{warning}</span>
+              </div>
+            ))}
+            {reportSelectionValidation.errors.map((error, idx) => (
+              <div key={`report-error-${idx}`} className="flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/8 px-3 py-2 text-[11px] font-medium text-destructive">
+                <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            ))}
+            <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+              Runtime safeguards: backend concurrency limit {REPORT_BACKEND_CONCURRENCY_LIMIT}; KPI batch timeout {Math.round(REPORT_KPI_BATCH_TIMEOUT_MS / 1000)}s per vendor; counter batch timeout {Math.round(REPORT_COUNTER_BATCH_TIMEOUT_MS / 1000)}s per vendor.
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -2120,7 +2241,7 @@ const RanQueryModule: React.FC = () => {
               </button>
               <button
                 onClick={createReport}
-                disabled={!form.name.trim() || form.selectedKpis.length === 0 || form.technologies.length === 0}
+                disabled={!canCreateReport}
                 className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.28)] transition-all hover:bg-primary/90 disabled:opacity-50"
               >
                 <CheckCircle2 className="h-4 w-4" /> {editingReportId ? 'Save changes' : 'Create Report'}
@@ -2197,7 +2318,26 @@ const RanQueryModule: React.FC = () => {
                     </ul>
                   </details>
                 )}
-                <button onClick={() => executeReport(selectedReport.id)} disabled={isExecutingId === selectedReport.id} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50">
+                {selectedReportValidation && (selectedReportValidation.errors.length > 0 || selectedReportValidation.warnings.length > 0) && (
+                  <div className="w-full space-y-2">
+                    {selectedReportValidation.errors.map((error, idx) => (
+                      <div key={`selected-report-error-${idx}`} className="flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/8 px-3 py-2 text-[11px] font-medium text-destructive">
+                        <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>{error}</span>
+                      </div>
+                    ))}
+                    {selectedReportValidation.warnings.map((warning, idx) => (
+                      <div key={`selected-report-warning-${idx}`} className="flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/8 px-3 py-2 text-[11px] font-medium text-amber-700">
+                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>{warning}</span>
+                      </div>
+                    ))}
+                    <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                      Runtime safeguards: backend concurrency limit {REPORT_BACKEND_CONCURRENCY_LIMIT}; KPI timeout {Math.round(REPORT_KPI_BATCH_TIMEOUT_MS / 1000)}s per vendor; counter timeout {Math.round(REPORT_COUNTER_BATCH_TIMEOUT_MS / 1000)}s per vendor.
+                    </div>
+                  </div>
+                )}
+                <button onClick={() => executeReport(selectedReport.id)} disabled={isExecutingId === selectedReport.id || Boolean(selectedReportValidation && !selectedReportValidation.isValid)} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50">
                   {isExecutingId === selectedReport.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} {(selectedReport.status === 'Completed' || selectedReport.status === 'Empty') ? 'Reload' : 'Execute'}
                 </button>
                 <button onClick={() => downloadCsv(selectedReport)} className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
