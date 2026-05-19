@@ -1366,9 +1366,13 @@ interface DashboardSettingsPanelProps {
   onSetDashboards: React.Dispatch<React.SetStateAction<any[]>>;
   backendFilterDefs?: { id: string; label: string; values: string[] }[];
   onSiteFiltersChange?: (filters: DashboardSiteFilters) => void;
+  /** View type (when editing a view rather than a dashboard). Drives the
+   *  contextual "About this view" info card + view-specific controls
+   *  (e.g. polygon opacity slider for Cell Footprint). */
+  viewType?: string | null;
 }
 
-const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared, beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, onClose, onActivate, onSetDashboards, backendFilterDefs, onSiteFiltersChange }) => {
+const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ settings, onUpdate, onRename, currentName, dashboardId, isShared, beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, onClose, onActivate, onSetDashboards, backendFilterDefs, onSiteFiltersChange, viewType }) => {
   const [localName, setLocalName] = useState(currentName || '');
   const [localMapStyle, setLocalMapStyle] = useState(settings.mapStyle || settings.mapLayer || 'street');
   const [localThemeMode, setLocalThemeMode] = useState(settings.themeMode || 'light');
@@ -1495,6 +1499,82 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
               />
             </div>
           )}
+
+          {/* ── About this view (contextual info per viewType) ── */}
+          {!dashboardId && viewType && (() => {
+            const meta: Record<string, { title: string; desc: string; tone: string }> = {
+              coverage: {
+                title: 'Cell Footprint',
+                desc: 'Affiche les empreintes de couverture (footprints + wedges) calculées par Voronoï. Ajuste l\'opacité des polygones pour mieux voir la carte en dessous.',
+                tone: 'emerald',
+              },
+              kpi_overlay: {
+                title: 'KPI Overlay',
+                desc: 'Colorise chaque cellule selon un KPI (bon / moyen / critique). Les seuils et la liste de KPI sont définis à la création.',
+                tone: 'blue',
+              },
+              topology_search: {
+                title: 'Topology Search',
+                desc: 'Filtre les sites/cellules selon des critères topologiques (DOR, vendor, bande, etc.).',
+                tone: 'sky',
+              },
+              parameter: {
+                title: 'Parameter',
+                desc: 'Surveille la valeur d\'un paramètre réseau sur la carte.',
+                tone: 'orange',
+              },
+            };
+            const info = meta[viewType];
+            if (!info) return null;
+            return (
+              <div className="p-3.5 rounded-xl border border-primary/20 bg-primary/[0.04]">
+                <SectionHeader
+                  icon={<Info size={12} className="text-primary" />}
+                  title={`À propos — ${info.title}`}
+                  subtitle={info.desc}
+                />
+              </div>
+            );
+          })()}
+
+          {/* ── Cell Footprint: polygon visibility level ── */}
+          {!dashboardId && viewType === 'coverage' && (() => {
+            const stored = (() => {
+              try {
+                const raw = localStorage.getItem('osmosis_coverage_polygon_opacity');
+                const n = raw ? parseFloat(raw) : NaN;
+                return Number.isFinite(n) && n >= 0.05 && n <= 1 ? n : 0.45;
+              } catch { return 0.45; }
+            })();
+            const pct = Math.round(stored * 100);
+            return (
+              <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20">
+                <SectionHeader
+                  icon={<SlidersHorizontal size={12} className="text-primary" />}
+                  title="Visibilité des polygones"
+                  subtitle="Opacité de remplissage des wedges & footprints (s'applique immédiatement)."
+                />
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={5}
+                    max={100}
+                    step={5}
+                    defaultValue={pct}
+                    onChange={(e) => {
+                      const v = Math.max(0.05, Math.min(1, parseInt(e.target.value, 10) / 100));
+                      try { localStorage.setItem('osmosis_coverage_polygon_opacity', String(v)); } catch {}
+                      try { window.dispatchEvent(new CustomEvent('osmosis:coverage-opacity-change', { detail: v })); } catch {}
+                      const out = e.currentTarget.parentElement?.querySelector('[data-opacity-out]');
+                      if (out) out.textContent = `${Math.round(v * 100)}%`;
+                    }}
+                    className="flex-1 accent-primary"
+                  />
+                  <span data-opacity-out className="text-[11px] font-bold text-primary tabular-nums w-12 text-right">{pct}%</span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── Site Filters ── */}
           {backendFilterDefs && backendFilterDefs.length > 0 && (() => {
@@ -3455,6 +3535,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                   onClose={() => { setEditingDashboardId(null); setEditingViewId(null); }}
                                   onSetDashboards={setDashboards}
                                   backendFilterDefs={backendFilterDefs}
+                                  viewType={vs.viewType || null}
                                 />
                               </div>
                             )}
