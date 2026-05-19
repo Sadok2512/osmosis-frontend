@@ -8334,7 +8334,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         setKpiOverlayLocked(false);
         setKpiOverlays([]);
         setSectorColorMode('topo');
-        setShowBeamSectors(false);
+        setShowBeamSectors(true);
         setMapDisplayMode('sites');
         if (paramMode || paramConfirmed) {
           setParamMode(false);
@@ -9436,7 +9436,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
-        {!showVisualCoverage && !paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
+        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           // Skip site when KPI legend filter hides all its cells (cell-level logic, not site average)
           if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0) {
             if (!siteMatchesKpiLegend(site)) return null;
@@ -9687,7 +9687,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* ── Two-pass rendering: ALL 4G circles first (bottom), then ALL 5G circles (top) ── */}
-        {!showVisualCoverage && !paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && (() => {
+        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && (() => {
           // Collect renderable sites (non-indoor, non-miniSector)
           const circleSites = renderSites.filter(site => {
             const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
@@ -14626,16 +14626,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         setKpiThresholds(prev => ({ ...prev, ...viewThresholds }));
                       }
                     } else if (settings.viewType === 'coverage' || settings.showVisualCoverage) {
-                      // Cell footprint / Visual Coverage is an exclusive
-                      // polygon layer. Disable regular site/cell circles and
-                      // KPI overlays so operators see coloured footprints,
-                      // not the default green marker layer.
+                      // Cell Footprint adds PCI polygons below the normal
+                      // topology layer. Keep site markers and sector beams
+                      // visible so the operator can still inspect sites.
                       setShowVisualCoverage(true);
                       setActiveKpiOverlayView(null);
                       setKpiOverlayLocked(false);
                       setKpiOverlays([]);
                       setSectorColorMode('topo');
-                      setShowBeamSectors(false);
+                      setShowBeamSectors(true);
                       setMapDisplayMode('sites');
                       if (paramMode || paramConfirmed) {
                         setParamMode(false);

@@ -85,7 +85,10 @@ export function initVisualCoverage(options) {
 
   if (!map.getPane(paneName)) {
     const pane = map.createPane(paneName);
-    pane.style.zIndex = '620';
+    // Keep Cell Footprint below the regular topology panes (2G/3G/4G/5G
+    // start at z-index 300) so site markers and sector beams remain visible
+    // above the PCI polygons.
+    pane.style.zIndex = '250';
     pane.style.pointerEvents = 'auto';
     pane.style.mixBlendMode = 'multiply';
   }
