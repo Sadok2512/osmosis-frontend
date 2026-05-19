@@ -3410,7 +3410,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                   ) : (
                                     isViewActive && <span className="text-[7px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold uppercase">actif</span>
                                   )}
-                                  {hasOwnSettings && <span className="text-[7px] px-1 py-0.5 rounded bg-accent/10 text-accent-foreground font-bold uppercase">custom</span>}
+                                  {hasOwnSettings && vs.viewType !== 'coverage' && <span className="text-[7px] px-1 py-0.5 rounded bg-accent/10 text-accent-foreground font-bold uppercase" title="Cette vue surcharge le style de carte / KPI / couleur du dashboard">custom</span>}
                                   {condCount > 0 && <span className="text-[7px] px-1 py-0.5 rounded bg-primary/10 text-primary font-bold">{condCount} filtre{condCount > 1 ? 's' : ''}</span>}
                                   {vs.viewType === 'kpi_overlay' && <span className="text-[7px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold uppercase">KPI</span>}
                                   {vs.viewType === 'topology_search' && <span className="text-[7px] px-1 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold uppercase">Topo</span>}
