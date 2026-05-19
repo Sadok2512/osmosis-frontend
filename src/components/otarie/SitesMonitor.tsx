@@ -14655,15 +14655,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setKpiOverlayLocked(false);
                     }
 
-                    if (settings.mapLayer) setMapLayer(settings.mapLayer);
-                    if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
+                    // Cell Footprint views must auto-enable the Visual Coverage
+                    // layer (otherwise activating the view does nothing visible)
+                    // AND must NOT mutate the dashboard's map style / KPI / camera
+                    // (the user just wants polygons drawn on top of what's there).
+                    const isCoverageView = settings.viewType === 'coverage';
+                    if (isCoverageView || (settings as any).showVisualCoverage) {
+                      setShowVisualCoverage(true);
+                    }
+                    if (!isCoverageView) {
+                      if (settings.mapLayer) setMapLayer(settings.mapLayer);
+                      if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
+                    }
                     if (settings.center && Array.isArray(settings.center)) {
-                      // Skip flyTarget when:
-                      //  - a dashboard is active (its sites refit handles centering)
-                      //  - the view is a Cell Footprint toggle (camera must stay put;
-                      //    otherwise we briefly fly to a stale saved center like
-                      //    Marseille before refitting to Nantes).
-                      const isCoverageView = settings.viewType === 'coverage';
+                      // Skip flyTarget when a dashboard is active (its sites refit
+                      // handles centering) or on a Cell Footprint toggle (camera
+                      // must stay put — otherwise we briefly fly to a stale saved
+                      // center like Marseille before refitting to Nantes).
                       const c = settings.center as [number, number];
                       if (!dashboardActive && !isCoverageView && c[0] > 41 && c[0] < 52) setFlyTarget(c);
                     }
