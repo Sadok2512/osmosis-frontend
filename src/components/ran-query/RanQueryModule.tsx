@@ -198,6 +198,35 @@ const REPORT_KPI_BATCH_TIMEOUT_MS = 180_000;
 const REPORT_COUNTER_BATCH_TIMEOUT_MS = 120_000;
 const REPORT_BACKEND_CONCURRENCY_LIMIT = 4;
 
+function mergeSharedKpiCodes(catalog: KpiCatalogEntry[], sharedCodes: string[]): KpiCatalogEntry[] {
+  const bySelectableKey = new Set<string>();
+  for (const kpi of catalog) {
+    if (kpi.kpi_key) bySelectableKey.add(kpi.kpi_key);
+    if (kpi.kpi_code_normalized) bySelectableKey.add(kpi.kpi_code_normalized);
+  }
+  const additions = sharedCodes
+    .map(code => String(code || '').trim())
+    .filter(Boolean)
+    .filter(code => !bySelectableKey.has(code))
+    .map((code): KpiCatalogEntry => ({
+      kpi_id: code,
+      kpi_key: code,
+      display_name: code,
+      description: 'Admin-curated normalized KPI',
+      techno_scope: code.includes('5g') ? '5G' : code.includes('4g') || code.includes('lte') ? '4G' : 'both',
+      unit: code.includes('rate') || code.includes('cssr') || code.includes('dcr') ? '%' : '',
+      value_type: 'gauge',
+      default_agg: 'avg',
+      allowed_aggs: ['avg', 'min', 'max', 'sum'],
+      is_map_supported: false,
+      category: 'Normalized',
+      color: '#0f766e',
+      is_normalized: true,
+      kpi_code_normalized: code,
+    }));
+  return [...catalog, ...additions];
+}
+
 const DEFAULT_FORM = (): CreateFormState => {
   const now = new Date();
   const end = toLocalDateTimeInput(now);
@@ -904,10 +933,20 @@ const RanQueryModule: React.FC = () => {
   useEffect(() => {
     const vendor = form.vendors.length === 1 ? form.vendors[0] : '';
     // KPI catalog from monitor API
+    const loadSharedCodes = async (): Promise<string[]> => {
+      try {
+        const r = await fetch(getApiUrl('kpi-tables/shared'), { headers: getApiHeaders() });
+        if (!r.ok) return [];
+        const json = await r.json();
+        return Array.isArray(json?.kpi_codes) ? json.kpi_codes : [];
+      } catch {
+        return [];
+      }
+    };
     fetch(getApiUrl('monitor/catalog/kpis'), { headers: getApiHeaders() })
       .then(r => r.ok ? r.json() : [])
-      .then((data: KpiCatalogEntry[]) => {
-        const arr = Array.isArray(data) ? data : [];
+      .then(async (data: KpiCatalogEntry[]) => {
+        const arr = mergeSharedKpiCodes(Array.isArray(data) ? data : [], await loadSharedCodes());
         setAllKpiCatalog(arr);
         // Filter by vendor if a specific vendor is selected
         const filtered = vendor && vendor !== 'Multi-Vendor'
@@ -918,11 +957,12 @@ const RanQueryModule: React.FC = () => {
       .catch(() => {
         // Fallback to DB catalog if monitor endpoint is unavailable
         fetchKpiCatalogFromDB()
-          .then(arr => {
-            setAllKpiCatalog(arr);
+          .then(async arr => {
+            const merged = mergeSharedKpiCodes(arr, await loadSharedCodes());
+            setAllKpiCatalog(merged);
             setKpiCatalog(vendor && vendor !== 'Multi-Vendor'
-              ? arr.filter(k => !k.vendor || k.vendor.toLowerCase() === vendor.toLowerCase())
-              : arr);
+              ? merged.filter(k => !k.vendor || k.vendor.toLowerCase() === vendor.toLowerCase())
+              : merged);
           })
           .catch(() => {
             setAllKpiCatalog([]);
@@ -1036,7 +1076,9 @@ const RanQueryModule: React.FC = () => {
   }, [siteSearch, form.clusters, form.dors]);
 
   // Split current selection into KPI keys vs counter keys
-  const kpiKeySet = useMemo(() => new Set(allKpiCatalog.map(k => k.kpi_key)), [allKpiCatalog]);
+  const kpiKeySet = useMemo(() => new Set(
+    allKpiCatalog.flatMap(k => [k.kpi_key, k.kpi_code_normalized].filter(Boolean).map(String))
+  ), [allKpiCatalog]);
   const selectedKpiKeys = useMemo(() => form.selectedKpis.filter(k => kpiKeySet.has(k)), [form.selectedKpis, kpiKeySet]);
   const counterKeySet = useMemo(() => new Set(
     counterCatalog.flatMap((c: any) => [c.counter_name, c.counter_id, c.name, c.key].filter(Boolean).map(String))
@@ -1056,7 +1098,10 @@ const RanQueryModule: React.FC = () => {
         .filter(Boolean);
       return Array.from(new Set(parsed.length > 0 ? parsed : fallback));
     };
-    const kpiByKey = new Map([...allKpiCatalog, ...kpiCatalog].map(kpi => [kpi.kpi_key, kpi]));
+    const kpiByKey = new Map<string, KpiCatalogEntry>();
+    [...allKpiCatalog, ...kpiCatalog].forEach(kpi => {
+      [kpi.kpi_key, kpi.kpi_code_normalized].filter(Boolean).forEach(key => kpiByKey.set(String(key), kpi));
+    });
     const counterByName = new Map<string, any>();
     counterCatalog.forEach((counter: any) => {
       [counter.counter_name, counter.counter_id, counter.name, counter.key].filter(Boolean).forEach(key => counterByName.set(String(key), counter));
