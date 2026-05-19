@@ -1839,7 +1839,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               smooth: sp.isSmooth,
               symbol: forceMarkers ? 'circle' : 'none',
               symbolSize: forceMarkers ? 5 : 0,
-              lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color: def.color } : undefined,
+              lineStyle: sp.seriesType === 'line' ? buildModernLineStyle(def.color, cfg.lineWidth, sp.isModernArea && sp.showArea) : undefined,
               itemStyle: { color: def.color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
               barMaxWidth: 20,
               stack: sp.isStacked ? 'total' : undefined,
@@ -1893,7 +1893,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               symbol: fm ? 'circle' : 'none',
               symbolSize: fm ? 5 : 0,
               lineStyle: sp.seriesType === 'line'
-                ? { width: cfg.lineWidth || 2.5, color, type: 'solid' as const }
+                ? buildModernLineStyle(color, cfg.lineWidth || 2.5, sp.isModernArea && sp.showArea)
                 : undefined,
               itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
               barMaxWidth: 20,
@@ -1952,7 +1952,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               symbol: forceMarkers || sp.forceSymbols ? 'circle' : 'none',
               symbolSize: forceMarkers || sp.forceSymbols ? 6 : 0,
               lineStyle: sp.seriesType === 'line'
-                ? { width: cfg.lineWidth || 2.5, color, type: 'solid' as const }
+                ? buildModernLineStyle(color, cfg.lineWidth || 2.5, sp.isModernArea && sp.showArea)
                 : undefined,
               itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
               barMaxWidth: 20,
