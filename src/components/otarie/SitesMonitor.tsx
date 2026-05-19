@@ -1708,8 +1708,8 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
           })()}
 
 
-          {/* ── Appearance, Labels ── */}
-          {<>
+          {/* ── Appearance, Labels (dashboard only — hidden on view config) ── */}
+          {dashboardId && <>
 
           {/* ── Display Mode ── */}
           <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
