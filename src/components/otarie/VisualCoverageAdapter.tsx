@@ -18,7 +18,7 @@
  * Per project rule: do NOT modify the module files. All wiring lives
  * here so the module stays drop-in-replaceable.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useMap } from 'react-leaflet';
 import { fetchCellsForCoverage, CoverageCell } from '@/services/topoService';
 // Module is plain JS without TS types — `any` is intentional; the API
