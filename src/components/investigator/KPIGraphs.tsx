@@ -318,6 +318,7 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
   { value: 'line_straight', label: 'Straight', icon: TrendingUp },
   { value: 'line_points', label: 'Points', icon: CircleDot },
   { value: 'area', label: 'Area', icon: AreaChart },
+  { value: 'stacked_area', label: 'Stacked Area', icon: AreaChart },
   { value: 'bar', label: 'Bar', icon: BarChart },
   { value: 'stacked_bar', label: 'Stacked', icon: Layers },
   { value: 'scatter', label: 'Scatter', icon: CircleDot },
@@ -1625,11 +1626,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         const getKpiChartType = (kpiId: string): ChartType => cfg.chartTypePerKpi?.[kpiId] || cfg.chartType;
         const getSeriesProps = (kpiId: string) => {
           const ct = getKpiChartType(kpiId);
-          const stacked = ct === 'stacked_bar';
-          const sType = ct === 'scatter' ? 'scatter' : (ct === 'bar' || stacked) ? 'bar' : 'line';
-          const smooth = cfg.smooth !== undefined ? cfg.smooth : (ct === 'line' || ct === 'area');
+          const stacked = ct === 'stacked_bar' || ct === 'stacked_area';
+          const sType = ct === 'scatter' ? 'scatter' : (ct === 'bar' || ct === 'stacked_bar') ? 'bar' : 'line';
+          const smooth = cfg.smooth !== undefined ? cfg.smooth : (ct === 'line' || ct === 'area' || ct === 'stacked_area');
           const symbols = ct === 'line_points' || ct === 'scatter';
-          const showArea = sType === 'line' && (cfg.showArea || ct === 'area');
+          const showArea = sType === 'line' && (cfg.showArea || ct === 'area' || ct === 'stacked_area');
           return { seriesType: sType, isSmooth: smooth, forceSymbols: symbols, isStacked: stacked, showArea };
         };
         // Force markers on when a line series has ≤ 1 real value, otherwise a
@@ -1706,8 +1707,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                   color: {
                     type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                     colorStops: [
-                      { offset: 0, color: `${color}20` },
-                      { offset: 1, color: `${color}02` },
+                      { offset: 0, color: `${color}66` },
+                      { offset: 1, color: `${color}08` },
                     ],
                   },
                 } : undefined,
@@ -1757,8 +1758,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                     color: {
                       type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                       colorStops: [
-                        { offset: 0, color: `${color}20` },
-                        { offset: 1, color: `${color}02` },
+                        { offset: 0, color: `${color}66` },
+                        { offset: 1, color: `${color}08` },
                       ],
                     },
                   } : undefined,
@@ -1799,8 +1800,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                   color: {
                     type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                     colorStops: [
-                      { offset: 0, color: `${color}20` },
-                      { offset: 1, color: `${color}02` },
+                      { offset: 0, color: `${color}66` },
+                      { offset: 1, color: `${color}08` },
                     ],
                   },
                 } : undefined,
@@ -1837,8 +1838,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 color: {
                   type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                   colorStops: [
-                    { offset: 0, color: `${def.color}20` },
-                    { offset: 1, color: `${def.color}02` },
+                    { offset: 0, color: `${def.color}66` },
+                    { offset: 1, color: `${def.color}08` },
                   ],
                 },
               } : undefined,
@@ -1901,7 +1902,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                   type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                   colorStops: [
                     { offset: 0, color: `${color}30` },
-                    { offset: 1, color: `${color}02` },
+                    { offset: 1, color: `${color}08` },
                   ],
                 },
               } : undefined,
@@ -1968,7 +1969,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                   type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                   colorStops: [
                     { offset: 0, color: `${color}30` },
-                    { offset: 1, color: `${color}02` },
+                    { offset: 1, color: `${color}08` },
                   ],
                 },
               } : undefined,
