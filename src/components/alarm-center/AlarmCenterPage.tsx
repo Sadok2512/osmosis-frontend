@@ -808,7 +808,7 @@ const AlarmCenterPage: React.FC = () => {
         {/* DOCKED RIGHT DRAWER — Details + AI. Doesn't overlap content because
             root container reserves paddingRight when detailsOpen. */}
         {detailsOpen && (
-          <div className="fixed right-0 top-0 h-full w-[440px] max-w-[92vw] z-[60]">
+          <div className="floating-sidebar fixed right-0 top-0 h-full w-[440px] max-w-[92vw]" style={{ zIndex: 9999 }}>
 
 
 
