@@ -897,9 +897,9 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                     <MapIcon size={24} />
                   </div>
                   <div className="text-center">
-                    <div className="text-sm font-bold">Visual Coverage</div>
+                    <div className="text-sm font-bold">Cell Footprint</div>
                     <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
-                      Dominance des cellules par tessellation Voronoï (sans RF)
+                      Empreinte des cellules par tessellation Voronoï (sans RF)
                     </p>
                   </div>
                   {viewType === 'coverage' && (
