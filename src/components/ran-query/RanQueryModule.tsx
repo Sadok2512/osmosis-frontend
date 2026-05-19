@@ -516,6 +516,29 @@ function parseMetricValue(value: unknown): number | null {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
+function mergeReportResultRows(rows: ReportResultRow[]): ReportResultRow[] {
+  const merged = new Map<string, ReportResultRow>();
+  for (const row of rows) {
+    const key = [
+      row.timestamp,
+      row.vendor,
+      row.technology,
+      row.cluster || '',
+      row.plaque || '',
+      row.dor || '',
+      row.site_name || '',
+      row.band || '',
+      row.cell_name || '',
+      row.kpi,
+    ].join('|');
+    const prev = merged.get(key);
+    if (!prev || row.value != null || prev.value == null) {
+      merged.set(key, prev && row.value == null ? { ...row, value: prev.value } : row);
+    }
+  }
+  return Array.from(merged.values());
+}
+
 function getReportDimensionValue(row: Record<string, any>, aggregation: string | null, fallback?: unknown): string | undefined {
   const value =
     (aggregation === 'plaque' ? row.plaque : undefined) ||
@@ -757,9 +780,10 @@ async function executeReportApi(
   const allTasks = [...kpiTasks, ...counterTasks];
   const batches = await pLimit(allTasks, MAX_CONCURRENT);
   for (const batch of batches) results.push(...batch);
-  console.log(`[RapportBuilder] Total: ${results.length} rows, ${errors.length} errors, ${allTasks.length} tasks`);
+  const mergedResults = mergeReportResultRows(results);
+  console.log(`[RapportBuilder] Total: ${results.length} rows (${mergedResults.length} merged), ${errors.length} errors, ${allTasks.length} tasks`);
 
-  return { rows: results, errors, denseFillNotice };
+  return { rows: mergedResults, errors, denseFillNotice };
 }
 
 function downloadCsv(report: RanReport) {
