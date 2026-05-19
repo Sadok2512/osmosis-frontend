@@ -1287,7 +1287,7 @@ const SitesMiniMap: React.FC<{
       className={`relative rounded-xl overflow-hidden border border-[#e7edf5] ${fullscreen ? "h-full" : ""}`}
       style={fullscreen ? undefined : { height: mapHeight }}
     >
-      <div ref={containerRef} className="absolute inset-0" />
+      <div ref={containerRef} className="alarm-center-map absolute inset-0" style={{ zIndex: 1 }} />
 
       {/* Search box */}
       <div className="absolute top-2 left-12 z-[500] w-[260px]">
