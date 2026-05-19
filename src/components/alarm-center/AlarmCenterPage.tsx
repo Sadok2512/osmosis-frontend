@@ -1093,6 +1093,21 @@ const SitesMiniMap: React.FC<{
     return () => clearTimeout(id);
   }, [mapHeight]);
 
+  // Invalidate map size whenever the container width changes
+  // (e.g. right details drawer opens/closes and shrinks/expands the page).
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let raf = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => mapRef.current?.invalidateSize());
+    });
+    ro.observe(el);
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+  }, []);
+
+
   // Load all-network sites for the current viewport (bbox + zoom aware).
   const loadBboxSites = React.useCallback(() => {
     const map = mapRef.current;
