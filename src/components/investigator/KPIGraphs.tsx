@@ -1626,11 +1626,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         const getKpiChartType = (kpiId: string): ChartType => cfg.chartTypePerKpi?.[kpiId] || cfg.chartType;
         const getSeriesProps = (kpiId: string) => {
           const ct = getKpiChartType(kpiId);
-          const stacked = ct === 'stacked_bar';
-          const sType = ct === 'scatter' ? 'scatter' : (ct === 'bar' || stacked) ? 'bar' : 'line';
-          const smooth = cfg.smooth !== undefined ? cfg.smooth : (ct === 'line' || ct === 'area');
+          const stacked = ct === 'stacked_bar' || ct === 'stacked_area';
+          const sType = ct === 'scatter' ? 'scatter' : (ct === 'bar' || ct === 'stacked_bar') ? 'bar' : 'line';
+          const smooth = cfg.smooth !== undefined ? cfg.smooth : (ct === 'line' || ct === 'area' || ct === 'stacked_area');
           const symbols = ct === 'line_points' || ct === 'scatter';
-          const showArea = sType === 'line' && (cfg.showArea || ct === 'area');
+          const showArea = sType === 'line' && (cfg.showArea || ct === 'area' || ct === 'stacked_area');
           return { seriesType: sType, isSmooth: smooth, forceSymbols: symbols, isStacked: stacked, showArea };
         };
         // Force markers on when a line series has ≤ 1 real value, otherwise a
