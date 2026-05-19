@@ -14662,6 +14662,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     const isCoverageView = settings.viewType === 'coverage';
                     if (isCoverageView || (settings as any).showVisualCoverage) {
                       setShowVisualCoverage(true);
+                    } else if (settings._isDashboardOnly) {
+                      // Deactivating a view → turn coverage layer back off so
+                      // the dashboard reverts to its plain state.
+                      setShowVisualCoverage(false);
                     }
                     if (!isCoverageView) {
                       if (settings.mapLayer) setMapLayer(settings.mapLayer);
