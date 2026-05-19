@@ -43,7 +43,7 @@ const stableHash = (value: string): number => {
 };
 
 const coveragePciKeyForCell = (cell: CoverageCell): string => {
-  if (cell.pci != null && cell.pci !== '') return `pci:${cell.pci}`;
+  if (cell.pci != null && String(cell.pci) !== '') return `pci:${cell.pci}`;
   const seed = `${cell.id || ''}|${cell.siteId || ''}|${cell.siteName || ''}|${cell.azimuth || ''}|${cell.band || ''}`;
   return `auto:${String(stableHash(seed) % 24).padStart(2, '0')}`;
 };
