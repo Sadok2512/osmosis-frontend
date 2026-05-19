@@ -3270,14 +3270,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                           vanilla module still receives a DOM node and does
                           not error; UI is intentionally not displayed. */}
                       <div className="hidden" ref={onCoveragePanelMount} />
-                      {/* PCI Overlay panel mount (party 2026-05-18) — VISIBLE.
-                          The pci-overlay-layer JS module attaches its
-                          interactive panel (toggle on/off + band pills +
-                          colorMode + legend) here. Separate from the hidden
-                          Visual Coverage mount so the PCI controls surface
-                          to the operator without re-exposing the legacy VC
-                          panel. */}
-                      <div ref={onPciOverlayPanelMount} />
+                      {/* PCI Overlay panel mount kept hidden (panel removed
+                          from UI per user request — adapter still mounts a
+                          DOM node so the vanilla module doesn't error). */}
+                      <div className="hidden" ref={onPciOverlayPanelMount} />
                     </div>
                   );
                 })()}
