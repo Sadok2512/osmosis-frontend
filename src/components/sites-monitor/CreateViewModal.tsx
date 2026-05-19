@@ -703,13 +703,14 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
       : viewType === 'parameter'
         ? `Param – ${paramFilters['parameter'] || 'Search'}`
         : viewType === 'coverage'
-          ? `Visual Coverage`
+          ? `Cell Footprint`
           : `Topo Search`
   );
 
-  // Visual Coverage tuning — only the max-radius cap; everything else is
-  // pure-topology Voronoi. Default 1500 m matches the backend default.
+  // Cell Footprint tuning — radius cap + band perimeter. Default 1500 m
+  // matches the backend default; bands empty = all bands.
   const [coverageMaxRadiusM, setCoverageMaxRadiusM] = useState<number>(1500);
+  const [coverageBands, setCoverageBands] = useState<string[]>([]);
 
   // Validation per spec: "Empêcher la création si un filtre n'a pas de
   // type ou pas de valeur." Every non-empty row must have BOTH a field
