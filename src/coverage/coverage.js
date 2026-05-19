@@ -27,6 +27,7 @@ import {
   approximateWedge,
   polygonIntersection,
 } from './geometry.js';
+import { colorForPci } from './pci-overlay.js';
 
 const DEFAULTS = {
   maxRadiusMeters: 1500,
@@ -42,30 +43,6 @@ const DEFAULTS = {
 // unknown cells is shown green, not grey.
 const KPI_RANK = { unknown: -1, green: 0, orange: 1, red: 2 };
 
-const TECH_COLOR = {
-  '5G': '#27AE60',
-  '4G': '#F39C12',
-  '3G': '#3498DB',
-  '2G': '#8E44AD',
-  unknown: '#64748b',
-};
-
-const BAND_COLOR = {
-  GSM900: '#8E44AD',
-  GSM1800: '#dc2626',
-  UMTS900: '#3498DB',
-  UMTS2100: '#2E86C1',
-  NR3500: '#27AE60',
-  NR700: '#229954',
-  NR2100: '#1E8449',
-  L2600: '#F39C12',
-  L2100: '#E67E22',
-  L1800: '#D68910',
-  L800: '#F5B041',
-  L700: '#CA6F1E',
-  L900: '#B9770E',
-};
-
 function techGroup(value) {
   const v = String(value || '').toUpperCase();
   if (v.includes('NR') || v.includes('5G')) return '5G';
@@ -75,46 +52,31 @@ function techGroup(value) {
   return 'unknown';
 }
 
-function colorForTech(value) {
-  return TECH_COLOR[techGroup(value)] || TECH_COLOR.unknown;
-}
-
-function normalizeBand(value, tech) {
-  const normalized = String(value || '').replace(/[\s_\-]+/g, '').replace(/MHZ/gi, '').toUpperCase();
-  const t = String(tech || '').toUpperCase();
-  const is5G = t.includes('5G') || t.includes('NR') || normalized.startsWith('NR') || /^N\d+$/i.test(normalized);
-  if (normalized.includes('GSM900') || (normalized.includes('900') && t.includes('2G'))) return 'GSM900';
-  if (normalized.includes('GSM1800') || normalized.includes('DCS1800') || (normalized.includes('1800') && t.includes('2G'))) return 'GSM1800';
-  if (normalized.includes('UMTS2100') || normalized.includes('WCDMA2100') || (normalized.includes('2100') && t.includes('3G'))) return 'UMTS2100';
-  if (normalized.includes('UMTS900') || normalized.includes('WCDMA900') || (normalized.includes('900') && t.includes('3G'))) return 'UMTS900';
-  if (normalized.includes('3500') || normalized.includes('NR3500') || normalized.includes('N78')) return 'NR3500';
-  if (normalized.includes('NR2100') || normalized === 'N1') return 'NR2100';
-  if (normalized.includes('NR700') || normalized === 'N28') return 'NR700';
-  if (is5G) {
-    if (normalized.includes('700')) return 'NR700';
-    if (normalized.includes('2100')) return 'NR2100';
-    if (normalized.includes('3500')) return 'NR3500';
-  }
-  if (normalized.includes('2600') || normalized.includes('L2600') || normalized.includes('B7')) return 'L2600';
-  if (normalized.includes('1800') || normalized.includes('L1800') || normalized.includes('B3')) return 'L1800';
-  if (normalized.includes('2100') || normalized.includes('L2100') || normalized === 'B1') return 'L2100';
-  if (normalized.includes('800') || normalized.includes('L800') || normalized.includes('B20')) return 'L800';
-  if (normalized.includes('700') || normalized.includes('L700') || normalized === 'B28') return 'L700';
-  if (normalized.includes('900') || normalized.includes('L900') || normalized.includes('B8')) return 'L900';
-  return null;
-}
-
-function colorForBandOrTech(band, tech) {
-  const bandKey = normalizeBand(band, tech);
-  return (bandKey && BAND_COLOR[bandKey]) || colorForTech(tech || band);
-}
-
 function dominantTech(values) {
   const groups = new Set(Array.from(values || []).map(techGroup));
   for (const g of ['5G', '4G', '3G', '2G']) {
     if (groups.has(g)) return g;
   }
   return 'unknown';
+}
+
+function pciNumber(value) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function colorForCellPci(cell) {
+  const pci = pciNumber(cell?.pci);
+  return colorForPci(pci, 'hash', `${cell?.id || ''}|${cell?.siteId || ''}|${cell?.siteName || ''}|${cell?.azimuth || ''}|${cell?.band || ''}`);
+}
+
+function representativePci(cells) {
+  for (const c of cells || []) {
+    const pci = pciNumber(c?.pci);
+    if (pci != null) return pci;
+  }
+  return null;
 }
 
 //#region wedge-dedup
@@ -193,6 +155,144 @@ export function buildSiteCoverage(cells, opts = {}) {
   const cfg = { ...DEFAULTS, ...opts };
   const t0 = performance.now();
 
+  // 2026-05-19 — Cell footprint now uses the same visual model as KPI/PCI
+  // overlays: one Voronoi polygon per serving sector seed, colored by PCI.
+  // The old site-footprint + wedge pipeline is intentionally bypassed here
+  // because operators expect this mode to render real polygon tiles, not
+  // circles or site-level blobs.
+  return buildCellPciPolygons(cells, cfg, t0);
+}
+
+function buildCellPciPolygons(cells, cfg, t0) {
+  const validCells = (cells || []).filter((c) =>
+    c != null
+    && Number.isFinite(Number(c.lat))
+    && Number.isFinite(Number(c.lon))
+    && (c.id || c.siteId || c.siteName)
+  );
+
+  const empty = () => ({
+    fc: { type: 'FeatureCollection', features: [] },
+    wedgesFc: { type: 'FeatureCollection', features: [] },
+    nSites: 0,
+    nCells: 0,
+    nNeighbors: 0,
+    elapsedMs: Math.round(performance.now() - t0),
+  });
+  if (validCells.length === 0) return empty();
+
+  const latRef = validCells.reduce((sum, c) => sum + Number(c.lat), 0) / validCells.length;
+  const M_PER_DEG_LAT = 111000;
+  const M_PER_DEG_LNG = 111000 * Math.cos((latRef * Math.PI) / 180);
+  const AZ_BUCKET_DEG = 5;
+  const SECTOR_OFFSET_M = 120;
+
+  const seedMap = new Map();
+  for (const c of validCells) {
+    const azRaw = Number(c.azimuth);
+    const az = Number.isFinite(azRaw) ? ((azRaw % 360) + 360) % 360 : 0;
+    const azBucket = Math.round(az / AZ_BUCKET_DEG) * AZ_BUCKET_DEG;
+    const siteKey = c.siteId || c.siteName || c.id;
+    const bandKey = String(c.band || 'NO_BAND').toUpperCase();
+    const key = `${siteKey}|${bandKey}|${azBucket}`;
+    const rad = (az * Math.PI) / 180;
+    const x = Number(c.lon) * M_PER_DEG_LNG + Math.sin(rad) * SECTOR_OFFSET_M;
+    const y = Number(c.lat) * M_PER_DEG_LAT + Math.cos(rad) * SECTOR_OFFSET_M;
+    const pci = pciNumber(c.pci);
+    const acc = seedMap.get(key);
+    if (!acc) {
+      seedMap.set(key, {
+        ...c,
+        lat: Number(c.lat),
+        lon: Number(c.lon),
+        x,
+        y,
+        azimuth: az,
+        pci,
+        cellIds: [c.id],
+        cellCount: 1,
+      });
+    } else {
+      acc.cellIds.push(c.id);
+      acc.cellCount += 1;
+      if (acc.pci == null && pci != null) acc.pci = pci;
+    }
+  }
+
+  const seeds = [...seedMap.values()];
+  if (seeds.length === 0) return empty();
+
+  const padM = Math.max(Number(cfg.maxRadiusMeters || 0) * 2, 50000);
+  const bbox = [
+    Math.min(...seeds.map((s) => s.x)) - padM,
+    Math.min(...seeds.map((s) => s.y)) - padM,
+    Math.max(...seeds.map((s) => s.x)) + padM,
+    Math.max(...seeds.map((s) => s.y)) + padM,
+  ];
+  const { polys, neighborGraph } = voronoiCells(
+    seeds.map((s) => ({ x: s.x, y: s.y })),
+    bbox,
+    { neighborLimit: cfg.neighborLimit },
+  );
+
+  const features = [];
+  let totalNeighbors = 0;
+  seeds.forEach((cell, i) => {
+    const poly = polys[i];
+    if (!poly || poly.length < 3) return;
+
+    const Rm = Number.isFinite(Number(cell.maxRadius))
+      ? Math.min(Number(cell.maxRadius), Number(cfg.maxRadiusMeters || cell.maxRadius))
+      : Number(cfg.maxRadiusMeters || DEFAULTS.maxRadiusMeters);
+
+    const clipped = poly.map((p) => {
+      const dx = p.x - cell.x;
+      const dy = p.y - cell.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d <= Rm) return [p.x / M_PER_DEG_LNG, p.y / M_PER_DEG_LAT];
+      const f = Rm / d;
+      return [(cell.x + dx * f) / M_PER_DEG_LNG, (cell.y + dy * f) / M_PER_DEG_LAT];
+    });
+    if (clipped.length < 3) return;
+    clipped.push(clipped[0]);
+
+    const neighbors = neighborGraph[i] ? neighborGraph[i].size : 0;
+    totalNeighbors += neighbors;
+    features.push({
+      type: 'Feature',
+      geometry: { type: 'Polygon', coordinates: [clipped] },
+      properties: {
+        cellId: cell.id,
+        cellIds: cell.cellIds || [cell.id],
+        siteId: cell.siteId,
+        siteName: cell.siteName,
+        lat: cell.lat,
+        lon: cell.lon,
+        azimuth: cell.azimuth,
+        beamwidth: cell.beamwidth,
+        tech: cell.tech,
+        band: cell.band,
+        pci: cell.pci,
+        pilotGroup: cell.pci == null ? null : cell.pci % 3,
+        color: colorForCellPci(cell),
+        colorSource: cell.pci == null ? 'fallback' : 'pci',
+        neighbors,
+        cellCount: cell.cellCount ?? 1,
+      },
+    });
+  });
+
+  return {
+    fc: { type: 'FeatureCollection', features: [] },
+    wedgesFc: { type: 'FeatureCollection', features },
+    nSites: new Set(seeds.map((s) => s.siteId || s.siteName || s.id)).size,
+    nCells: features.length,
+    nNeighbors: totalNeighbors,
+    elapsedMs: Math.round(performance.now() - t0),
+  };
+}
+
+function buildLegacySiteCoverage(cells, cfg, t0) {
   // ── 1. Group cells by site ──
   const siteMap = new Map();
   for (const c of cells || []) {
@@ -341,7 +441,9 @@ export function buildSiteCoverage(cells, opts = {}) {
         nNeighbors,
         technologies: Array.from(technos),
         primaryTech: dominantTech(technos),
-        color: TECH_COLOR[dominantTech(technos)] || TECH_COLOR.unknown,
+        pci: representativePci(s.cells),
+        color: colorForPci(representativePci(s.cells), 'hash', `${s.siteId}|${s.siteName}`),
+        colorSource: representativePci(s.cells) == null ? 'fallback' : 'pci',
       },
     });
 
@@ -384,7 +486,10 @@ export function buildSiteCoverage(cells, opts = {}) {
           beamwidth: bw,
           tech: c.tech,
           band: c.band,
-          color: colorForBandOrTech(c.band, c.tech),
+          pci: pciNumber(c.pci),
+          pilotGroup: pciNumber(c.pci) == null ? null : pciNumber(c.pci) % 3,
+          color: colorForCellPci(c),
+          colorSource: pciNumber(c.pci) == null ? 'fallback' : 'pci',
           rsrp: c.rsrp,
           neighbors: nNeighbors,
           cellCount: c.cellCount ?? 1,

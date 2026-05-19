@@ -178,16 +178,18 @@ export function initVisualCoverage(options) {
   function bindWedge(feature, layer) {
     const p = feature.properties;
     const rsrpStr = p.rsrp != null ? ` · ${p.rsrp} dBm` : '';
-    const kpiColor = p.color || KPI_COLOR[p.kpi] || '#888';
+    const pciColor = p.color || '#888';
     const mergedRow = (p.cellCount > 1)
       ? `<div class="cov-tt-row"><span>cells merged</span><b>${p.cellCount}</b></div>`
       : '';
+    const pciLabel = p.pci == null ? '—' : String(p.pci);
+    const groupLabel = p.pilotGroup == null ? '—' : String(p.pilotGroup);
     layer.bindTooltip(
       `<div class="cov-tt">
         <div class="cov-tt-name">${escapeHtml(p.cellId || '')}</div>
         <div class="cov-tt-row"><span>site</span><b>${escapeHtml(p.siteName || '')}</b></div>
         <div class="cov-tt-row"><span>tech</span><b>${escapeHtml(p.tech || '—')}${p.band ? ' · ' + escapeHtml(p.band) : ''}</b></div>
-        <div class="cov-tt-row"><span>kpi</span><b style="color:${kpiColor}">${(p.kpi || '—').toUpperCase()}${rsrpStr}</b></div>
+        <div class="cov-tt-row"><span>PCI</span><b style="color:${pciColor}">${escapeHtml(pciLabel)} · group ${escapeHtml(groupLabel)}${rsrpStr}</b></div>
         <div class="cov-tt-row"><span>azimuth</span><b>${p.azimuth}° / ${p.beamwidth}°</b></div>
         <div class="cov-tt-row"><span>neighbors</span><b>${p.neighbors}</b></div>
         ${mergedRow}
