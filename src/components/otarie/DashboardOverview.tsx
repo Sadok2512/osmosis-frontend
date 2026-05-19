@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/tooltip';
 import operatorLogo from '@/assets/operator-logo.png';
 
-type DashboardType = 'map' | 'analytic_qoe' | 'precision_architect';
+type DashboardType = 'map' | 'analytic_qoe' | 'precision_architect' | 'investigator';
 type Visibility = 'private' | 'public' | 'shared';
 type SortKey = 'updated' | 'name' | 'owner';
 
@@ -39,9 +39,18 @@ interface EnhancedDashboard extends SavedDashboard {
 }
 
 async function loadAllDashboardsFromDB(): Promise<EnhancedDashboard[]> {
-  try {
-    const data = await dashboardsApi.list();
-    if (!data || !Array.isArray(data)) return [];
+  // Fetch dashboards and investigators in parallel — they live in different
+  // stores (VPS PG `dashboards` vs Supabase `investigators`) but the operator
+  // expects to see all their saved work in the Overview.
+  const [dashRows, investigators] = await Promise.allSettled([
+    dashboardsApi.list(),
+    loadInvestigatorsAsDashboards(),
+  ]);
+
+  const dashboards: EnhancedDashboard[] = [];
+
+  if (dashRows.status === 'fulfilled' && Array.isArray(dashRows.value)) {
+    const data = dashRows.value;
 
     // Enrich with Supabase metadata (visibility / owner / shared_with) since the
     // VPS endpoint may not return these columns. Supabase is the source of truth.
@@ -58,9 +67,9 @@ async function loadAllDashboardsFromDB(): Promise<EnhancedDashboard[]> {
       }
     } catch { /* ignore — fall back to VPS values */ }
 
-    return data.map((row: any) => {
+    for (const row of data) {
       const meta = metaById.get(row.id) || {};
-      return {
+      dashboards.push({
         id: row.id,
         name: row.name,
         description: row.description || '',
@@ -72,9 +81,38 @@ async function loadAllDashboardsFromDB(): Promise<EnhancedDashboard[]> {
         ownerUsername: meta.owner_username || row.owner_username || getStoredSession()?.username || 'Inconnu',
         sharedWith: meta.shared_with || row.shared_with || [],
         viewCount: Number(meta.view_count ?? row.view_count ?? 0) || 0,
-      };
-    });
-  } catch { return []; }
+      });
+    }
+  }
+
+  if (investigators.status === 'fulfilled') {
+    dashboards.push(...investigators.value);
+  }
+
+  return dashboards;
+}
+
+async function loadInvestigatorsAsDashboards(): Promise<EnhancedDashboard[]> {
+  try {
+    const { listInvestigators } = await import('@/services/investigatorService');
+    const list = await listInvestigators();
+    return list.map((inv) => ({
+      id: inv.id,
+      name: inv.name,
+      description: '',
+      isShared: inv.visibility === 'public',
+      widgets: [] as WidgetItem[],
+      updatedAt: inv.updated_at,
+      dashboardType: 'investigator',
+      visibility: (inv.visibility as Visibility) || 'private',
+      ownerUsername: getStoredSession()?.username || 'Inconnu',
+      sharedWith: [],
+      viewCount: 0,
+    }));
+  } catch (e) {
+    console.warn('[DashboardOverview] failed to load investigators', e);
+    return [];
+  }
 }
 
 async function duplicateDashboardInDB(source: EnhancedDashboard, allDashboards: EnhancedDashboard[]): Promise<void> {
@@ -205,6 +243,19 @@ const DASHBOARD_TYPE_STYLES: Record<string, DashboardTypeStyle> = {
     gradient: 'from-pink-50/60 dark:from-pink-950/10',
     label: 'Netview',
     icon: <Wand2 className="w-4 h-4" />,
+  },
+  investigator: {
+    iconBg: 'bg-indigo-500/10',
+    iconBgHover: 'group-hover:bg-indigo-500/20',
+    iconColor: 'text-indigo-600',
+    badgeBg: 'bg-indigo-500/10',
+    badgeText: 'text-indigo-600',
+    cardAccent: 'border-l-indigo-400',
+    hoverBg: 'hover:bg-indigo-50/40 dark:hover:bg-indigo-950/10',
+    ring: 'hover:ring-indigo-200/70 dark:hover:ring-indigo-900/40 hover:border-indigo-200/80 dark:hover:border-indigo-900/40',
+    gradient: 'from-indigo-50/60 dark:from-indigo-950/10',
+    label: 'Investigator',
+    icon: <Search className="w-4 h-4" />,
   },
 };
 
@@ -819,7 +870,13 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
   };
 
   const deleteDashboard = async (id: string) => {
-    await dashboardsApi.remove(id);
+    const target = dashboards.find(d => d.id === id);
+    if (target?.dashboardType === 'investigator') {
+      const { deleteInvestigator } = await import('@/services/investigatorService');
+      await deleteInvestigator(id);
+    } else {
+      await dashboardsApi.remove(id);
+    }
     const refreshed = await loadAllDashboardsFromDB();
     setDashboards(refreshed);
     setDeleteModalId(null);
@@ -852,6 +909,13 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
 
   const openInEditor = (id: string) => {
     const target = dashboards.find((d) => d.id === id);
+    if (target?.dashboardType === 'investigator') {
+      // Investigators live in Supabase `investigators` and are loaded by the
+      // Investigator page itself — we just hand it the id and switch tabs.
+      localStorage.setItem('osmosis_open_investigator_id', id);
+      setActiveTab?.('investigator');
+      return;
+    }
     localStorage.setItem('osmosis_open_dashboard_id', id);
     incrementViewCount(id);
     // Precision Architect dashboards have their own editor — route there
@@ -864,11 +928,11 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
   };
 
   // Click handler for a dashboard row/card.
-  // PA dashboards bypass the in-page preview (which can't render PA widgets)
-  // and open straight in the Precision Architect module.
+  // PA and Investigator dashboards bypass the in-page preview (which can't
+  // render their widgets) and open straight in their own module.
   const openDashboard = (id: string) => {
     const target = dashboards.find((d) => d.id === id);
-    if (target?.dashboardType === 'precision_architect') {
+    if (target?.dashboardType === 'precision_architect' || target?.dashboardType === 'investigator') {
       openInEditor(id);
       return;
     }
@@ -1076,7 +1140,13 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
             <FilterDropdown
               label="Type" icon={<Filter className="w-3 h-3" />}
               value={filterType}
-              options={[{ value: 'all', label: 'Tous types' }, { value: 'map', label: 'Map' }, { value: 'analytic_qoe', label: 'Analytic QOE' }]}
+              options={[
+                { value: 'all', label: 'Tous types' },
+                { value: 'map', label: 'Map' },
+                { value: 'analytic_qoe', label: 'Analytic QOE' },
+                { value: 'precision_architect', label: 'Netview' },
+                { value: 'investigator', label: 'Investigator' },
+              ]}
               onChange={setFilterType}
             />
 

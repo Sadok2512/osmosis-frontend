@@ -1,4 +1,4 @@
-import { VPS_ENDPOINTS, getApiHeaders } from '@/lib/apiConfig';
+import { VPS_ENDPOINTS, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import type { DetectorPayload, DimensionOption, KpiOption } from './detectorBuilderTypes';
 
 export interface KpiTableOption {
@@ -12,17 +12,39 @@ const FALLBACK_KPI_TABLES: KpiTableOption[] = [
   { id: 1, table_name: 'kpi_15m', label: '15 min', granularity: '15m' },
   { id: 5, table_name: 'kpi_1h',  label: '1 hour', granularity: '1h'  },
   { id: 2, table_name: 'kpi_1d',  label: '1 day',  granularity: '1d'  },
-  { id: 6, table_name: 'kpi_1s',  label: '1 stat', granularity: '1s'  },
+  { id: 6, table_name: 'kpi_1s',  label: '1W',     granularity: '1w'  },
   { id: 17, table_name: 'kpi_bh', label: 'BH',     granularity: 'bh'  },
 ];
 
-// ml-engine catalog endpoints live at :11002/api/v1/ml/*, exposed via the
-// spa-proxy under /ml-api/* (apiConfig.VPS_ENDPOINTS.ml). All ODCC requests
-// go straight there — bypass the kpi-engine fallback used elsewhere.
-const ML_BASE = `${VPS_ENDPOINTS.ml}`;
+// ml-engine catalog endpoints live at :11002/api/v1/ml/*. URL resolution
+// depends on where the browser runs:
+//   - On the VPS / *.qoebit.net : same-origin /ml-api (nginx → :11002)
+//   - On Lovable preview / random host : Supabase edge function vps-proxy
+// `getVpsProxyUrl('ml', ...)` already encodes that switch — keep one source
+// of truth instead of poking VPS_ENDPOINTS.ml directly (which falls through
+// to the SPA index.html in environments where no /ml-api proxy exists,
+// the original cause of the "Backend ODCC error: ... 500" toasts).
 function mlUrl(path: string): string {
-  const clean = path.replace(/^\//, '');
-  return `${ML_BASE}/${clean}`;
+  const clean = path.startsWith('/') ? path : `/${path}`;
+  return getVpsProxyUrl('ml', clean);
+}
+
+function mlHeaders(): Record<string, string> {
+  // When mlUrl picked the edge-function path the call needs the Supabase
+  // apikey + Authorization. When mlUrl picked the direct path the header
+  // is harmless (FastAPI ignores it). Detect the edge route by URL shape.
+  return getVpsProxyHeaders(getApiHeaders());
+}
+
+interface MlUnavailableResponse {
+  unavailable?: boolean;
+  service?: string;
+  error?: string;
+}
+
+function isUnavailableFallback(value: unknown): value is MlUnavailableResponse {
+  return !!(value && typeof value === 'object'
+    && (value as MlUnavailableResponse).unavailable === true);
 }
 
 const FALLBACK_KPIS: KpiOption[] = [
@@ -61,20 +83,31 @@ async function parseJsonSafe<T>(response: Response, url: string, method: string)
 
 async function getJson<T>(path: string): Promise<T> {
   const url = mlUrl(path);
-  const response = await fetch(url, { headers: getApiHeaders() });
+  const response = await fetch(url, { headers: mlHeaders() });
   if (!response.ok) throw new Error(`GET ${url} failed (${response.status})`);
-  return parseJsonSafe<T>(response, url, 'GET');
+  const parsed = await parseJsonSafe<T>(response, url, 'GET');
+  // vps-proxy returns 200 with { unavailable:true, error:'...' } when the
+  // upstream service is down. Bubble that as a soft error so callers can
+  // pick the empty-state fallback instead of leaking an error toast.
+  if (isUnavailableFallback(parsed)) {
+    throw new Error(`GET ${url} unavailable: ${parsed.error || 'upstream offline'}`);
+  }
+  return parsed;
 }
 
 async function sendJson<T>(path: string, method: 'POST' | 'PUT' | 'DELETE', body?: unknown): Promise<T> {
   const url = mlUrl(path);
   const response = await fetch(url, {
     method,
-    headers: getApiHeaders(),
+    headers: mlHeaders(),
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) throw new Error(`${method} ${url} failed (${response.status})`);
-  return parseJsonSafe<T>(response, url, method);
+  const parsed = await parseJsonSafe<T>(response, url, method);
+  if (isUnavailableFallback(parsed)) {
+    throw new Error(`${method} ${url} unavailable: ${parsed.error || 'upstream offline'}`);
+  }
+  return parsed;
 }
 
 const asArray = (value: unknown): unknown[] => {
@@ -397,6 +430,10 @@ export function toMlDetectorPayload(payload: DetectorPayload, meta: DetectorSave
   };
 }
 
+// Soft-fail patterns: 4xx/5xx HTTP, non-JSON responses, or the
+// vps-proxy "unavailable" envelope. Anything matching = render empty state.
+const SOFT_FAIL_RE = /non-JSON|malformed JSON|unavailable|failed \(4\d\d\)|failed \(5\d\d\)/;
+
 export async function listDetectorPayloads(): Promise<{ items: MlDetectorRow[]; total: number; error?: string }> {
   try {
     // Post-rename envelope: { detectors, total, page, limit }. Tolerate
@@ -407,10 +444,8 @@ export async function listDetectorPayloads(): Promise<{ items: MlDetectorRow[]; 
       total: raw.total ?? raw.count ?? 0,
     };
   } catch (err) {
-    // ml-engine /detectors can return 500 (DB not migrated) or HTML (route missing).
-    // Degrade gracefully so the ODCC console still renders.
     const message = err instanceof Error ? err.message : String(err);
-    if (/non-JSON|malformed JSON|failed \(404\)|failed \(500\)|failed \(502\)|failed \(503\)/.test(message)) {
+    if (SOFT_FAIL_RE.test(message)) {
       console.warn('[odcc] listDetectorPayloads fallback:', message);
       return { items: [], total: 0, error: 'backend_unavailable' };
     }
@@ -453,10 +488,10 @@ export async function listDetectorAnomalies(opts: {
   try {
     return await getJson<{ items: MlAnomalyRow[]; total: number; page: number; pages: number; error?: string }>(`anomalies?${params.toString()}`);
   } catch (err) {
-    // ml-engine /anomalies route not deployed → spa-proxy serves index.html.
-    // Treat as "no anomalies yet" so the console renders instead of crashing.
+    // Soft fail on transport / proxy / migration gaps so the console
+    // renders an empty state instead of crashing with a red toast.
     const message = err instanceof Error ? err.message : String(err);
-    if (/non-JSON|malformed JSON|failed \(404\)/.test(message)) {
+    if (SOFT_FAIL_RE.test(message)) {
       console.warn('[odcc] listDetectorAnomalies fallback:', message);
       return { items: [], total: 0, page, pages: 0, error: 'backend_unavailable' };
     }

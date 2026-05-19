@@ -12,13 +12,36 @@
 const VPS_HOST = import.meta.env.VITE_VPS_HOST || 'localhost';
 if (VPS_HOST === 'localhost') console.warn('[apiConfig] VITE_VPS_HOST not set — VPS mode will use localhost');
 
+// Extra "direct" hosts: self-hosted Back100 IP + a comma-separated env override.
+// When the browser is on one of these, calls go through the LOCAL spa-proxy on
+// :3000 instead of the Supabase Edge Function (vps-proxy). Necessary because
+// the Edge Function's CORS does not allow custom headers like X-User-Id, so
+// any header-bearing endpoint (tickets, etc.) fails with "Failed to fetch"
+// from the browser when routed through Supabase.
+const _LOCAL_HOSTS_ENV = (import.meta.env.VITE_LOCAL_HOSTS as string | undefined) || '';
+const LOCAL_DIRECT_HOSTS = new Set([
+  '127.0.0.1', 'localhost',
+  '151.242.147.49',  // Back100 external IP
+  ..._LOCAL_HOSTS_ENV.split(',').map(s => s.trim()).filter(Boolean),
+]);
+
+// True when the browser is on a host where same-origin URLs reach the parser
+// directly (either via nginx on the production VPS or the local spa-proxy
+// on Back100/dev).
+function isDirectHost(): boolean {
+  if (typeof window === 'undefined') return false;
+  const h = window.location.hostname;
+  return (
+    h === 'app.qoebit.net' ||
+    h === 'app.osmosis.net' ||
+    h === VPS_HOST ||
+    h === '185.248.33.125' ||
+    LOCAL_DIRECT_HOSTS.has(h)
+  );
+}
+
 // Detect hosting context: app.qoebit.net serves frontend + API from same origin via nginx
-const isOnAppDomain = typeof window !== 'undefined' && (
-  window.location.hostname === 'app.qoebit.net' ||
-  window.location.hostname === 'app.osmosis.net' ||
-  window.location.hostname === VPS_HOST ||
-  window.location.hostname === '185.248.33.125'
-);
+const isOnAppDomain = isDirectHost();
 
 // Cloudflare Tunnel endpoints (legacy — separate domains per service)
 const CF_PARSER = 'https://api.qoebit.net';
@@ -193,11 +216,7 @@ export function getVpsProxyUrl(
   }
 
   // Direct mode: skip proxy when browser is on VPS or Cloudflare tunnel
-  const onDirect = typeof window !== 'undefined' && (
-    window.location.hostname === VPS_HOST ||
-    window.location.hostname.endsWith('.qoebit.net') ||
-    window.location.hostname.endsWith('.osmosis.net')
-  );
+  const onDirect = isDirectHost();
   if (onDirect) {
     const ep = VPS_ENDPOINTS[service];
     const params = new URLSearchParams(mergedExtra);
@@ -252,11 +271,7 @@ export function getApiUrl(functionName: string): string {
       return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${clean}`;
     }
     // When browser is on the VPS or on a Cloudflare tunnel domain, call services directly
-    const onDirect = typeof window !== 'undefined' && (
-      window.location.hostname === VPS_HOST ||
-      window.location.hostname.endsWith('.qoebit.net') ||
-      window.location.hostname.endsWith('.osmosis.net')
-    );
+    const onDirect = isDirectHost();
 
     // KPI Engine endpoints → kpi.osmosis.net (or :8001 on VPS)
     const kpiPrefixes = ['monitor', 'catalog', 'kpi/', 'anomalies', 'clusters', 'config/aggregation', 'config/jobs', 'config/ne-scope', 'config/quality', 'config/stats', 'internal/'];
@@ -290,11 +305,7 @@ export function getApiHeaders(): Record<string, string> {
   const source = getPreferredDataSource();
   if (source === 'vps') {
     // Direct mode: simple headers when on VPS or Cloudflare tunnel (no proxy auth needed)
-    const onDirect = typeof window !== 'undefined' && (
-      window.location.hostname === VPS_HOST ||
-      window.location.hostname.endsWith('.qoebit.net') ||
-      window.location.hostname.endsWith('.osmosis.net')
-    );
+    const onDirect = isDirectHost();
     if (onDirect) {
       return { 'Content-Type': 'application/json' };
     }

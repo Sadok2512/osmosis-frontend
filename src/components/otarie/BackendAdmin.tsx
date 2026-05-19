@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import OdccAdminPanel from '@/components/odcc/OdccAdminPanel';
 
 interface DbConfig {
   host: string;
@@ -83,6 +84,13 @@ const MODULE_TABLE_MAP = [
     tables: ['map_views'],
     description: 'Vues cartographiques sauvegardées',
     apiEndpoints: ['/api/map-views'],
+  },
+  {
+    module: 'ODCC',
+    icon: '🎯',
+    tables: ['ml_detector_config', 'ml_anomalies', 'ml_detector_runs'],
+    description: 'Detectors créés par les opérateurs + anomalies détectées',
+    apiEndpoints: ['/ml-api/detectors', '/ml-api/anomalies'],
   },
 ];
 
@@ -685,6 +693,9 @@ const BackendAdmin: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* ─── ODCC — Operator Detection Control Console ─── */}
+      <OdccAdminPanel />
 
       {/* ─── Table Status Results ─── */}
       {tableInfos.length > 0 && (

@@ -148,8 +148,17 @@ function buildSafeFallback(service: string, path: string, message: string) {
   if (path.includes('/topo/hierarchy')) {
     return { ...base, items: [], rows: [] };
   }
+  if (service === 'ml' && path.includes('/detectors')) {
+    // /detectors → list payload  •  /detectors/{id}/matching-elements → preview
+    if (path.includes('/matching-elements')) {
+      return { ...base, matching: [], scope_filter: {}, truncated: false };
+    }
+    return { ...base, detectors: [], total: 0, page: 1, limit: 50 };
+  }
   if (service === 'ml' && path.includes('/profiles')) {
-    return { ...base, profiles: [], count: 0 };
+    // Legacy alias — kept for transition deploys. Returns empty in the
+    // new shape so any straggler clients reading raw.detectors still work.
+    return { ...base, detectors: [], profiles: [], count: 0, total: 0 };
   }
   if (service === 'ml' && path.includes('/anomalies')) {
     return { ...base, items: [], total: 0, page: 1, pages: 0 };
@@ -186,7 +195,8 @@ function buildSafeFallback(service: string, path: string, message: string) {
 
 function buildSafePostFallback(service: string, path: string, message: string) {
   if (service === 'ml') {
-    return { unavailable: true, service, path, error: message, queued: false, task_id: '', profile_id: null };
+    // POST shapes after the 2026-05-19 rename: run-now returns {queued,task_id,run_id,detector_id}.
+    return { unavailable: true, service, path, error: message, queued: false, task_id: '', run_id: null, detector_id: null, profile_id: null };
   }
   if (service === 'agentic') {
     return { ...buildSafeFallback(service, path, message), content: '' };
