@@ -62,15 +62,12 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   // the widget's own filters. Either source must contain at least one
   // perimeter dimension (Cluster / Site / Vendor / DOR / Bande).
   const effectiveFilters = inheritsScope ? gFilters : (cfg?.data?.filters ?? []);
-  const PERIMETER_DIMS = new Set(['CLUSTER', 'PLAQUE', 'SITE', 'VENDOR', 'DOR', 'BAND',
-    'Cluster', 'Plaque', 'Site', 'Vendor', 'DOR', 'Bande']);
-  const hasPerimeterFilter = effectiveFilters.some(
-    f => PERIMETER_DIMS.has(f.dimension) || PERIMETER_DIMS.has(toBackendDimension(f.dimension))
-  );
   const effectiveFrom = inheritsTime ? gFrom : (cfg?.data?.timeRange?.from ?? '');
   const effectiveTo = inheritsTime ? gTo : (cfg?.data?.timeRange?.to ?? '');
   const hasDateRange = !!effectiveFrom && !!effectiveTo;
-  const missingRequirements = !hasPerimeterFilter || !hasDateRange;
+  // Perimeter filter is no longer required — the widget inherits the report's
+  // global scope (techno + filters) by default. Only a valid date range is needed.
+  const missingRequirements = !hasDateRange;
 
   const request: TableRequest | null = useMemo(() => {
     if (!cfg || !hasColumns || !hasBeenApplied || missingRequirements) return null;
