@@ -377,9 +377,14 @@ const AlarmCenterPage: React.FC = () => {
 
   return (
     <div
-      className="h-full overflow-y-auto space-y-5 p-5"
-      style={{ background: "#f6f8fb", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" }}
+      className="h-full overflow-y-auto space-y-5 p-5 transition-[padding] duration-300"
+      style={{
+        background: "#f6f8fb",
+        fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+        paddingRight: detailsOpen ? 'calc(440px + 1.25rem)' : undefined,
+      }}
     >
+
       {/* HEADER */}
       <div className={`${CARD} px-5 py-4`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -803,17 +808,15 @@ const AlarmCenterPage: React.FC = () => {
           </div>
         </section>
 
-        {/* FLOATING LEFT DRAWER — Details + AI */}
+        {/* DOCKED RIGHT DRAWER — Details + AI. Doesn't overlap content because
+            root container reserves paddingRight when detailsOpen. */}
         {detailsOpen && (
-          <div className="fixed inset-0 z-[60] pointer-events-none">
-            {/* Transparent click-catcher: map reste visible, clic en dehors ferme la sidebar */}
-            <div
-              className="absolute inset-0 pointer-events-auto"
-              onClick={() => setDetailsOpen(false)}
-            />
+          <div className="fixed right-0 top-0 h-full w-[440px] max-w-[92vw] z-[60]">
 
 
-            <aside className="pointer-events-auto absolute right-0 top-0 h-full w-[440px] max-w-[92vw] bg-[#f6f8fb] shadow-[-8px_0_28px_rgba(15,23,42,0.12)] border-l border-[#e7edf5] overflow-y-auto p-4 space-y-4 animate-in slide-in-from-right duration-300">
+
+
+            <aside className="h-full w-full bg-[#f6f8fb] shadow-[-8px_0_28px_rgba(15,23,42,0.12)] border-l border-[#e7edf5] overflow-y-auto p-4 space-y-4 animate-in slide-in-from-right duration-300">
           {selected && (
             <div className={`${CARD} px-5 py-4`}>
               <div className="flex items-start justify-between gap-2">
@@ -1089,6 +1092,21 @@ const SitesMiniMap: React.FC<{
     const id = setTimeout(() => mapRef.current?.invalidateSize(), 30);
     return () => clearTimeout(id);
   }, [mapHeight]);
+
+  // Invalidate map size whenever the container width changes
+  // (e.g. right details drawer opens/closes and shrinks/expands the page).
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let raf = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => mapRef.current?.invalidateSize());
+    });
+    ro.observe(el);
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+  }, []);
+
 
   // Load all-network sites for the current viewport (bbox + zoom aware).
   const loadBboxSites = React.useCallback(() => {
