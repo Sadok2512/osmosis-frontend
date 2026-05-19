@@ -1631,8 +1631,41 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           const smooth = cfg.smooth !== undefined ? cfg.smooth : (ct === 'line' || ct === 'area' || ct === 'stacked_area');
           const symbols = ct === 'line_points' || ct === 'scatter';
           const showArea = sType === 'line' && (cfg.showArea || ct === 'area' || ct === 'stacked_area');
-          return { seriesType: sType, isSmooth: smooth, forceSymbols: symbols, isStacked: stacked, showArea };
+          const isModernArea = ct === 'stacked_area' || ct === 'area';
+          return { seriesType: sType, isSmooth: smooth, forceSymbols: symbols, isStacked: stacked, showArea, isModernArea };
         };
+        // Grafana / Datadog-inspired gradient fill + soft glow for area & stacked area
+        const buildModernAreaStyle = (color: string, modern: boolean) => modern ? ({
+          color: {
+            type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: `${color}B3` },
+              { offset: 0.55, color: `${color}4D` },
+              { offset: 1, color: `${color}05` },
+            ],
+          },
+          shadowBlur: 14,
+          shadowColor: `${color}55`,
+          opacity: 0.95,
+          origin: 'start' as const,
+        }) : ({
+          color: {
+            type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: `${color}66` },
+              { offset: 1, color: `${color}08` },
+            ],
+          },
+        });
+        const buildModernLineStyle = (color: string, width: number, modern: boolean) => modern ? ({
+          width: Math.max(width, 2),
+          color,
+          shadowBlur: 8,
+          shadowColor: `${color}99`,
+          shadowOffsetY: 1,
+          cap: 'round' as const,
+          join: 'round' as const,
+        }) : ({ width, color });
         // Force markers on when a line series has ≤ 1 real value, otherwise a
         // lone point is invisible (no segment to draw between two nulls).
         const hasSinglePoint = (vals: (number | null)[]) =>
@@ -1699,19 +1732,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 smooth: sp.isSmooth,
                 symbol: forceMarkers ? 'circle' : 'none',
                 symbolSize: forceMarkers ? 5 : 0,
-                lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
+                lineStyle: sp.seriesType === 'line' ? buildModernLineStyle(color, cfg.lineWidth, sp.isModernArea && sp.showArea) : undefined,
                 itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                 barMaxWidth: 20,
                 stack: sp.isStacked ? 'total' : undefined,
-                areaStyle: sp.showArea ? {
-                  color: {
-                    type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                    colorStops: [
-                      { offset: 0, color: `${color}66` },
-                      { offset: 1, color: `${color}08` },
-                    ],
-                  },
-                } : undefined,
+                areaStyle: sp.showArea ? buildModernAreaStyle(color, sp.isModernArea) : undefined,
               }];
             }
 
@@ -1750,19 +1775,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                   smooth: sp.isSmooth,
                   symbol: forceMarkers ? 'circle' : 'none',
                   symbolSize: forceMarkers ? 5 : 0,
-                  lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
+                  lineStyle: sp.seriesType === 'line' ? buildModernLineStyle(color, cfg.lineWidth, sp.isModernArea && sp.showArea) : undefined,
                   itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                   barMaxWidth: 20,
                   stack: sp.isStacked ? 'total' : undefined,
-                  areaStyle: sp.showArea ? {
-                    color: {
-                      type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                      colorStops: [
-                        { offset: 0, color: `${color}66` },
-                        { offset: 1, color: `${color}08` },
-                      ],
-                    },
-                  } : undefined,
+                  areaStyle: sp.showArea ? buildModernAreaStyle(color, sp.isModernArea) : undefined,
                 };
               });
             }
@@ -1792,19 +1809,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 smooth: sp.isSmooth,
                 symbol: forceMarkers ? 'circle' : 'none',
                 symbolSize: forceMarkers ? 5 : 0,
-                lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
+                lineStyle: sp.seriesType === 'line' ? buildModernLineStyle(color, cfg.lineWidth, sp.isModernArea && sp.showArea) : undefined,
                 itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                 barMaxWidth: 20,
                 stack: sp.isStacked ? 'total' : undefined,
-                areaStyle: sp.showArea ? {
-                  color: {
-                    type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                    colorStops: [
-                      { offset: 0, color: `${color}66` },
-                      { offset: 1, color: `${color}08` },
-                    ],
-                  },
-                } : undefined,
+                areaStyle: sp.showArea ? buildModernAreaStyle(color, sp.isModernArea) : undefined,
               };
             });
           });
@@ -1830,19 +1839,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               smooth: sp.isSmooth,
               symbol: forceMarkers ? 'circle' : 'none',
               symbolSize: forceMarkers ? 5 : 0,
-              lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color: def.color } : undefined,
+              lineStyle: sp.seriesType === 'line' ? buildModernLineStyle(def.color, cfg.lineWidth, sp.isModernArea && sp.showArea) : undefined,
               itemStyle: { color: def.color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
               barMaxWidth: 20,
               stack: sp.isStacked ? 'total' : undefined,
-              areaStyle: sp.showArea ? {
-                color: {
-                  type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                  colorStops: [
-                    { offset: 0, color: `${def.color}66` },
-                    { offset: 1, color: `${def.color}08` },
-                  ],
-                },
-              } : undefined,
+              areaStyle: sp.showArea ? buildModernAreaStyle(def.color, sp.isModernArea) : undefined,
             };
           });
         }
@@ -1892,20 +1893,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               symbol: fm ? 'circle' : 'none',
               symbolSize: fm ? 5 : 0,
               lineStyle: sp.seriesType === 'line'
-                ? { width: cfg.lineWidth || 2.5, color, type: 'solid' as const }
+                ? buildModernLineStyle(color, cfg.lineWidth || 2.5, sp.isModernArea && sp.showArea)
                 : undefined,
               itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
               barMaxWidth: 20,
               stack: sp.isStacked ? 'total_counters' : undefined,
-              areaStyle: sp.showArea ? {
-                color: {
-                  type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                  colorStops: [
-                    { offset: 0, color: `${color}30` },
-                    { offset: 1, color: `${color}08` },
-                  ],
-                },
-              } : undefined,
+              areaStyle: sp.showArea ? buildModernAreaStyle(color, sp.isModernArea) : undefined,
               // yAxisIndex will be set later based on hasRightAxis
               yAxisIndex: 1,
             });
@@ -1959,20 +1952,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               symbol: forceMarkers || sp.forceSymbols ? 'circle' : 'none',
               symbolSize: forceMarkers || sp.forceSymbols ? 6 : 0,
               lineStyle: sp.seriesType === 'line'
-                ? { width: cfg.lineWidth || 2.5, color, type: 'solid' as const }
+                ? buildModernLineStyle(color, cfg.lineWidth || 2.5, sp.isModernArea && sp.showArea)
                 : undefined,
               itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
               barMaxWidth: 20,
               stack: sp.isStacked ? 'total_counters' : undefined,
-              areaStyle: sp.showArea ? {
-                color: {
-                  type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-                  colorStops: [
-                    { offset: 0, color: `${color}30` },
-                    { offset: 1, color: `${color}08` },
-                  ],
-                },
-              } : undefined,
+              areaStyle: sp.showArea ? buildModernAreaStyle(color, sp.isModernArea) : undefined,
               yAxisIndex: series.length > 1 ? 1 : 0,
             });
             hasCounterSeries = true;
