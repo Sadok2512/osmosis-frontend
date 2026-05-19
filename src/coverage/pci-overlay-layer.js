@@ -30,9 +30,9 @@ export function initPciOverlay(options) {
     map,
     cells: initialCells,
     panelMount = null,
-    fillOpacity = 0.55,
-    borderOpacity = 0.4,
-    borderWidth = 0.5,
+    fillOpacity = 0.22,
+    borderOpacity = 0.22,
+    borderWidth = 0.35,
     defaultEnabled = false,
     onBandChange = null,     // (band: string) => void
     onColorModeChange = null,// (mode: 'mod3'|'hash') => void
@@ -53,6 +53,7 @@ export function initPciOverlay(options) {
     const pane = map.createPane(paneName);
     pane.style.zIndex = '660';
     pane.style.pointerEvents = 'auto';
+    pane.style.mixBlendMode = 'multiply';
   }
 
   const listeners = { ready: [], status: [], error: [] };
@@ -205,12 +206,16 @@ export function initPciOverlay(options) {
   }
 
   function styleFor(properties) {
+    const hasPci = properties.pci != null && Number.isFinite(Number(properties.pci));
     return {
       fillColor: properties.color,
-      fillOpacity,
-      color: '#0f172a',
+      fillOpacity: hasPci ? fillOpacity : 0.08,
+      color: 'rgba(71, 85, 105, 0.38)',
       weight: borderWidth,
       opacity: borderOpacity,
+      lineCap: 'round',
+      lineJoin: 'round',
+      smoothFactor: 1.2,
     };
   }
 
@@ -244,6 +249,12 @@ export function initPciOverlay(options) {
            PCI: <b>${p.pci != null ? p.pci : '—'}</b> · ${groupTxt}<br>
            Band: ${escapeHtml(p.band || '—')}`,
           { sticky: true, direction: 'top' },
+        );
+        lyr.on('mouseover', (e) =>
+          e.target.setStyle({ weight: 0.8, fillOpacity: 0.34, opacity: 0.36 }),
+        );
+        lyr.on('mouseout', (e) =>
+          e.target.setStyle(styleFor(p)),
         );
       },
     });

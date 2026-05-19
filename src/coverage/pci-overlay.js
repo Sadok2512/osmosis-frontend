@@ -30,26 +30,25 @@ const DEFAULTS = {
   colorMode: 'mod3',
 };
 
-// Pilot group palette — 3 saturated, color-blind-safe primaries.
-// (Avoiding pure red/green pair which gives the worst deuteranopia hit.)
+// Pilot group palette — soft RF-planning colors. Kept intentionally pastel:
+// the Leaflet layer controls transparency, so these hues tint the basemap
+// instead of masking it.
 const MOD3_COLORS = {
-  0: 'rgb(220, 70, 60)',    // warm red
-  1: 'rgb(80, 160, 230)',   // sky blue
-  2: 'rgb(245, 195, 60)',   // amber yellow
+  0: 'rgb(244, 137, 122)',  // soft coral
+  1: 'rgb(103, 174, 232)',  // soft RF blue
+  2: 'rgb(246, 209, 107)',  // soft amber
 };
 
 // Hash-stable HSL color from PCI value. Golden-angle hue rotation gives
 // max separation between consecutive PCIs (same as d3-scale rainbow).
 function hashStableColor(pci) {
-  if (pci == null || !Number.isFinite(pci)) return 'rgb(160,160,160)';
+  if (pci == null || !Number.isFinite(pci)) return 'rgb(203, 213, 225)';
   const hue = (pci * 137.508) % 360;
-  // Saturation/lightness tuned for the dark map base : 65% / 55% gives
-  // visible polygons without burning the eyes at high cell density.
-  return `hsl(${hue.toFixed(1)}, 65%, 55%)`;
+  return `hsl(${hue.toFixed(1)}, 70%, 72%)`;
 }
 
 function colorForPci(pci, mode) {
-  if (pci == null || !Number.isFinite(pci)) return 'rgb(140,140,140)';
+  if (pci == null || !Number.isFinite(pci)) return 'rgb(203, 213, 225)';
   if (mode === 'hash') return hashStableColor(pci);
   // default mod3
   return MOD3_COLORS[pci % 3] || 'rgb(140,140,140)';
