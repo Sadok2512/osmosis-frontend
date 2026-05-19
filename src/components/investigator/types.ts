@@ -27,7 +27,7 @@ export type GraphTab = 'TimeSeries' | 'Histogram' | 'Breakdown' | 'Neighbors';
 export type SplitOption = string;  // Dynamic from backend: 'None' | 'SITE' | 'CELL' | 'DOR' | 'PLAQUE' | 'VENDOR' | 'TECHNO' | 'BAND' | 'ZONE_ARCEP' | ...
 export type KpiLevel = 'CELL' | 'PROFILE' | 'NEIGHBOR';
 
-export type ChartType = 'line' | 'line_straight' | 'line_points' | 'area' | 'bar' | 'stacked_bar' | 'scatter';
+export type ChartType = 'line' | 'line_straight' | 'line_points' | 'area' | 'stacked_area' | 'bar' | 'stacked_bar' | 'scatter';
 export type WidgetType = 'timeseries' | 'histogram' | 'table' | 'text';
 
 export interface YAxisConfig {
