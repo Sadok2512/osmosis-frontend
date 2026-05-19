@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, AlertCircle, Loader2, Play, BarChart3, Code2 } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import type { KpiCatalogEntry } from './kpiCatalogTypes';
-import KpiFxAdvancedMode from './KpiFxAdvancedMode';
+
+const KpiFxAdvancedMode = lazy(() => import('./KpiFxAdvancedMode'));
 
 interface KpiCreateWizardProps {
   onSubmit: (data: Record<string, any>) => Promise<void> | void;
@@ -305,19 +306,25 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
         {/* Content — Advanced FX mode (full-height workspace, no inner scroll) */}
         {editorMode === 'advanced' && (
           <div className="flex-1 min-h-0 overflow-hidden">
-            <KpiFxAdvancedMode
-              code={code} setCode={setCode}
-              name={name} setName={setName}
-              vendor={vendor} setVendor={setVendor}
-              tech={tech} setTech={setTech}
-              category={category} setCategory={setCategory}
-              unit={unit}
-              getMeta={() => ({
-                kpi_code: code, nom_ihm: name, famille: category, unites: unit,
-                vendor, techno: tech,
-              })}
-              onCreated={() => { /* operator can close manually after seeing result panel */ }}
-            />
+            <Suspense fallback={
+              <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading FX editor...
+              </div>
+            }>
+              <KpiFxAdvancedMode
+                code={code} setCode={setCode}
+                name={name} setName={setName}
+                vendor={vendor} setVendor={setVendor}
+                tech={tech} setTech={setTech}
+                category={category} setCategory={setCategory}
+                unit={unit}
+                getMeta={() => ({
+                  kpi_code: code, nom_ihm: name, famille: category, unites: unit,
+                  vendor, techno: tech,
+                })}
+                onCreated={() => { /* operator can close manually after seeing result panel */ }}
+              />
+            </Suspense>
           </div>
         )}
 

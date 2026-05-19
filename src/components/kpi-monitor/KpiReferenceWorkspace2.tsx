@@ -28,6 +28,7 @@ import { vendorPillClass, techPillClass } from '@/constants/brandColors';
 
 type DetailSection = 'overview' | 'formula' | 'thresholds' | 'source';
 type FilterStatus = 'all' | 'active' | 'inactive';
+const CATALOG_PAGE_SIZE = 80;
 
 interface KpiDraft {
   display_name: string;
@@ -118,6 +119,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [draft, setDraft] = useState<KpiDraft | null>(null);
+  const [catalogPage, setCatalogPage] = useState(1);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const reviewRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -188,6 +190,20 @@ const KpiReferenceWorkspace2: React.FC = () => {
     () => filteredCatalog.find(item => item.kpi_key === selectedKpiKey) || catalog.find(item => item.kpi_key === selectedKpiKey) || null,
     [catalog, filteredCatalog, selectedKpiKey]
   );
+
+  const totalCatalogPages = Math.max(1, Math.ceil(filteredCatalog.length / CATALOG_PAGE_SIZE));
+  const visibleCatalog = useMemo(
+    () => filteredCatalog.slice((catalogPage - 1) * CATALOG_PAGE_SIZE, catalogPage * CATALOG_PAGE_SIZE),
+    [filteredCatalog, catalogPage]
+  );
+
+  useEffect(() => {
+    setCatalogPage(1);
+  }, [search, categoryFilter, techFilter, statusFilter]);
+
+  useEffect(() => {
+    if (catalogPage > totalCatalogPages) setCatalogPage(totalCatalogPages);
+  }, [catalogPage, totalCatalogPages]);
 
   useEffect(() => {
     if (!selectedKpi && filteredCatalog.length > 0) {
@@ -478,7 +494,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
                   <Loader2 className="h-5 w-5 animate-spin text-teal-600" />
                   <span className="font-semibold">Chargement du catalogue KPI complet depuis le backend…</span>
                 </div>
-              ) : filteredCatalog.length > 0 ? filteredCatalog.map(item => {
+              ) : filteredCatalog.length > 0 ? visibleCatalog.map(item => {
                 const isSelected = selectedKpiKey === item.kpi_key;
                 const hasThresholds = item.thresholds?.warning != null || item.thresholds?.critical != null;
                 return (
@@ -536,6 +552,33 @@ const KpiReferenceWorkspace2: React.FC = () => {
               )}
             </div>
           </div>
+
+          {filteredCatalog.length > CATALOG_PAGE_SIZE && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
+              <span className="font-semibold text-slate-600">
+                Showing {(catalogPage - 1) * CATALOG_PAGE_SIZE + 1}-{Math.min(catalogPage * CATALOG_PAGE_SIZE, filteredCatalog.length)} of {filteredCatalog.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCatalogPage(page => Math.max(1, page - 1))}
+                  disabled={catalogPage <= 1}
+                  className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-slate-800 transition-all hover:border-teal-300 hover:text-teal-700 disabled:opacity-45"
+                >
+                  Prev
+                </button>
+                <span className="min-w-20 text-center text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                  {catalogPage} / {totalCatalogPages}
+                </span>
+                <button
+                  onClick={() => setCatalogPage(page => Math.min(totalCatalogPages, page + 1))}
+                  disabled={catalogPage >= totalCatalogPages}
+                  className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-slate-800 transition-all hover:border-teal-300 hover:text-teal-700 disabled:opacity-45"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </Panel>
 
         <div ref={reviewRef} className="mt-6 scroll-mt-6">

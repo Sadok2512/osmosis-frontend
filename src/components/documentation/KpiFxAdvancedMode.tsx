@@ -15,10 +15,10 @@
  */
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Check, ClipboardCopy, Code2, Copy, FlaskConical, Lightbulb, Loader2,
-  Maximize2, Minimize2, Play, Puzzle, ScrollText, ShieldCheck, Sparkles, Wand2, X,
+  Check, ClipboardCopy, Code2, FlaskConical, Lightbulb, Loader2,
+  Maximize2, Minimize2, Play, Puzzle, ScrollText, ShieldCheck, Wand2, X,
 } from 'lucide-react';
-import { getApiHeaders, getVpsUrl } from '@/lib/apiConfig';
+import { fetchWithTimeout, getApiHeaders, getVpsUrl } from '@/lib/apiConfig';
 
 // ─────────────────────────────────────────────────────────────────────
 // FX vocabulary — kept in sync with backend kpi-engine schemas.
@@ -309,6 +309,17 @@ interface KpiFxAdvancedModeProps {
 interface FxResult { kind: 'ok' | 'warn' | 'err'; html: string; }
 type RightTab = 'patterns' | 'keys' | 'examples' | 'test';
 
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(timeout);
+  }, [value, delayMs]);
+
+  return debounced;
+}
+
 
 // ─────────────────────────────────────────────────────────────────────
 // Full real-world telecom examples shown in the Examples tab.
@@ -364,7 +375,8 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({
     try { return JSON.parse(v); } catch { return null; }
   }, []);
 
-  const parsedObj = useMemo(() => parseNow(fxJson), [fxJson, parseNow]);
+  const debouncedFxJson = useDebouncedValue(fxJson, 180);
+  const parsedObj = useMemo(() => parseNow(debouncedFxJson), [debouncedFxJson, parseNow]);
 
   const onEdit = useCallback((v: string) => {
     setFxJson(v);
@@ -434,10 +446,10 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({
     if (!obj) { setResult({ kind: 'err', html: '✗ JSON invalid — fix syntax first.' }); return; }
     setBusy(true);
     try {
-      const r = await fetch(fxUrl('/kpi/fx/validate'), {
+      const r = await fetchWithTimeout(fxUrl('/kpi/fx/validate'), {
         method: 'POST', headers: { ...getApiHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ formula_fx: obj }),
-      });
+      }, 20_000);
       const d = await r.json();
       if (!r.ok) {
         const errs = (d.detail?.errors || []).map((e: any) =>
@@ -463,10 +475,10 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({
     if (!obj) { setResult({ kind: 'err', html: '✗ JSON invalid.' }); return; }
     setBusy(true); setTab('test'); setTestOut(null);
     try {
-      const r = await fetch(fxUrl('/kpi/fx/test'), {
+      const r = await fetchWithTimeout(fxUrl('/kpi/fx/test'), {
         method: 'POST', headers: { ...getApiHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ formula_fx: obj, ...testCfg }),
-      });
+      }, 30_000);
       const d = await r.json();
       if (!r.ok) { setTestOut({ error: d.detail || `HTTP ${r.status}` }); return; }
       setTestOut(d);
@@ -485,7 +497,7 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({
     if (!obj) { setResult({ kind: 'err', html: '✗ JSON invalid.' }); return; }
     setBusy(true);
     try {
-      const r = await fetch(fxUrl('/kpi/fx'), {
+      const r = await fetchWithTimeout(fxUrl('/kpi/fx'), {
         method: 'POST', headers: { ...getApiHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           kpi_code: meta.kpi_code,
@@ -496,7 +508,7 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({
           techno: meta.techno && meta.techno !== 'ALL' ? meta.techno : null,
           formula_fx: obj, is_active: false,
         }),
-      });
+      }, 20_000);
       const d = await r.json();
       if (!r.ok) {
         const errs = r.status === 409
@@ -596,79 +608,6 @@ const KpiFxAdvancedMode: React.FC<KpiFxAdvancedModeProps> = ({
           </>
         )}
       </div>
-    </div>
-  );
-
-  // ── LEFT — Operational intent + explain + validate ──
-  const leftCol = (
-    <div className="flex flex-col h-full min-h-0 overflow-y-auto p-4 gap-4 bg-muted/20">
-      <div>
-        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-          <Sparkles className="w-3 h-3 text-primary" /> What do you want to calculate?
-        </div>
-        <textarea
-          value={intent}
-          onChange={e => setIntent(e.target.value)}
-          placeholder={'e.g. Number of 4G cells with Drop Rate > 2% between 02h and 04h excluding weekends'}
-          className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-foreground text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/30"
-          style={{ minHeight: 180 }}
-        />
-        <button type="button" onClick={generate}
-          className="w-full mt-2 px-2.5 py-2 rounded-md bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider hover:bg-primary/20 flex items-center justify-center gap-1">
-          <Wand2 className="w-3 h-3" /> Generate FX
-        </button>
-      </div>
-
-      <div>
-        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-          <ScrollText className="w-3 h-3" /> Explanation
-        </div>
-        <div className="p-3 rounded-lg bg-card border border-border text-xs text-foreground leading-relaxed min-h-[60px]">
-          {!parsedObj && <span className="text-muted-foreground">FX JSON invalid or empty. Generate or write JSON to see the explanation.</span>}
-          {parsedObj && explanation && (
-            <>
-              <div>{explanation.sentence}</div>
-              {explanation.features.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {explanation.features.map((f, i) => (
-                    <span key={i} className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-mono">{f}</span>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-          <ShieldCheck className="w-3 h-3" /> Validation
-        </div>
-        <div className="space-y-1.5">
-          {!parsedObj && <div className="text-[11px] text-muted-foreground">JSON invalid — fix syntax first.</div>}
-          {parsedObj && issues.length === 0 && <div className="text-[11px] text-emerald-500">✓ All client-side checks pass.</div>}
-          {parsedObj && issues.map((i, idx) => (
-            <div key={idx} className={`p-2 rounded-md border-l-2 text-[11px] ${
-              i.level === 'ok' ? 'border-emerald-500 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400'
-              : i.level === 'warn' ? 'border-amber-500 bg-amber-500/5 text-amber-600 dark:text-amber-400'
-              : 'border-destructive bg-destructive/5 text-destructive'
-            }`}>
-              {i.level === 'ok' ? '✔' : i.level === 'warn' ? '⚠' : '✖'} {i.msg}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {result && (
-        <div>
-          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Last action</div>
-          <div className={`p-3 rounded-lg text-xs border-l-2 ${
-              result.kind === 'ok' ? 'border-emerald-500 bg-emerald-500/5'
-              : result.kind === 'warn' ? 'border-amber-500 bg-amber-500/5'
-              : 'border-destructive bg-destructive/5'} text-foreground`}
-            dangerouslySetInnerHTML={{ __html: result.html }} />
-        </div>
-      )}
     </div>
   );
 
