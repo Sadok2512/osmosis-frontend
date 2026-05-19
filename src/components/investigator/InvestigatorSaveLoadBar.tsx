@@ -176,9 +176,15 @@ const InvestigatorSaveLoadBar: React.FC<Props> = ({
     try {
       const ctx = getContext();
       const created = await createInvestigator(name, ctx, saveAsVisibility);
-      onLoad(created);
+      // Stay on the same tab: rebind current instance to the new saved entity
+      // (rename + attach id) instead of opening a new tab.
+      onNameChange(created.name);
+      onIdChange(created.id);
+      onMarkSaved();
       setSaveStatus('saved');
       setLastSavedAt(new Date());
+      // Refresh saved list so the new entry shows up in the dashboard list
+      setSavedList(prev => [created, ...prev.filter(i => i.id !== created.id)]);
       toast.success(`"${name}" créé (${saveAsVisibility === 'public' ? 'public' : 'privé'})`);
     } catch {
       toast.error('Erreur');
