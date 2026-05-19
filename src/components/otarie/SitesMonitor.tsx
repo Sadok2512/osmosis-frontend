@@ -2110,6 +2110,8 @@ interface DashboardInventoryTabProps {
    *  pill + counters). Replaces the previous 5-prop React-controlled
    *  block on 2026-05-11. */
   onCoveragePanelMount?: (el: HTMLDivElement | null) => void;
+  /** PCI Overlay panel mount — visible, séparé du coverage mount caché. */
+  onPciOverlayPanelMount?: (el: HTMLDivElement | null) => void;
   /** Optional stats provider for an active dashboard scope (sites + cells). */
   getDashboardStats?: (dashboardId: string, siteFilters?: any) => { sites: number; cells: number } | null;
 }
@@ -2123,7 +2125,7 @@ const dedupeAutoFilterDashboards = (items: any[]) => {
   });
 };
 
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, kpiOverlays, onRemoveKpiOverlay, onActivateKpiOverlay, activeKpiOverlayId, resolveKpiLabel, overlayVersion, catalogKpisForModal, noDashboardMode, onToggleNoDashboardMode, onCoveragePanelMount, getDashboardStats }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, kpiOverlays, onRemoveKpiOverlay, onActivateKpiOverlay, activeKpiOverlayId, resolveKpiLabel, overlayVersion, catalogKpisForModal, noDashboardMode, onToggleNoDashboardMode, onCoveragePanelMount, onPciOverlayPanelMount, getDashboardStats }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [savedDashboardId, setSavedDashboardId] = useState<string | null>(null);
   const [ldg, setLdg] = useState(true);
@@ -3265,6 +3267,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                           vanilla module still receives a DOM node and does
                           not error; UI is intentionally not displayed. */}
                       <div className="hidden" ref={onCoveragePanelMount} />
+                      {/* PCI Overlay panel mount (party 2026-05-18) — VISIBLE.
+                          The pci-overlay-layer JS module attaches its
+                          interactive panel (toggle on/off + band pills +
+                          colorMode + legend) here. Separate from the hidden
+                          Visual Coverage mount so the PCI controls surface
+                          to the operator without re-exposing the legacy VC
+                          panel. */}
+                      <div ref={onPciOverlayPanelMount} />
                     </div>
                   );
                 })()}
@@ -4280,6 +4290,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [pciOverlayEnabled, setPciOverlayEnabled] = useState(false);
   const [pciOverlayBand, setPciOverlayBand] = useState<string | null>(null);
   const [pciOverlayMode, setPciOverlayMode] = useState<'mod3' | 'hash'>('mod3');
+  const [pciOverlayPanelNode, setPciOverlayPanelNode] = useState<HTMLDivElement | null>(null);
   // KPI Overlay layer (2026-05-11) — driven by saved views of type
   // `kpi_overlay`. State holds the active view (or null when no KPI
   // overlay view is selected). The drop-in module no longer renders
@@ -8533,7 +8544,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           enabled={pciOverlayEnabled}
           band={pciOverlayBand || undefined}
           colorMode={pciOverlayMode}
-          panelMount={coveragePanelNode}
+          panelMount={pciOverlayPanelNode}
           bbox={coverageBbox}
           onEnabledChange={(flag) => {
             setPciOverlayEnabled(flag);
@@ -14798,6 +14809,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   noDashboardMode={noDashboardMode}
                   onToggleNoDashboardMode={() => setNoDashboardMode(v => !v)}
                   onCoveragePanelMount={setCoveragePanelNode}
+                  onPciOverlayPanelMount={setPciOverlayPanelNode}
                 />
                </div>
               </>
