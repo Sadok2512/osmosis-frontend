@@ -47,6 +47,13 @@ export function initPciOverlay(options) {
   let result = null;
   let geoLayer = null;
   let enabled = defaultEnabled;
+  const paneName = 'panePciOverlay';
+
+  if (!map.getPane(paneName)) {
+    const pane = map.createPane(paneName);
+    pane.style.zIndex = '660';
+    pane.style.pointerEvents = 'auto';
+  }
 
   const listeners = { ready: [], status: [], error: [] };
   const emit = (e, p) => listeners[e]?.forEach((fn) => fn(p));
@@ -227,6 +234,7 @@ export function initPciOverlay(options) {
     if (geoLayer) { map.removeLayer(geoLayer); geoLayer = null; }
 
     geoLayer = L.geoJSON(result.fc, {
+      pane: paneName,
       style: (feature) => styleFor(feature.properties),
       onEachFeature: (feature, lyr) => {
         const p = feature.properties;
@@ -240,6 +248,7 @@ export function initPciOverlay(options) {
       },
     });
     geoLayer.addTo(map);
+    if (geoLayer.bringToFront) geoLayer.bringToFront();
 
     renderPanel();
     emit('ready', { nCells: result.nCells, band: currentView.band });
