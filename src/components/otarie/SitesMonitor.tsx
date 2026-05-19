@@ -10099,7 +10099,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             <div className="flex justify-between"><span className="opacity-50">Techno</span><span className="font-bold">{tech}</span></div>
                             <div className="flex justify-between"><span className="opacity-50">Band</span><span className="font-bold">{bandKey || '—'}</span></div>
                             <div className="flex justify-between"><span className="opacity-50">Azimut</span><span className="font-bold">{az}°</span></div>
-                            <div className="flex justify-between"><span className="opacity-50">Radius</span><span className="font-mono font-bold">{Math.round(radius)}m</span></div>
+                            <div className="flex justify-between"><span className="opacity-50">Tilt</span><span className="font-mono font-bold">{(cell as any).tilt != null ? `${(cell as any).tilt}°` : '—'}</span></div>
+                            {(tech === '4G' || tech === '5G') && (
+                              <div className="flex justify-between"><span className="opacity-50">PCI</span><span className="font-mono font-bold">{(cell as any).pci ?? '—'}</span></div>
+                            )}
+                            {tech === '3G' && (
+                              <div className="flex justify-between"><span className="opacity-50">SC</span><span className="font-mono font-bold">{(cell as any).sc ?? (cell as any).psc ?? '—'}</span></div>
+                            )}
+                            {tech === '2G' && (
+                              <div className="flex justify-between"><span className="opacity-50">BCCH</span><span className="font-mono font-bold">{(cell as any).bcch ?? '—'}</span></div>
+                            )}
                           </div>
                         </div>
                       </Tooltip>
