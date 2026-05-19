@@ -186,6 +186,19 @@ const COVERAGE_BAND_ALIASES: Record<string, string[]> = {
   L800: ['LTE800', 'L800', 'B20'],
   L700: ['LTE700', 'L700', 'B28'],
 };
+
+const coverageBandsToCsv = (bands?: unknown): string | undefined => {
+  if (!Array.isArray(bands)) return undefined;
+  const aliases = new Set<string>();
+  for (const raw of bands) {
+    const key = String(raw || '').trim();
+    if (!key) continue;
+    const mapped = COVERAGE_BAND_ALIASES[key] || [key];
+    mapped.forEach(v => aliases.add(v));
+  }
+  return aliases.size > 0 ? Array.from(aliases).join(',') : undefined;
+};
+
 // Load custom colors from localStorage
 const loadCustomBandColors = (): Record<string, string> => {
   try {
@@ -4419,6 +4432,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // restore it. The actual mount node is held in coveragePanelNode
   // and threaded down to DashboardInventoryTab.
   const [showVisualCoverage, setShowVisualCoverage] = useState(false);
+  const [coverageViewBands, setCoverageViewBands] = useState<string[] | null>(null);
   const [coveragePanelNode, setCoveragePanelNode] = useState<HTMLDivElement | null>(null);
   const [coverageCells, setCoverageCells] = useState<CoverageCell[]>([]);
   // null = all PCI values active. A Set means explicit selection; empty
@@ -7382,6 +7396,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [localBande, dashboardActive, activeDashboardFilters]);
   const coverageBandFilter = useMemo(() => {
     if (localBande !== 'ALL') return localBande;
+    const viewBandsCsv = coverageBandsToCsv(coverageViewBands);
+    if (showVisualCoverage && viewBandsCsv) return viewBandsCsv;
     if (dashboardActive && activeDashboardFilters?.bande?.length) {
       return activeDashboardFilters.bande.join(',');
     }
@@ -7394,7 +7410,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       mapped.forEach(v => aliases.add(v));
     }
     return aliases.size > 0 ? Array.from(aliases).join(',') : '__NO_BAND_SELECTED__';
-  }, [localBande, dashboardActive, activeDashboardFilters, isBandFilterActive, enabledBands]);
+  }, [localBande, showVisualCoverage, coverageViewBands, dashboardActive, activeDashboardFilters, isBandFilterActive, enabledBands]);
 
   // Sites visible in current viewport (for map rendering) — gated by zoom and count
   const MAX_CELL_RESOLUTION_SITES = 250;
@@ -8459,6 +8475,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if ((settings as any).showVisualCoverage !== undefined) {
       setShowVisualCoverage(Boolean((settings as any).showVisualCoverage));
       if (Boolean((settings as any).showVisualCoverage)) {
+        const bands = Array.isArray((settings as any).coverageBands)
+          ? (settings as any).coverageBands.map((b: unknown) => String(b).trim()).filter(Boolean)
+          : [];
+        setCoverageViewBands(bands.length ? bands : null);
         setActiveKpiOverlayView(null);
         setKpiOverlayLocked(false);
         setKpiOverlays([]);
@@ -8472,6 +8492,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           setParamPoints([]);
           setParamPanelOpen(false);
         }
+      } else {
+        setCoverageViewBands(null);
       }
     }
     // KPI Overlay (Voronoï coloured by KPI value, drop-in module 2026-05-11).
@@ -8501,6 +8523,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     } else if ((settings as any).viewType && (settings as any).viewType !== 'kpi_overlay') {
       // Switching away from a KPI Overlay view ⇒ retire the layer.
       setActiveKpiOverlayView(null);
+      if (!isCoverageView) setCoverageViewBands(null);
     }
   }, [sectorColorMode]);
 
@@ -14799,6 +14822,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         // is shut down so the two don't paint over each
                         // other.
                         setShowVisualCoverage(false);
+                        setCoverageViewBands(null);
                       }
                       if (cfg.technology) setKpiTechnoFilter(cfg.technology);
                       if (cfg.level) setKpiAnalysisLevel(cfg.level);
@@ -14837,6 +14861,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       // Cell Footprint adds PCI polygons below the normal
                       // topology layer. Keep site markers and sector beams
                       // visible so the operator can still inspect sites.
+                      const bands = Array.isArray((settings as any).coverageBands)
+                        ? (settings as any).coverageBands.map((b: unknown) => String(b).trim()).filter(Boolean)
+                        : [];
+                      setCoverageViewBands(bands.length ? bands : null);
                       setShowVisualCoverage(true);
                       setActiveKpiOverlayView(null);
                       setKpiOverlayLocked(false);
@@ -14859,6 +14887,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       if (settings.viewType !== 'kpi_overlay') {
                         setActiveKpiOverlayView(null);
                         setShowVisualCoverage(false);
+                        setCoverageViewBands(null);
                       }
                     }
                     if (settings.viewType === 'parameter' && settings.paramFilters) {
@@ -14952,6 +14981,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       // Deactivating a view → turn coverage layer back off so
                       // the dashboard reverts to its plain state.
                       setShowVisualCoverage(false);
+                      setCoverageViewBands(null);
                     }
                     if (!isCoverageOverlayOnly) {
                       if (settings.mapLayer) setMapLayer(settings.mapLayer);
