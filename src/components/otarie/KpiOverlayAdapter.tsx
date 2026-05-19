@@ -63,10 +63,19 @@ import { approximateDisk, polygonIntersection } from '@/coverage/geometry.js';
 /** 3-tier palette aligned with the legacy KPI legend used in SitesMonitor.
  *  `unknown` is the No-data tier (basemap visible through translucent grey). */
 const TIER_COLOR: Record<'green' | 'orange' | 'red' | 'unknown', string> = {
-  green:   '#3a8a4f',
-  orange:  '#e8862c',
-  red:     '#b8334a',
-  unknown: '#b0b8c0',
+  green:   '#45d38f',
+  orange:  '#ffb15f',
+  red:     '#f05b76',
+  unknown: '#cbd5e1',
+};
+
+type BasemapKind = 'light' | 'dark' | 'satellite' | 'street';
+
+const KPI_BASEMAP_VISIBILITY: Record<BasemapKind, { fill: number; edge: number; halo: number }> = {
+  satellite: { fill: 0.36, edge: 0.92, halo: 0.9 },
+  dark:      { fill: 0.34, edge: 0.84, halo: 0.78 },
+  street:    { fill: 0.28, edge: 0.72, halo: 0.64 },
+  light:     { fill: 0.26, edge: 0.64, halo: 0.56 },
 };
 
 export interface KpiThresholds {
@@ -120,6 +129,7 @@ export interface KpiOverlayStats {
 
 interface Props {
   enabled: boolean;
+  basemapKind?: BasemapKind;
   bbox: Bounds | null;
   view: KpiOverlayView | null;
   /** Map<cell.id, numericValue> for the primary KPI of the view. Cells
@@ -183,8 +193,25 @@ function escapeHtml(s: unknown): string {
     .replace(/'/g, '&#039;');
 }
 
+function kpiPolygonStyle(feature: any, basemapKind: BasemapKind): L.PathOptions {
+  const vis = KPI_BASEMAP_VISIBILITY[basemapKind] || KPI_BASEMAP_VISIBILITY.light;
+  const tier = feature?.properties?.tier || 'unknown';
+  const fillColor = feature?.properties?.tierColor || TIER_COLOR.unknown;
+  return {
+    fillColor,
+    fillOpacity: tier === 'unknown' ? Math.min(0.16, vis.fill) : vis.fill,
+    color: basemapKind === 'satellite' ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.68)',
+    opacity: vis.edge,
+    weight: basemapKind === 'satellite' ? 0.95 : 0.65,
+    lineCap: 'round',
+    lineJoin: 'round',
+    className: basemapKind === 'satellite' ? 'kpi-overlay-polygon kpi-overlay-polygon-satellite' : 'kpi-overlay-polygon',
+  };
+}
+
 const KpiOverlayAdapter: React.FC<Props> = ({
   enabled,
+  basemapKind = 'light',
   bbox,
   view,
   kpiValueMap,
@@ -556,12 +583,7 @@ const KpiOverlayAdapter: React.FC<Props> = ({
     });
 
     layerRef.current = L.geoJSON(fc as any, {
-      style: (f: any) => ({
-        fillColor: f.properties.tierColor,
-        fillOpacity: 0.5,
-        color: 'rgba(40,40,40,0.5)',
-        weight: 0.5,
-      }),
+      style: (f: any) => kpiPolygonStyle(f, basemapKind),
       onEachFeature: (feature: any, layer: any) => {
         const p = feature.properties;
         const valStr = p.rawValue == null ? '—' : Number(p.rawValue).toFixed(2);
@@ -579,11 +601,16 @@ const KpiOverlayAdapter: React.FC<Props> = ({
           </div>`,
           { className: 'cov-tooltip', sticky: true, direction: 'top' },
         );
-        layer.on('mouseover', (e: any) =>
-          e.target.setStyle({ weight: 1.5, fillOpacity: 0.7 }),
-        );
+        layer.on('mouseover', (e: any) => {
+          const base = kpiPolygonStyle(feature, basemapKind);
+          e.target.setStyle({
+            ...base,
+            weight: Number(base.weight || 0.8) + 0.9,
+            fillOpacity: Math.min(Number(base.fillOpacity || 0.3) + 0.14, 0.56),
+          });
+        });
         layer.on('mouseout', (e: any) =>
-          e.target.setStyle({ weight: 0.5, fillOpacity: 0.5 }),
+          e.target.setStyle(kpiPolygonStyle(feature, basemapKind)),
         );
       },
     });
@@ -616,6 +643,7 @@ const KpiOverlayAdapter: React.FC<Props> = ({
     kpiThresholds?.green,
     kpiThresholds?.orange,
     kpiThresholds?.invert,
+    basemapKind,
     mapCenterTick,
   ]);
 

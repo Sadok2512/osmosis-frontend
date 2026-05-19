@@ -41,6 +41,13 @@ const TECH_COLOR = {
   unknown: '#64748b',
 };
 
+const BASEMAP_VISIBILITY = {
+  satellite: { fill: 0.36, baseFill: 0.12, edge: 0.92, halo: 0.62, lightness: 64, saturation: 72 },
+  dark:      { fill: 0.34, baseFill: 0.11, edge: 0.86, halo: 0.52, lightness: 62, saturation: 68 },
+  street:    { fill: 0.28, baseFill: 0.09, edge: 0.72, halo: 0.34, lightness: 58, saturation: 62 },
+  light:     { fill: 0.26, baseFill: 0.08, edge: 0.66, halo: 0.26, lightness: 54, saturation: 58 },
+};
+
 function techGroup(value) {
   const v = String(value || '').toUpperCase();
   if (v.includes('NR') || v.includes('5G')) return '5G';
@@ -59,6 +66,51 @@ function featureColor(f, fallbackKpi = true) {
   return fallbackKpi ? (KPI_COLOR[p.kpi] || TECH_COLOR.unknown) : TECH_COLOR.unknown;
 }
 
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function hexToRgb(hex) {
+  const raw = String(hex || '').trim().replace(/^#/, '');
+  if (!/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(raw)) return null;
+  const full = raw.length === 3
+    ? raw.split('').map((c) => c + c).join('')
+    : raw;
+  return {
+    r: parseInt(full.slice(0, 2), 16),
+    g: parseInt(full.slice(2, 4), 16),
+    b: parseInt(full.slice(4, 6), 16),
+  };
+}
+
+function rgbToHsl({ r, g, b }) {
+  const rr = r / 255, gg = g / 255, bb = b / 255;
+  const max = Math.max(rr, gg, bb), min = Math.min(rr, gg, bb);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case rr: h = (gg - bb) / d + (gg < bb ? 6 : 0); break;
+      case gg: h = (bb - rr) / d + 2; break;
+      default: h = (rr - gg) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return { h: h * 360, s: s * 100, l: l * 100 };
+}
+
+function normalizedOverlayColor(color, basemapKind) {
+  const rgb = hexToRgb(color);
+  if (!rgb) return color || TECH_COLOR.unknown;
+  const hsl = rgbToHsl(rgb);
+  const visibility = BASEMAP_VISIBILITY[basemapKind] || BASEMAP_VISIBILITY.light;
+  const saturation = clamp(Math.max(hsl.s, visibility.saturation), 48, 78);
+  const lightness = clamp(Math.max(hsl.l, visibility.lightness), 48, 70);
+  return `hsl(${Math.round(hsl.h)} ${Math.round(saturation)}% ${Math.round(lightness)}%)`;
+}
+
 export function initVisualCoverage(options) {
   const {
     map,
@@ -70,7 +122,9 @@ export function initVisualCoverage(options) {
     wedgeFillOpacity = 0.45,
     footprintBorderWidth = 0.5,
     wedgeBorderWidth = 0.8,
+    basemapKind = 'light',
   } = options;
+  const visibility = BASEMAP_VISIBILITY[basemapKind] || BASEMAP_VISIBILITY.light;
 
   if (!map) throw new Error('initVisualCoverage: `map` is required.');
   if (!Array.isArray(initialCells)) throw new Error('initVisualCoverage: `cells` must be an array.');
@@ -79,6 +133,7 @@ export function initVisualCoverage(options) {
   let cells = initialCells;
   let coverageResult = null;
   let baseLayer = null;   // Leaflet GeoJSON: site footprints
+  let haloLayer = null;   // Leaflet GeoJSON: luminous separator below wedges
   let wedgeLayer = null;  // Leaflet GeoJSON: sector wedges
   let enabled = defaultEnabled;
   let destroyed = false;
@@ -92,7 +147,16 @@ export function initVisualCoverage(options) {
     // above the PCI polygons.
     pane.style.zIndex = '250';
     pane.style.pointerEvents = 'auto';
-    pane.style.mixBlendMode = 'multiply';
+    pane.style.mixBlendMode = 'normal';
+    pane.style.filter = basemapKind === 'satellite'
+      ? 'drop-shadow(0 0 2px rgba(255,255,255,0.38))'
+      : 'none';
+  } else {
+    const pane = map.getPane(paneName);
+    pane.style.mixBlendMode = 'normal';
+    pane.style.filter = basemapKind === 'satellite'
+      ? 'drop-shadow(0 0 2px rgba(255,255,255,0.38))'
+      : 'none';
   }
   const listeners = { ready: [], status: [] };
   const emit = (evt, payload) => listeners[evt]?.forEach((fn) => fn(payload));
@@ -125,6 +189,7 @@ export function initVisualCoverage(options) {
 
         // Tear down any previous layers cleanly before installing new ones.
         if (baseLayer)  { map.removeLayer(baseLayer);  baseLayer = null; }
+        if (haloLayer)  { map.removeLayer(haloLayer);  haloLayer = null; }
         if (wedgeLayer) { map.removeLayer(wedgeLayer); wedgeLayer = null; }
 
         // BASE: site footprints. Lower stack, no hover binding —
@@ -132,13 +197,37 @@ export function initVisualCoverage(options) {
         baseLayer = L.geoJSON(coverageResult.fc, {
           pane: paneName,
           style: (f) => {
-            const color = featureColor(f, false);
+            const color = normalizedOverlayColor(featureColor(f, false), basemapKind);
             return {
               color,
               weight: footprintBorderWidth,
-              opacity: 0.35,
+              opacity: 0.22,
               fillColor: color,
-              fillOpacity: Math.min(footprintFillOpacity, 0.16),
+              fillOpacity: Math.min(footprintFillOpacity, visibility.baseFill),
+              lineCap: 'round',
+              lineJoin: 'round',
+              smoothFactor: 1.1,
+            };
+          },
+        });
+
+        // HALO: lightweight luminous separator. It gives PCI wedges a
+        // clean RF-planning outline on textured satellite tiles without
+        // making the fill opaque.
+        haloLayer = L.geoJSON(coverageResult.wedgesFc, {
+          pane: paneName,
+          interactive: false,
+          style: (f) => {
+            const color = normalizedOverlayColor(featureColor(f), basemapKind);
+            return {
+              color: basemapKind === 'satellite' ? 'rgba(255,255,255,0.88)' : color,
+              weight: Math.max(2.4, wedgeBorderWidth + 2.1),
+              opacity: visibility.halo,
+              fillColor: color,
+              fillOpacity: 0.035,
+              lineCap: 'round',
+              lineJoin: 'round',
+              smoothFactor: 1.15,
             };
           },
         });
@@ -148,13 +237,16 @@ export function initVisualCoverage(options) {
         wedgeLayer = L.geoJSON(coverageResult.wedgesFc, {
           pane: paneName,
           style: (f) => {
-            const color = featureColor(f);
+            const color = normalizedOverlayColor(featureColor(f), basemapKind);
             return {
-              color,
-              weight: wedgeBorderWidth,
-              opacity: 0.65,
+              color: basemapKind === 'satellite' ? 'rgba(248,250,252,0.94)' : color,
+              weight: basemapKind === 'satellite' ? Math.max(0.95, wedgeBorderWidth) : wedgeBorderWidth,
+              opacity: visibility.edge,
               fillColor: color,
-              fillOpacity: wedgeFillOpacity,
+              fillOpacity: Math.min(wedgeFillOpacity, visibility.fill),
+              lineCap: 'round',
+              lineJoin: 'round',
+              smoothFactor: 1.15,
             };
           },
           onEachFeature: bindWedge,
@@ -162,6 +254,7 @@ export function initVisualCoverage(options) {
 
         if (enabled) {
           baseLayer.addTo(map);
+          haloLayer.addTo(map);
           wedgeLayer.addTo(map);
         }
 
@@ -213,10 +306,16 @@ export function initVisualCoverage(options) {
     // Subtle visual emphasis on hover — slightly thicker border and
     // bumped fill alpha. Sites underneath stay visible.
     layer.on('mouseover', (e) =>
-      e.target.setStyle({ weight: wedgeBorderWidth + 1, fillOpacity: wedgeFillOpacity + 0.15 }),
+      e.target.setStyle({
+        weight: wedgeBorderWidth + 1.2,
+        fillOpacity: Math.min(visibility.fill + 0.14, 0.52),
+      }),
     );
     layer.on('mouseout', (e) =>
-      e.target.setStyle({ weight: wedgeBorderWidth, fillOpacity: wedgeFillOpacity }),
+      e.target.setStyle({
+        weight: basemapKind === 'satellite' ? Math.max(0.95, wedgeBorderWidth) : wedgeBorderWidth,
+        fillOpacity: Math.min(wedgeFillOpacity, visibility.fill),
+      }),
     );
   }
 
@@ -228,9 +327,11 @@ export function initVisualCoverage(options) {
     // their base footprint underneath.
     if (enabled) {
       if (baseLayer  && !map.hasLayer(baseLayer))  baseLayer.addTo(map);
+      if (haloLayer  && !map.hasLayer(haloLayer))  haloLayer.addTo(map);
       if (wedgeLayer && !map.hasLayer(wedgeLayer)) wedgeLayer.addTo(map);
     } else {
       if (baseLayer  && map.hasLayer(baseLayer))  map.removeLayer(baseLayer);
+      if (haloLayer  && map.hasLayer(haloLayer))  map.removeLayer(haloLayer);
       if (wedgeLayer && map.hasLayer(wedgeLayer)) map.removeLayer(wedgeLayer);
     }
   }
@@ -253,8 +354,10 @@ export function initVisualCoverage(options) {
       destroyed = true;
       rebuildSeq++;
       if (baseLayer)  map.removeLayer(baseLayer);
+      if (haloLayer)  map.removeLayer(haloLayer);
       if (wedgeLayer) map.removeLayer(wedgeLayer);
       baseLayer = null;
+      haloLayer = null;
       wedgeLayer = null;
       if (panel) panel.destroy();
     },

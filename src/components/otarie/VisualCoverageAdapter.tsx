@@ -35,6 +35,7 @@ interface Bounds { minLng: number; minLat: number; maxLng: number; maxLat: numbe
 
 interface Props {
   enabled: boolean;
+  basemapKind?: 'light' | 'dark' | 'satellite' | 'street';
   /** DOM node where the module mounts its vanilla panel (toggle + status
    *  pill + counters). Pass `null` to skip the panel; the layer still
    *  renders on the map. */
@@ -68,6 +69,7 @@ interface Props {
 
 const VisualCoverageAdapter: React.FC<Props> = ({
   enabled,
+  basemapKind = 'light',
   panelMount,
   bbox,
   techno,
@@ -136,6 +138,7 @@ const VisualCoverageAdapter: React.FC<Props> = ({
       panelMount: panelMount ?? undefined,
       defaultEnabled: enabled,
       maxRadiusMeters,
+      basemapKind,
       // Footprint slightly lighter than wedges to keep visual hierarchy.
       footprintFillOpacity: Math.max(0.05, polygonOpacity * 0.78),
       wedgeFillOpacity: polygonOpacity,
@@ -153,7 +156,7 @@ const VisualCoverageAdapter: React.FC<Props> = ({
     // Re-init when opacity changes so the new fillOpacity options take effect
     // (the JS module reads opacity at init time, not per-rebuild).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, panelMount, polygonOpacity]);
+  }, [map, panelMount, polygonOpacity, basemapKind]);
 
   // ── enabled toggle (React → module) ──
   useEffect(() => {

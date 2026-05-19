@@ -75,6 +75,18 @@
   margin-top: 2px;
 }
 
+.kpi-overlay-polygon {
+  filter:
+    drop-shadow(0 0 1px rgba(255, 255, 255, 0.35))
+    drop-shadow(0 0 2px rgba(15, 23, 42, 0.16));
+}
+
+.kpi-overlay-polygon-satellite {
+  filter:
+    drop-shadow(0 0 1px rgba(255, 255, 255, 0.78))
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.36));
+}
+
 /* Leaflet tooltip override */
 .leaflet-tooltip.cov-tooltip {
   background: rgba(255, 255, 255, 0.98) !important;

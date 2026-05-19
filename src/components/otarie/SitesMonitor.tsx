@@ -8739,6 +8739,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             tooltips, panel; React just passes the bbox + enabled flag. */}
         <VisualCoverageAdapter
           enabled={showVisualCoverage}
+          basemapKind={mapLayer}
           // Hide the VC panel ("sites calc / cells / neighbors used")
           // when a KPI Overlay view is active — VC is in mutex OFF then,
           // and an empty 0/0/0 panel just lies about what's on screen.
@@ -8801,6 +8802,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             user (UX feedback: "polygons must tile edge-to-edge"). */}
         <KpiOverlayAdapter
           enabled={activeKpiOverlayView != null}
+          basemapKind={mapLayer}
           bbox={coverageBbox}
           view={activeKpiOverlayView}
           kpiValueMap={kpiValues}
