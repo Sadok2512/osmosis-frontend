@@ -1577,7 +1577,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
           })()}
 
           {/* ── Site Filters ── */}
-          {backendFilterDefs && backendFilterDefs.length > 0 && (() => {
+          {dashboardId && backendFilterDefs && backendFilterDefs.length > 0 && (() => {
             const isLocked = !!dashboardId;
             const activeEntries = Object.entries(localSiteFilters).filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : !!v));
             const labelFor = (key: string) => key.startsWith('manual_')
