@@ -84,6 +84,11 @@ const VisualCoverageAdapter: React.FC<Props> = ({
   // Track the panel mount we initialised with. The module only accepts
   // `panelMount` at init time; if it changes we tear down and re-init.
   const initialPanelMountRef = useRef<HTMLElement | null>(null);
+  // 2026-05-19 — Cache the last fetched cells so a re-init triggered by
+  // the opacity slider can immediately rebuild with real data instead of
+  // waiting for the next bbox change (otherwise polygons disappear until
+  // the user pans the map).
+  const lastCellsRef = useRef<CoverageCell[]>([]);
 
   // Polygon fill opacity — driven by the "Visibilité des polygones" slider
   // in View Configuration (Cell Footprint). Persisted in localStorage and
@@ -119,6 +124,11 @@ const VisualCoverageAdapter: React.FC<Props> = ({
       wedgeFillOpacity: polygonOpacity,
     });
     ctlRef.current = ctl;
+    // If we already have cells in cache (re-init after slider change),
+    // rebuild immediately so polygons stay on screen.
+    if (lastCellsRef.current.length > 0) {
+      try { ctl.rebuild(lastCellsRef.current); } catch { /* best-effort */ }
+    }
     return () => {
       try { ctl.destroy(); } catch { /* swallow — destroy is best-effort */ }
       ctlRef.current = null;
@@ -167,6 +177,7 @@ const VisualCoverageAdapter: React.FC<Props> = ({
       signal: ctrl.signal,
     })
       .then(({ cells }) => {
+        lastCellsRef.current = cells;
         ctlRef.current?.rebuild?.(cells);
         onCellsLoaded?.(cells.length);
       })
