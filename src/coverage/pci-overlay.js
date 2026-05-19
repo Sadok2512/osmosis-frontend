@@ -94,29 +94,55 @@ export function buildPciOverlay({ cells, view, options = {} }) {
 
   const mode = (view.colorMode === 'hash') ? 'hash' : 'mod3';
 
-  // 3) Build features
-  const features = filtered.map((cell, i) => {
+  // 3) Build features — same shape as KPI overlay (close ring + radial clip)
+  const features = [];
+  filtered.forEach((cell, i) => {
     const poly = polys[i];
-    if (!poly) return null;
+    if (!poly || poly.length === 0) return;
+
     const pci = typeof cell.pci === 'number' ? cell.pci : (cell.pci != null ? Number(cell.pci) : null);
     const validPci = Number.isFinite(pci) ? pci : null;
     const pilotGroup = validPci != null ? validPci % 3 : null;
-    return {
+
+    // Radial clip — bound the Voronoï cell to a max radius around its
+    // seed (default 5km via maxRadiusMeters). Same logic as kpi-overlay.js
+    // to keep coverage bubbles physically plausible. Without it, isolated
+    // cells get giant wedges that reach the bbox edges.
+    const Rdeg = (cell.maxRadius ?? cfg.maxRadiusMeters) / 1000 / 111;
+    const clipped = poly.map((p) => {
+      const dLat = p.y - cell.lat;
+      const dLon = p.x - cell.lon;
+      const d = Math.sqrt(dLat * dLat + dLon * dLon);
+      if (d <= Rdeg) return [p.x, p.y];
+      const f = Rdeg / d;
+      return [cell.lon + dLon * f, cell.lat + dLat * f];
+    });
+    if (clipped.length === 0) return;
+    clipped.push(clipped[0]); // close ring — REQUIRED by GeoJSON Polygon spec
+
+    features.push({
       type: 'Feature',
-      geometry: { type: 'Polygon', coordinates: [poly] },
+      geometry: { type: 'Polygon', coordinates: [clipped] },
       properties: {
-        ...cell,
-        pci: validPci,
+        id:        cell.id,
+        siteId:    cell.siteId,
+        siteName:  cell.siteName,
+        lat:       cell.lat,
+        lon:       cell.lon,
+        tech:      cell.tech,
+        band:      cell.band || view.band,
+        azimuth:   cell.azimuth,
+        beamwidth: cell.beamwidth,
+        pci:       validPci,
         pilotGroup,
-        color: colorForPci(validPci, mode),
-        band: cell.band || view.band,
+        color:     colorForPci(validPci, mode),
       },
-    };
-  }).filter(Boolean);
+    });
+  });
 
   return {
     fc: { type: 'FeatureCollection', features },
-    nCells: filtered.length,
+    nCells: features.length,
     band: view.band,
     colorMode: mode,
     elapsedMs: performance.now() - t0,
