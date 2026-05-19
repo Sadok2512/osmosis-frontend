@@ -8544,51 +8544,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           bbox={coverageBbox}
           onEnabledChange={setShowVisualCoverage}
         />
-        {/* PCI Overlay adapter — Voronoï polygones colorés par PCI plan
-            (party 2026-05-18 — Best-Server PCI plan visualization).
-            Le module gère lui-même son toggle ON/OFF, son pill picker de
-            bande, et son toggle Mod3/Hash — réutilise le même DOM mount
-            que VisualCoverage pour rester dans la sidebar dashboards. */}
-        <PciOverlayAdapter
-          enabled={pciOverlayEnabled}
-          band={pciOverlayBand || undefined}
-          colorMode={pciOverlayMode}
-          panelMount={pciOverlayPanelNode}
-          bbox={coverageBbox}
-          // Forward dashboard scope (plaque/dor/cluster) au backend pour
-          // que /cells-for-coverage ne ramène que les cellules du périmètre
-          // NANTES (et non 5000 cellules de France entière, ce qui faisait
-          // sauter la carte ailleurs au moment du fitBounds).
-          plaque={(() => {
-            const df = dashboardActive ? activeDashboardFilters : null;
-            const csv = (arr: string[] | undefined | null): string | undefined => {
-              const list = (arr || []).map(s => String(s).trim()).filter(Boolean);
-              return list.length ? list.join(',') : undefined;
-            };
-            return localPlaque !== 'ALL' ? localPlaque : csv(df?.plaque);
-          })()}
-          dor={(() => {
-            const df = dashboardActive ? activeDashboardFilters : null;
-            const csv = (arr: string[] | undefined | null): string | undefined => {
-              const list = (arr || []).map(s => String(s).trim()).filter(Boolean);
-              return list.length ? list.join(',') : undefined;
-            };
-            return localDor !== 'ALL' ? localDor : csv(df?.dor);
-          })()}
-          onEnabledChange={(flag) => {
-            setPciOverlayEnabled(flag);
-            // Mutex Sally : activer PCI Overlay éteint Visual Coverage
-            // simple ET annule toute KPI Overlay view active. Une seule
-            // couche colorée à la fois — sinon les polygones empilés
-            // donnent une bouillie illisible.
-            if (flag) {
-              setShowVisualCoverage(false);
-              setActiveKpiOverlayView(null);
-            }
-          }}
-          onBandChange={setPciOverlayBand}
-          onColorModeChange={setPciOverlayMode}
-        />
+        {/* PCI Overlay adapter removed per user request (panel + on-map
+            Voronoï coloring deleted). Cell Footprint (Visual Coverage)
+            is now the only ON/OFF coverage layer surfaced in the UI. */}
         {/* KPI Overlay adapter — RE-ENABLED on 2026-05-11 (v6.3.0).
             Calls buildKpiOverlay() directly for the per-cell Voronoï
             pavage (continuous territory tessellation), then overrides
