@@ -198,23 +198,30 @@ const REPORT_KPI_BATCH_TIMEOUT_MS = 180_000;
 const REPORT_COUNTER_BATCH_TIMEOUT_MS = 120_000;
 const REPORT_BACKEND_CONCURRENCY_LIMIT = 4;
 
+function selectableKeyVariants(value: unknown): string[] {
+  const raw = String(value || '').trim();
+  if (!raw) return [];
+  const lower = raw.toLowerCase();
+  return raw === lower ? [raw] : [raw, lower];
+}
+
 function mergeSharedKpiCodes(catalog: KpiCatalogEntry[], sharedCodes: string[]): KpiCatalogEntry[] {
   const bySelectableKey = new Set<string>();
   for (const kpi of catalog) {
-    if (kpi.kpi_key) bySelectableKey.add(kpi.kpi_key);
-    if (kpi.kpi_code_normalized) bySelectableKey.add(kpi.kpi_code_normalized);
+    selectableKeyVariants(kpi.kpi_key).forEach(key => bySelectableKey.add(key));
+    selectableKeyVariants(kpi.kpi_code_normalized).forEach(key => bySelectableKey.add(key));
   }
   const additions = sharedCodes
     .map(code => String(code || '').trim())
     .filter(Boolean)
-    .filter(code => !bySelectableKey.has(code))
+    .filter(code => selectableKeyVariants(code).every(key => !bySelectableKey.has(key)))
     .map((code): KpiCatalogEntry => ({
       kpi_id: code,
-      kpi_key: code,
-      display_name: code,
+      kpi_key: code.toLowerCase(),
+      display_name: code.toLowerCase(),
       description: 'Admin-curated normalized KPI',
-      techno_scope: code.includes('5g') ? '5G' : code.includes('4g') || code.includes('lte') ? '4G' : 'both',
-      unit: code.includes('rate') || code.includes('cssr') || code.includes('dcr') ? '%' : '',
+      techno_scope: code.toLowerCase().includes('5g') ? '5G' : code.toLowerCase().includes('4g') || code.toLowerCase().includes('lte') ? '4G' : 'both',
+      unit: code.toLowerCase().includes('rate') || code.toLowerCase().includes('ratio') || code.toLowerCase().includes('cssr') || code.toLowerCase().includes('dcr') ? '%' : '',
       value_type: 'gauge',
       default_agg: 'avg',
       allowed_aggs: ['avg', 'min', 'max', 'sum'],
@@ -222,7 +229,7 @@ function mergeSharedKpiCodes(catalog: KpiCatalogEntry[], sharedCodes: string[]):
       category: 'Normalized',
       color: '#0f766e',
       is_normalized: true,
-      kpi_code_normalized: code,
+      kpi_code_normalized: code.toLowerCase(),
     }));
   return [...catalog, ...additions];
 }
@@ -538,9 +545,10 @@ function validateReportSelection(
   },
 ): ReportSelectionValidation {
   const uniqueKeys = Array.from(new Set((selectedKeys || []).map(key => String(key || '').trim()).filter(Boolean)));
-  const kpiKeys = uniqueKeys.filter(key => kpiKeySet.has(key));
+  const isKnownKpi = (key: string) => kpiKeySet.has(key) || kpiKeySet.has(key.toLowerCase());
+  const kpiKeys = uniqueKeys.filter(isKnownKpi);
   const counterKeys = uniqueKeys.filter(key => counterKeySet.has(key));
-  const unknownKeys = uniqueKeys.filter(key => !kpiKeySet.has(key) && !counterKeySet.has(key));
+  const unknownKeys = uniqueKeys.filter(key => !isKnownKpi(key) && !counterKeySet.has(key));
   const warnings: string[] = [];
   const errors: string[] = [];
 
@@ -938,7 +946,12 @@ const RanQueryModule: React.FC = () => {
         const r = await fetch(getApiUrl('kpi-tables/shared'), { headers: getApiHeaders() });
         if (!r.ok) return [];
         const json = await r.json();
-        return Array.isArray(json?.kpi_codes) ? json.kpi_codes : [];
+        if (Array.isArray(json?.kpi_codes)) return json.kpi_codes;
+        if (Array.isArray(json?.codes)) return json.codes;
+        if (Array.isArray(json?.data)) return json.data.map((row: any) => row?.kpi_code || row?.kpi_key || row?.kpi_code_normalized).filter(Boolean);
+        if (Array.isArray(json?.kpis)) return json.kpis.map((row: any) => typeof row === 'string' ? row : row?.kpi_code || row?.kpi_key || row?.kpi_code_normalized).filter(Boolean);
+        if (Array.isArray(json?.rows)) return json.rows.map((row: any) => row?.kpi_code || row?.kpi_key || row?.kpi_code_normalized).filter(Boolean);
+        return [];
       } catch {
         return [];
       }
@@ -1077,9 +1090,9 @@ const RanQueryModule: React.FC = () => {
 
   // Split current selection into KPI keys vs counter keys
   const kpiKeySet = useMemo(() => new Set(
-    allKpiCatalog.flatMap(k => [k.kpi_key, k.kpi_code_normalized].filter(Boolean).map(String))
+    allKpiCatalog.flatMap(k => [k.kpi_key, k.kpi_code_normalized].flatMap(selectableKeyVariants))
   ), [allKpiCatalog]);
-  const selectedKpiKeys = useMemo(() => form.selectedKpis.filter(k => kpiKeySet.has(k)), [form.selectedKpis, kpiKeySet]);
+  const selectedKpiKeys = useMemo(() => form.selectedKpis.filter(k => kpiKeySet.has(k) || kpiKeySet.has(String(k).toLowerCase())), [form.selectedKpis, kpiKeySet]);
   const counterKeySet = useMemo(() => new Set(
     counterCatalog.flatMap((c: any) => [c.counter_name, c.counter_id, c.name, c.key].filter(Boolean).map(String))
   ), [counterCatalog]);
@@ -1100,14 +1113,14 @@ const RanQueryModule: React.FC = () => {
     };
     const kpiByKey = new Map<string, KpiCatalogEntry>();
     [...allKpiCatalog, ...kpiCatalog].forEach(kpi => {
-      [kpi.kpi_key, kpi.kpi_code_normalized].filter(Boolean).forEach(key => kpiByKey.set(String(key), kpi));
+      [kpi.kpi_key, kpi.kpi_code_normalized].flatMap(selectableKeyVariants).forEach(key => kpiByKey.set(key, kpi));
     });
     const counterByName = new Map<string, any>();
     counterCatalog.forEach((counter: any) => {
       [counter.counter_name, counter.counter_id, counter.name, counter.key].filter(Boolean).forEach(key => counterByName.set(String(key), counter));
     });
     return form.selectedKpis.map(key => {
-      const kpi = kpiByKey.get(key);
+      const kpi = kpiByKey.get(key) || kpiByKey.get(key.toLowerCase());
       if (kpi) {
         return {
           key,
