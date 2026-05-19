@@ -28,6 +28,7 @@ import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
 const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[] = [
   { value: 'line', label: 'Line', icon: TrendingUp },
   { value: 'area', label: 'Area', icon: AreaChart },
+  { value: 'stacked_area', label: 'Stack Area', icon: AreaChart },
   { value: 'bar', label: 'Bar', icon: BarChart },
   { value: 'stacked_bar', label: 'Stacked', icon: Layers },
   { value: 'scatter', label: 'Scatter', icon: CircleDot },
