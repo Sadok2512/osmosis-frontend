@@ -1706,8 +1706,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                   color: {
                     type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                     colorStops: [
-                      { offset: 0, color: `${color}20` },
-                      { offset: 1, color: `${color}02` },
+                      { offset: 0, color: `${color}66` },
+                      { offset: 1, color: `${color}08` },
                     ],
                   },
                 } : undefined,
@@ -1757,8 +1757,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                     color: {
                       type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                       colorStops: [
-                        { offset: 0, color: `${color}20` },
-                        { offset: 1, color: `${color}02` },
+                        { offset: 0, color: `${color}66` },
+                        { offset: 1, color: `${color}08` },
                       ],
                     },
                   } : undefined,
@@ -1799,8 +1799,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                   color: {
                     type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                     colorStops: [
-                      { offset: 0, color: `${color}20` },
-                      { offset: 1, color: `${color}02` },
+                      { offset: 0, color: `${color}66` },
+                      { offset: 1, color: `${color}08` },
                     ],
                   },
                 } : undefined,
@@ -1837,8 +1837,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 color: {
                   type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                   colorStops: [
-                    { offset: 0, color: `${def.color}20` },
-                    { offset: 1, color: `${def.color}02` },
+                    { offset: 0, color: `${def.color}66` },
+                    { offset: 1, color: `${def.color}08` },
                   ],
                 },
               } : undefined,
@@ -1901,7 +1901,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                   type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                   colorStops: [
                     { offset: 0, color: `${color}30` },
-                    { offset: 1, color: `${color}02` },
+                    { offset: 1, color: `${color}08` },
                   ],
                 },
               } : undefined,
@@ -1968,7 +1968,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                   type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                   colorStops: [
                     { offset: 0, color: `${color}30` },
-                    { offset: 1, color: `${color}02` },
+                    { offset: 1, color: `${color}08` },
                   ],
                 },
               } : undefined,
