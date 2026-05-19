@@ -177,6 +177,7 @@ const VisualCoverageAdapter: React.FC<Props> = ({
       signal: ctrl.signal,
     })
       .then(({ cells }) => {
+        lastCellsRef.current = cells;
         ctlRef.current?.rebuild?.(cells);
         onCellsLoaded?.(cells.length);
       })
