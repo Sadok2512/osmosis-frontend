@@ -1631,8 +1631,41 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           const smooth = cfg.smooth !== undefined ? cfg.smooth : (ct === 'line' || ct === 'area' || ct === 'stacked_area');
           const symbols = ct === 'line_points' || ct === 'scatter';
           const showArea = sType === 'line' && (cfg.showArea || ct === 'area' || ct === 'stacked_area');
-          return { seriesType: sType, isSmooth: smooth, forceSymbols: symbols, isStacked: stacked, showArea };
+          const isModernArea = ct === 'stacked_area' || ct === 'area';
+          return { seriesType: sType, isSmooth: smooth, forceSymbols: symbols, isStacked: stacked, showArea, isModernArea };
         };
+        // Grafana / Datadog-inspired gradient fill + soft glow for area & stacked area
+        const buildModernAreaStyle = (color: string, modern: boolean) => modern ? ({
+          color: {
+            type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: `${color}B3` },
+              { offset: 0.55, color: `${color}4D` },
+              { offset: 1, color: `${color}05` },
+            ],
+          },
+          shadowBlur: 14,
+          shadowColor: `${color}55`,
+          opacity: 0.95,
+          origin: 'start' as const,
+        }) : ({
+          color: {
+            type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: `${color}66` },
+              { offset: 1, color: `${color}08` },
+            ],
+          },
+        });
+        const buildModernLineStyle = (color: string, width: number, modern: boolean) => modern ? ({
+          width: Math.max(width, 2),
+          color,
+          shadowBlur: 8,
+          shadowColor: `${color}99`,
+          shadowOffsetY: 1,
+          cap: 'round' as const,
+          join: 'round' as const,
+        }) : ({ width, color });
         // Force markers on when a line series has ≤ 1 real value, otherwise a
         // lone point is invisible (no segment to draw between two nulls).
         const hasSinglePoint = (vals: (number | null)[]) =>
