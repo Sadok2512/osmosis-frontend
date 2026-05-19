@@ -61,11 +61,11 @@ export interface ViewConfig {
   topoSearch?: TopoSearchPayload;
   // Parameter
   paramFilters?: Record<string, string>;
-  // Visual Coverage (replaces the previous RSRP "Coverage Prediction").
-  // Pure-topology Voronoi dominance polygons; the only knob is the
-  // max-radius cap that prevents large gaps at the bbox edge from
-  // generating unrealistic tiles.
+  // Cell Footprint (formerly "Visual Coverage") — pure-topology Voronoi
+  // dominance polygons. Knobs: max-radius cap + band selection so the
+  // operator only paints the cells of the bands they care about.
   coverageMaxRadiusM?: number;
+  coverageBands?: string[];
 }
 
 interface Props {
@@ -703,13 +703,14 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
       : viewType === 'parameter'
         ? `Param – ${paramFilters['parameter'] || 'Search'}`
         : viewType === 'coverage'
-          ? `Visual Coverage`
+          ? `Cell Footprint`
           : `Topo Search`
   );
 
-  // Visual Coverage tuning — only the max-radius cap; everything else is
-  // pure-topology Voronoi. Default 1500 m matches the backend default.
+  // Cell Footprint tuning — radius cap + band perimeter. Default 1500 m
+  // matches the backend default; bands empty = all bands.
   const [coverageMaxRadiusM, setCoverageMaxRadiusM] = useState<number>(1500);
+  const [coverageBands, setCoverageBands] = useState<string[]>([]);
 
   // Validation per spec: "Empêcher la création si un filtre n'a pas de
   // type ou pas de valeur." Every non-empty row must have BOTH a field
@@ -762,10 +763,11 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
         Object.entries(paramFilters).filter(([, v]) => v.trim())
       );
     } else if (viewType === 'coverage') {
-      // Visual Coverage — only carries the max-radius cap. The layer
-      // ON/OFF state is wired by the consumer (handleCreateViewFromModal)
-      // which flips settings.showVisualCoverage on save.
+      // Cell Footprint — radius cap + selected bands. Layer ON/OFF
+      // is wired by the consumer (handleCreateViewFromModal) which
+      // flips settings.showVisualCoverage on save.
       config.coverageMaxRadiusM = coverageMaxRadiusM;
+      if (coverageBands.length > 0) config.coverageBands = [...coverageBands];
     }
     onSave(config);
   };
@@ -895,9 +897,9 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                     <MapIcon size={24} />
                   </div>
                   <div className="text-center">
-                    <div className="text-sm font-bold">Visual Coverage</div>
+                    <div className="text-sm font-bold">Cell Footprint</div>
                     <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
-                      Dominance des cellules par tessellation Voronoï (sans RF)
+                      Empreinte des cellules par tessellation Voronoï (sans RF)
                     </p>
                   </div>
                   {viewType === 'coverage' && (
@@ -1396,7 +1398,7 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
             </div>
           )}
 
-          {/* ── STEP 2: Visual Coverage ── (replaces the old RSRP form) */}
+          {/* ── STEP 2: Cell Footprint ── (renamed from Visual Coverage) */}
           {step === 2 && viewType === 'coverage' && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
@@ -1405,9 +1407,9 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                 </button>
                 <div>
                   <h2 className="text-base font-black tracking-tight flex items-center gap-2">
-                    <MapIcon size={16} className="text-primary" /> Visual Coverage
+                    <MapIcon size={16} className="text-primary" /> Cell Footprint
                   </h2>
-                  <p className="text-[10px] text-muted-foreground">Dominance visuelle des cellules par tessellation Voronoï</p>
+                  <p className="text-[10px] text-muted-foreground">Empreinte des cellules par tessellation Voronoï</p>
                 </div>
               </div>
 
@@ -1417,9 +1419,57 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                 <Input
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="Ex: Visual Coverage Reims Centre"
+                  placeholder="Ex: Cell Footprint Reims Centre"
                   className="text-sm"
                 />
+              </div>
+
+              {/* Bandes — multi-select chips. Empty = toutes les bandes. */}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                  Bandes
+                  <span className="ml-2 text-muted-foreground/70 font-normal normal-case tracking-normal">
+                    {coverageBands.length === 0 ? 'toutes' : `${coverageBands.length} sélectionnée${coverageBands.length > 1 ? 's' : ''}`}
+                  </span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { group: '2G', bands: ['GSM900', 'GSM1800'] },
+                    { group: '3G', bands: ['UMTS900', 'UMTS2100'] },
+                    { group: '4G', bands: ['L700', 'L800', 'L1800', 'L2100', 'L2600'] },
+                    { group: '5G', bands: ['NR700', 'NR2100', 'NR3500'] },
+                  ].map(({ group, bands }) => (
+                    <div key={group} className="flex items-center gap-1 px-1.5 py-1 rounded-md border border-border/40 bg-muted/20">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mr-1">{group}</span>
+                      {bands.map(b => {
+                        const active = coverageBands.includes(b);
+                        return (
+                          <button
+                            key={b}
+                            type="button"
+                            onClick={() => setCoverageBands(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b])}
+                            className={`px-2 py-1 rounded text-[10px] font-bold transition-colors border ${
+                              active
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
+                            }`}
+                          >
+                            {b}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+                {coverageBands.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setCoverageBands([])}
+                    className="mt-1.5 text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  >
+                    Réinitialiser (toutes les bandes)
+                  </button>
+                )}
               </div>
 
               {/* Max radius cap */}
@@ -1447,8 +1497,8 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
               {/* Explanation card — matches the in-map one so the operator
                   reads the same disclaimer at creation time. */}
               <div className="text-[10px] text-muted-foreground bg-muted/30 rounded-lg p-3 border border-border/50 leading-relaxed">
-                <div className="font-bold text-foreground mb-1">À propos de Visual Coverage</div>
-                Couche de dominance approchée générée à partir des positions
+                <div className="font-bold text-foreground mb-1">À propos de Cell Footprint</div>
+                Couche d'empreinte approchée générée à partir des positions
                 cellulaires et de leurs voisines (clipping Voronoï + secteur
                 azimutal). Utilisée pour la visualisation KPI uniquement —
                 ne représente <b>pas</b> la propagation RF réelle (pas de
