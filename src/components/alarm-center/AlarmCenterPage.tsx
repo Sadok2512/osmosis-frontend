@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { createTicket, sevToBackend, type UiSeverity } from "@/services/ticketService";
+import { fetchSitesByBbox } from "@/services/topoService";
+import type { SiteSummary } from "@/types";
 
 type Severity = "Critical" | "Major" | "Minor" | "Warning" | "Cleared";
 type Status = "Active" | "Acknowledged" | "Cleared";
