@@ -108,7 +108,11 @@ export function initVisualCoverage(options) {
     // CPU-heavy) Voronoi compute blocks the main thread.
     setTimeout(() => {
       try {
-        coverageResult = buildSiteCoverage(cells, { maxRadiusMeters });
+        const centre = map.getCenter();
+        coverageResult = buildSiteCoverage(cells, {
+          maxRadiusMeters,
+          mapCenter: { lat: centre.lat, lon: centre.lng },
+        });
 
         // Tear down any previous layers cleanly before installing new ones.
         if (baseLayer)  { map.removeLayer(baseLayer);  baseLayer = null; }

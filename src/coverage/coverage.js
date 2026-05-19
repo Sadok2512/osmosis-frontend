@@ -35,6 +35,11 @@ const DEFAULTS = {
   bboxPaddingMeters: 5000,
   diskSegments: 24,
   wedgeSegments: 12,
+  maxVoronoiCells: 500,
+  sectorBucketDegrees: 5,
+  sectorOffsetMeters: 100,
+  visualRadiusMeters: 10000,
+  visualRadiusSegments: 32,
 };
 
 // 'unknown' is the No-data tier (grey) used when every cell of a site is
@@ -181,28 +186,74 @@ function buildCellPciPolygons(cells, cfg, t0) {
   });
   if (validCells.length === 0) return empty();
 
-  // Exact KPI overlay geometry: seed one Voronoi polygon per raw cell at
-  // lon/lat, then clip radially in degrees. Only the fill color differs.
-  const seeds = validCells.map((c) => ({
-    ...c,
-    id: c.id || `${c.siteId || c.siteName}-${c.lat}-${c.lon}`,
-    lat: Number(c.lat),
-    lon: Number(c.lon),
-    pci: pciNumber(c.pci),
-  }));
-  const lats = seeds.map((c) => c.lat);
-  const lons = seeds.map((c) => c.lon);
-  const pad = Number.isFinite(Number(cfg.bboxPaddingDegrees))
-    ? Number(cfg.bboxPaddingDegrees)
-    : 0.05;
+  // Match the live KPI overlay adapter, not the older JS demo helper:
+  // project to flat metres, merge colocated cells by site+azimuth bucket,
+  // offset each sector seed a little along azimuth, then clip the Voronoi
+  // polygon with a 10 km disk. Raw lon/lat seeds collapse colocated sectors
+  // into one site polygon, which is the bug reported on Cell Footprint.
+  const latRef = validCells.reduce((sum, c) => sum + Number(c.lat), 0) / validCells.length;
+  const M_PER_DEG_LAT = 111000;
+  const M_PER_DEG_LNG = 111000 * Math.cos((latRef * Math.PI) / 180);
+  const seedMap = new Map();
+  for (const raw of validCells) {
+    const lat = Number(raw.lat);
+    const lon = Number(raw.lon);
+    const azRaw = Number(raw.azimuth);
+    const az = Number.isFinite(azRaw) ? ((azRaw % 360) + 360) % 360 : 0;
+    const azBucket = Math.round(az / cfg.sectorBucketDegrees) * cfg.sectorBucketDegrees;
+    const siteKey = raw.siteId || raw.siteName || raw.id || `${lat},${lon}`;
+    const key = `${siteKey}|${azBucket}`;
+    const rad = (az * Math.PI) / 180;
+    const x = lon * M_PER_DEG_LNG + Math.sin(rad) * cfg.sectorOffsetMeters;
+    const y = lat * M_PER_DEG_LAT + Math.cos(rad) * cfg.sectorOffsetMeters;
+    const id = raw.id || `${siteKey}-${azBucket}`;
+    const pci = pciNumber(raw.pci);
+    const acc = seedMap.get(key);
+    if (!acc) {
+      seedMap.set(key, {
+        ...raw,
+        id,
+        cellIds: [id],
+        lat,
+        lon,
+        x,
+        y,
+        azimuth: az,
+        pci,
+      });
+    } else {
+      acc.cellIds.push(id);
+      if (acc.pci == null && pci != null) acc.pci = pci;
+      if (!acc.band && raw.band) acc.band = raw.band;
+      if (!acc.tech && raw.tech) acc.tech = raw.tech;
+    }
+  }
+
+  let seeds = [...seedMap.values()];
+  const seedsTotal = seeds.length;
+  if (seeds.length === 0) return empty();
+
+  if (seeds.length > cfg.maxVoronoiCells) {
+    const centreLat = Number(cfg.mapCenter?.lat);
+    const centreLon = Number(cfg.mapCenter?.lon);
+    const cx = (Number.isFinite(centreLon) ? centreLon : seeds.reduce((sum, s) => sum + s.lon, 0) / seeds.length) * M_PER_DEG_LNG;
+    const cy = (Number.isFinite(centreLat) ? centreLat : seeds.reduce((sum, s) => sum + s.lat, 0) / seeds.length) * M_PER_DEG_LAT;
+    seeds = seeds
+      .map((s) => ({ s, d: (s.x - cx) * (s.x - cx) + (s.y - cy) * (s.y - cy) }))
+      .sort((a, b) => a.d - b.d)
+      .slice(0, cfg.maxVoronoiCells)
+      .map((entry) => entry.s);
+  }
+
+  const padM = Math.max(cfg.visualRadiusMeters * 2, 50000);
   const bbox = [
-    Math.min(...lons) - pad,
-    Math.min(...lats) - pad,
-    Math.max(...lons) + pad,
-    Math.max(...lats) + pad,
+    Math.min(...seeds.map((s) => s.x)) - padM,
+    Math.min(...seeds.map((s) => s.y)) - padM,
+    Math.max(...seeds.map((s) => s.x)) + padM,
+    Math.max(...seeds.map((s) => s.y)) + padM,
   ];
   const { polys, neighborGraph } = voronoiCells(
-    seeds.map((s) => ({ x: s.lon, y: s.lat })),
+    seeds.map((s) => ({ x: s.x, y: s.y })),
     bbox,
     { neighborLimit: cfg.neighborLimit },
   );
@@ -213,16 +264,10 @@ function buildCellPciPolygons(cells, cfg, t0) {
     const poly = polys[i];
     if (!poly || poly.length < 3) return;
 
-    const Rdeg = (cell.maxRadius ?? cfg.maxRadiusMeters ?? DEFAULTS.maxRadiusMeters) / 1000 / 111;
-    const clipped = poly.map((p) => {
-      const dLat = p.y - cell.lat;
-      const dLon = p.x - cell.lon;
-      const d = Math.sqrt(dLat * dLat + dLon * dLon);
-      if (d <= Rdeg) return [p.x, p.y];
-      const f = Rdeg / d;
-      return [cell.lon + dLon * f, cell.lat + dLat * f];
-    });
-    if (clipped.length < 3) return;
+    const disk = approximateDisk({ x: cell.x, y: cell.y }, cfg.visualRadiusMeters, cfg.visualRadiusSegments);
+    const clippedPoly = polygonIntersection(poly, disk);
+    if (!clippedPoly || clippedPoly.length < 3) return;
+    const clipped = clippedPoly.map((p) => [p.x / M_PER_DEG_LNG, p.y / M_PER_DEG_LAT]);
     clipped.push(clipped[0]);
 
     const neighbors = neighborGraph[i] ? neighborGraph[i].size : 0;
@@ -232,7 +277,7 @@ function buildCellPciPolygons(cells, cfg, t0) {
       geometry: { type: 'Polygon', coordinates: [clipped] },
       properties: {
         cellId: cell.id,
-        cellIds: [cell.id],
+        cellIds: cell.cellIds || [cell.id],
         siteId: cell.siteId,
         siteName: cell.siteName,
         lat: cell.lat,
@@ -257,6 +302,8 @@ function buildCellPciPolygons(cells, cfg, t0) {
     nSites: new Set(seeds.map((s) => s.siteId || s.siteName || s.id)).size,
     nCells: features.length,
     nNeighbors: totalNeighbors,
+    seedsTotal,
+    capped: seedsTotal > seeds.length,
     elapsedMs: Math.round(performance.now() - t0),
   };
 }
