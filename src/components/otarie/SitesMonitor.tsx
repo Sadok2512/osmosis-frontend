@@ -1577,7 +1577,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
           })()}
 
           {/* ── Site Filters ── */}
-          {backendFilterDefs && backendFilterDefs.length > 0 && (() => {
+          {dashboardId && backendFilterDefs && backendFilterDefs.length > 0 && (() => {
             const isLocked = !!dashboardId;
             const activeEntries = Object.entries(localSiteFilters).filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : !!v));
             const labelFor = (key: string) => key.startsWith('manual_')
@@ -1708,8 +1708,8 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
           })()}
 
 
-          {/* ── Appearance, Labels ── */}
-          {<>
+          {/* ── Appearance, Labels (dashboard only — hidden on view config) ── */}
+          {dashboardId && <>
 
           {/* ── Display Mode ── */}
           <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
