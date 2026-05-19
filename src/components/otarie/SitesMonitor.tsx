@@ -91,13 +91,31 @@ const coveragePciKey = (pci: number | string | null | undefined): string => (
   pci == null || pci === '' ? 'none' : `pci:${pci}`
 );
 
+const coverageStableHash = (value: string): number => {
+  let h = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+};
+
+const coveragePciKeyForCell = (cell: Pick<CoverageCell, 'pci' | 'id' | 'siteId' | 'siteName' | 'azimuth' | 'band'>): string => {
+  const real = coveragePciKey(cell.pci);
+  if (real !== 'none') return real;
+  const seed = `${cell.id || ''}|${cell.siteId || ''}|${cell.siteName || ''}|${cell.azimuth || ''}|${cell.band || ''}`;
+  return `auto:${String(coverageStableHash(seed) % 24).padStart(2, '0')}`;
+};
+
 const coveragePciLabel = (key: string): string => (
-  key === 'none' ? 'Sans PCI' : key.replace(/^pci:/, '')
+  key === 'none' ? 'Sans PCI' : key.startsWith('auto:') ? `Auto ${key.slice(5)}` : key.replace(/^pci:/, '')
 );
 
 const coveragePciColor = (key: string): string => {
   if (key === 'none') return '#94a3b8';
-  const n = Number(key.replace(/^pci:/, ''));
+  const n = key.startsWith('auto:')
+    ? Number(key.slice(5)) + 503
+    : Number(key.replace(/^pci:/, ''));
   if (!Number.isFinite(n)) return '#94a3b8';
   const hue = (n * 137.508) % 360;
   return `hsl(${hue.toFixed(1)} 72% 54%)`;
@@ -8208,7 +8226,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const coveragePciOptions = useMemo(() => {
     const counts = new Map<string, number>();
     for (const cell of coverageCells) {
-      const key = coveragePciKey(cell.pci);
+      const key = coveragePciKeyForCell(cell);
       counts.set(key, (counts.get(key) || 0) + 1);
     }
     return Array.from(counts.entries())
@@ -8216,7 +8234,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       .sort((a, b) => {
         if (a.key === 'none') return 1;
         if (b.key === 'none') return -1;
-        return Number(a.label) - Number(b.label);
+        if (a.key.startsWith('auto:') && !b.key.startsWith('auto:')) return 1;
+        if (!a.key.startsWith('auto:') && b.key.startsWith('auto:')) return -1;
+        const av = a.key.startsWith('auto:') ? Number(a.key.slice(5)) : Number(a.label);
+        const bv = b.key.startsWith('auto:') ? Number(b.key.slice(5)) : Number(b.label);
+        return av - bv;
       });
   }, [coverageCells]);
 
@@ -8232,7 +8254,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setCoverageCells(cells);
     setActiveCoveragePciKeys(prev => {
       if (prev == null) return null;
-      const valid = new Set(cells.map(cell => coveragePciKey(cell.pci)));
+      const valid = new Set(cells.map(cell => coveragePciKeyForCell(cell)));
       const next = new Set(Array.from(prev).filter(key => valid.has(key)));
       return next.size === prev.size ? prev : next;
     });

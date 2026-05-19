@@ -33,6 +33,21 @@ const VC_MAX_RADIUS_METERS = 10000;
 
 interface Bounds { minLng: number; minLat: number; maxLng: number; maxLat: number; }
 
+const stableHash = (value: string): number => {
+  let h = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+};
+
+const coveragePciKeyForCell = (cell: CoverageCell): string => {
+  if (cell.pci != null && cell.pci !== '') return `pci:${cell.pci}`;
+  const seed = `${cell.id || ''}|${cell.siteId || ''}|${cell.siteName || ''}|${cell.azimuth || ''}|${cell.band || ''}`;
+  return `auto:${String(stableHash(seed) % 24).padStart(2, '0')}`;
+};
+
 interface Props {
   enabled: boolean;
   basemapKind?: 'light' | 'dark' | 'satellite' | 'street';
@@ -103,10 +118,7 @@ const VisualCoverageAdapter: React.FC<Props> = ({
     if (selectedPciKeys == null) return cells;
     const allowed = new Set(selectedPciKeys);
     if (allowed.size === 0) return [];
-    return cells.filter((cell) => {
-      const key = cell.pci == null ? 'none' : `pci:${cell.pci}`;
-      return allowed.has(key);
-    });
+    return cells.filter((cell) => allowed.has(coveragePciKeyForCell(cell)));
   }, [selectedPciKey]);
 
   // Polygon fill opacity — driven by the "Visibilité des polygones" slider
