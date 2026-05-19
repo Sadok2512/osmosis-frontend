@@ -93,9 +93,12 @@ const PciOverlayAdapter: React.FC<Props> = ({
   }, [map, panelMount]);
 
   // ── enabled flag drives module on/off ──
+  // Le module accepte enabled=true sans bande : il affiche les pills
+  // disponibles dérivées des cells. La géométrie ne rend qu'une fois
+  // qu'une bande est choisie (pci-overlay.js throw si view.band est vide).
   useEffect(() => {
-    ctlRef.current?.setEnabled?.(enabled && !!band);
-  }, [enabled, band]);
+    ctlRef.current?.setEnabled?.(enabled);
+  }, [enabled]);
 
   // ── view changes (band, colorMode) propagated to module ──
   useEffect(() => {
@@ -108,15 +111,16 @@ const PciOverlayAdapter: React.FC<Props> = ({
   }, [band, colorMode]);
 
   // ── fetch cells when needed ──
+  // On fetch dès que le toggle est ON, même sans bande sélectionnée —
+  // le module a besoin de la liste pour calculer les pills disponibles.
+  // Quand une bande est choisie, le param `band` réduit le payload.
   useEffect(() => {
-    if (!enabled || !band || !bbox || !ctlRef.current) return;
+    if (!enabled || !bbox || !ctlRef.current) return;
     const ctrl = new AbortController();
-    // We pass `band` to the backend filter so the payload only contains
-    // cells of the selected band — Voronoï is per-band anyway.
     fetchCellsForCoverage(bbox, {
       techno,
       vendor,
-      band,
+      ...(band ? { band } : {}),
       signal: ctrl.signal,
     } as any)
       .then(({ cells }) => {
