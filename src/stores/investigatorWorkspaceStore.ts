@@ -376,9 +376,10 @@ export const useInvestigatorWorkspace = create<InvestigatorWorkspaceStore>()(
           saveStatus: i.saveStatus,
           lastSavedAt: i.lastSavedAt,
           hasUnsavedChanges: i.hasUnsavedChanges,
-          // Runtime data NOT persisted to localStorage
-          tsData: [],
-          worstElements: [],
+          // Persist last Apply result so charts re-appear when the user
+          // navigates away and back (no auto-refetch — pure cache restore).
+          tsData: Array.isArray(i.tsData) ? i.tsData : [],
+          worstElements: Array.isArray(i.worstElements) ? i.worstElements : [],
           loading: false,
           error: null,
         })),
