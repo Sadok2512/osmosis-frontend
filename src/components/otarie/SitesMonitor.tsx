@@ -3323,7 +3323,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                 <div className="flex items-center gap-1.5">
                                   {view.is_default && <Star size={8} className="text-amber-500 fill-amber-500 shrink-0" />}
                                   <span className={`text-[11px] font-semibold truncate ${isViewActive ? 'text-primary font-bold' : 'text-foreground'}`}>{view.name}</span>
-                                  {isViewActive && <span className="text-[7px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold uppercase">actif</span>}
+                                  {vs.viewType === 'coverage' ? (
+                                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide border ${isViewActive ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40' : 'bg-muted text-muted-foreground border-border'}`}>
+                                      {isViewActive ? 'ON' : 'OFF'}
+                                    </span>
+                                  ) : (
+                                    isViewActive && <span className="text-[7px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold uppercase">actif</span>
+                                  )}
                                   {hasOwnSettings && <span className="text-[7px] px-1 py-0.5 rounded bg-accent/10 text-accent-foreground font-bold uppercase">custom</span>}
                                   {condCount > 0 && <span className="text-[7px] px-1 py-0.5 rounded bg-primary/10 text-primary font-bold">{condCount} filtre{condCount > 1 ? 's' : ''}</span>}
                                   {vs.viewType === 'kpi_overlay' && <span className="text-[7px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold uppercase">KPI</span>}
