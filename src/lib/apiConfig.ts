@@ -354,6 +354,24 @@ export function fetchWithTimeout(
  * exponential backoff. Use for any call that goes through the vps-proxy
  * edge function.
  */
+function synthUnavailable(reason: string): Response {
+  // Mimic vps-proxy's safe fallback so .then(r => r.ok ? r.json() : [])
+  // handlers receive an empty payload instead of throwing.
+  const body = JSON.stringify({
+    unavailable: true,
+    error: reason,
+    items: [],
+    data: [],
+    rows: [],
+    series: [],
+    total: 0,
+  });
+  return new Response(body, {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 export async function fetchVpsWithRetry(
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -361,25 +379,34 @@ export async function fetchVpsWithRetry(
 ): Promise<Response> {
   const { maxRetries = 3, timeoutMs = REQUEST_TIMEOUT_MS, baseDelayMs = 600 } = options;
   let lastErr: unknown;
+  let last503Text = '';
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const res = await fetchWithTimeout(input, init, timeoutMs);
-      if (res.status === 503 && attempt < maxRetries) {
+      if (res.status === 503) {
         const text = await res.clone().text().catch(() => '');
-        if (/BOOT_ERROR|WORKER_LIMIT|please check logs/i.test(text)) {
+        last503Text = text;
+        // Retry on cold-start / boot / clone-aborted runtime hiccups.
+        if (attempt < maxRetries && /BOOT_ERROR|WORKER_LIMIT|please check logs|Clone failed|aborted/i.test(text)) {
           await new Promise(r => setTimeout(r, baseDelayMs * Math.pow(2, attempt)));
           continue;
         }
+        // Terminal 503 — swallow to prevent unhandled rejections / blank screen.
+        return synthUnavailable(`Edge function 503: ${text.slice(0, 200)}`);
       }
       return res;
     } catch (err) {
       lastErr = err;
+      const name = (err as any)?.name;
+      const isAbort = name === 'AbortError' || name === 'TimeoutError';
       if (attempt < maxRetries) {
         await new Promise(r => setTimeout(r, baseDelayMs * Math.pow(2, attempt)));
         continue;
       }
-      throw err;
+      // Final attempt — never throw on aborts/network errors; return safe fallback.
+      if (isAbort) return synthUnavailable('client timeout');
+      return synthUnavailable(err instanceof Error ? err.message : 'network error');
     }
   }
-  throw lastErr instanceof Error ? lastErr : new Error('fetchVpsWithRetry failed');
+  return synthUnavailable(last503Text ? `503: ${last503Text.slice(0, 200)}` : (lastErr instanceof Error ? lastErr.message : 'unknown'));
 }
