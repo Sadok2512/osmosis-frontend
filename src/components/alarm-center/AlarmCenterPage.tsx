@@ -377,13 +377,10 @@ const AlarmCenterPage: React.FC = () => {
 
   return (
     <div
-      className="h-full overflow-y-auto space-y-5 p-5 transition-[padding] duration-300"
-      style={{
-        background: "#f6f8fb",
-        fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-        paddingRight: detailsOpen ? 'calc(440px + 1.25rem)' : undefined,
-      }}
+      className="h-full overflow-y-auto space-y-5 p-5"
+      style={{ background: "#f6f8fb", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" }}
     >
+
 
       {/* HEADER */}
       <div className={`${CARD} px-5 py-4`}>
