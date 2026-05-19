@@ -181,56 +181,28 @@ function buildCellPciPolygons(cells, cfg, t0) {
   });
   if (validCells.length === 0) return empty();
 
-  const latRef = validCells.reduce((sum, c) => sum + Number(c.lat), 0) / validCells.length;
-  const M_PER_DEG_LAT = 111000;
-  const M_PER_DEG_LNG = 111000 * Math.cos((latRef * Math.PI) / 180);
-  const AZ_BUCKET_DEG = 5;
-  const SECTOR_OFFSET_M = 120;
-
-  const seedMap = new Map();
-  for (const c of validCells) {
-    const azRaw = Number(c.azimuth);
-    const az = Number.isFinite(azRaw) ? ((azRaw % 360) + 360) % 360 : 0;
-    const azBucket = Math.round(az / AZ_BUCKET_DEG) * AZ_BUCKET_DEG;
-    const siteKey = c.siteId || c.siteName || c.id;
-    const bandKey = String(c.band || 'NO_BAND').toUpperCase();
-    const key = `${siteKey}|${bandKey}|${azBucket}`;
-    const rad = (az * Math.PI) / 180;
-    const x = Number(c.lon) * M_PER_DEG_LNG + Math.sin(rad) * SECTOR_OFFSET_M;
-    const y = Number(c.lat) * M_PER_DEG_LAT + Math.cos(rad) * SECTOR_OFFSET_M;
-    const pci = pciNumber(c.pci);
-    const acc = seedMap.get(key);
-    if (!acc) {
-      seedMap.set(key, {
-        ...c,
-        lat: Number(c.lat),
-        lon: Number(c.lon),
-        x,
-        y,
-        azimuth: az,
-        pci,
-        cellIds: [c.id],
-        cellCount: 1,
-      });
-    } else {
-      acc.cellIds.push(c.id);
-      acc.cellCount += 1;
-      if (acc.pci == null && pci != null) acc.pci = pci;
-    }
-  }
-
-  const seeds = [...seedMap.values()];
-  if (seeds.length === 0) return empty();
-
-  const padM = Math.max(Number(cfg.maxRadiusMeters || 0) * 2, 50000);
+  // Exact KPI overlay geometry: seed one Voronoi polygon per raw cell at
+  // lon/lat, then clip radially in degrees. Only the fill color differs.
+  const seeds = validCells.map((c) => ({
+    ...c,
+    id: c.id || `${c.siteId || c.siteName}-${c.lat}-${c.lon}`,
+    lat: Number(c.lat),
+    lon: Number(c.lon),
+    pci: pciNumber(c.pci),
+  }));
+  const lats = seeds.map((c) => c.lat);
+  const lons = seeds.map((c) => c.lon);
+  const pad = Number.isFinite(Number(cfg.bboxPaddingDegrees))
+    ? Number(cfg.bboxPaddingDegrees)
+    : 0.05;
   const bbox = [
-    Math.min(...seeds.map((s) => s.x)) - padM,
-    Math.min(...seeds.map((s) => s.y)) - padM,
-    Math.max(...seeds.map((s) => s.x)) + padM,
-    Math.max(...seeds.map((s) => s.y)) + padM,
+    Math.min(...lons) - pad,
+    Math.min(...lats) - pad,
+    Math.max(...lons) + pad,
+    Math.max(...lats) + pad,
   ];
   const { polys, neighborGraph } = voronoiCells(
-    seeds.map((s) => ({ x: s.x, y: s.y })),
+    seeds.map((s) => ({ x: s.lon, y: s.lat })),
     bbox,
     { neighborLimit: cfg.neighborLimit },
   );
@@ -241,17 +213,14 @@ function buildCellPciPolygons(cells, cfg, t0) {
     const poly = polys[i];
     if (!poly || poly.length < 3) return;
 
-    const Rm = Number.isFinite(Number(cell.maxRadius))
-      ? Math.min(Number(cell.maxRadius), Number(cfg.maxRadiusMeters || cell.maxRadius))
-      : Number(cfg.maxRadiusMeters || DEFAULTS.maxRadiusMeters);
-
+    const Rdeg = (cell.maxRadius ?? cfg.maxRadiusMeters ?? DEFAULTS.maxRadiusMeters) / 1000 / 111;
     const clipped = poly.map((p) => {
-      const dx = p.x - cell.x;
-      const dy = p.y - cell.y;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d <= Rm) return [p.x / M_PER_DEG_LNG, p.y / M_PER_DEG_LAT];
-      const f = Rm / d;
-      return [(cell.x + dx * f) / M_PER_DEG_LNG, (cell.y + dy * f) / M_PER_DEG_LAT];
+      const dLat = p.y - cell.lat;
+      const dLon = p.x - cell.lon;
+      const d = Math.sqrt(dLat * dLat + dLon * dLon);
+      if (d <= Rdeg) return [p.x, p.y];
+      const f = Rdeg / d;
+      return [cell.lon + dLon * f, cell.lat + dLat * f];
     });
     if (clipped.length < 3) return;
     clipped.push(clipped[0]);
@@ -263,7 +232,7 @@ function buildCellPciPolygons(cells, cfg, t0) {
       geometry: { type: 'Polygon', coordinates: [clipped] },
       properties: {
         cellId: cell.id,
-        cellIds: cell.cellIds || [cell.id],
+        cellIds: [cell.id],
         siteId: cell.siteId,
         siteName: cell.siteName,
         lat: cell.lat,
@@ -277,7 +246,7 @@ function buildCellPciPolygons(cells, cfg, t0) {
         color: colorForCellPci(cell),
         colorSource: cell.pci == null ? 'fallback' : 'pci',
         neighbors,
-        cellCount: cell.cellCount ?? 1,
+        cellCount: 1,
       },
     });
   });
