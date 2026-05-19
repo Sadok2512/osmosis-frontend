@@ -52,14 +52,10 @@ function techGroup(value) {
 
 function featureColor(f, fallbackKpi = true) {
   const p = f?.properties || {};
-  // 2026-05-19 — priorité au tier KPI (Bon/Moyen/Critique) pour rester
-  // cohérent avec la légende affichée à l'écran. Le hash PCI (p.color)
-  // produit toute la roue HSL — y compris des rouges absents de la
-  // légende KPI — donc on ne l'utilise qu'en dernier recours.
-  if (fallbackKpi && p.kpi && KPI_COLOR[p.kpi]) return KPI_COLOR[p.kpi];
+  const explicit = p.color;
+  if (explicit) return explicit;
   const tech = techGroup(p.tech || p.primaryTech || (Array.isArray(p.technologies) ? p.technologies.join(' ') : ''));
   if (tech !== 'unknown') return TECH_COLOR[tech];
-  if (p.color) return p.color;
   return fallbackKpi ? (KPI_COLOR[p.kpi] || TECH_COLOR.unknown) : TECH_COLOR.unknown;
 }
 
