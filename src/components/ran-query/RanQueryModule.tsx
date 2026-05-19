@@ -788,7 +788,10 @@ function downloadCsv(report: RanReport) {
     if (aggLevels.includes('cell')) dims.push(r.cell_name || '');
     const key = dims.join('|');
     if (!rowMap.has(key)) rowMap.set(key, Object.fromEntries(dimHeaders.map((h, i) => [h, dims[i]])));
-    rowMap.get(key)![r.kpi] = r.value;
+    const row = rowMap.get(key)!;
+    if (r.value != null || row[r.kpi] == null) {
+      row[r.kpi] = r.value;
+    }
   }
   const csvRows = Array.from(rowMap.values());
   const csv = [
@@ -1245,7 +1248,10 @@ const RanQueryModule: React.FC = () => {
       };
       const rowKey = dimCols.map(d => dims[d.key] || '').join('|');
       if (!rowMap.has(rowKey)) rowMap.set(rowKey, { ...dims });
-      rowMap.get(rowKey)![r.kpi] = r.value;
+      const row = rowMap.get(rowKey)!;
+      if (r.value != null || row[r.kpi] == null) {
+        row[r.kpi] = r.value;
+      }
     }
     return { rows: Array.from(rowMap.values()), kpis, dimCols };
   }, [selectedReport]);
