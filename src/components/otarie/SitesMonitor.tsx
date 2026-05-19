@@ -3535,6 +3535,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                   onClose={() => { setEditingDashboardId(null); setEditingViewId(null); }}
                                   onSetDashboards={setDashboards}
                                   backendFilterDefs={backendFilterDefs}
+                                  viewType={vs.viewType || null}
                                 />
                               </div>
                             )}
