@@ -33,6 +33,32 @@ const KPI_COLOR = {
   unknown: '#888888',
 };
 
+const TECH_COLOR = {
+  '5G': '#27AE60',
+  '4G': '#F39C12',
+  '3G': '#3498DB',
+  '2G': '#8E44AD',
+  unknown: '#64748b',
+};
+
+function techGroup(value) {
+  const v = String(value || '').toUpperCase();
+  if (v.includes('NR') || v.includes('5G')) return '5G';
+  if (v.includes('LTE') || v.includes('4G')) return '4G';
+  if (v.includes('UMTS') || v.includes('WCDMA') || v.includes('3G')) return '3G';
+  if (v.includes('GSM') || v.includes('2G')) return '2G';
+  return 'unknown';
+}
+
+function featureColor(f, fallbackKpi = true) {
+  const p = f?.properties || {};
+  const explicit = p.color;
+  if (explicit) return explicit;
+  const tech = techGroup(p.tech || p.primaryTech || (Array.isArray(p.technologies) ? p.technologies.join(' ') : ''));
+  if (tech !== 'unknown') return TECH_COLOR[tech];
+  return fallbackKpi ? (KPI_COLOR[p.kpi] || TECH_COLOR.unknown) : TECH_COLOR.unknown;
+}
+
 export function initVisualCoverage(options) {
   const {
     map,
@@ -55,6 +81,14 @@ export function initVisualCoverage(options) {
   let baseLayer = null;   // Leaflet GeoJSON: site footprints
   let wedgeLayer = null;  // Leaflet GeoJSON: sector wedges
   let enabled = defaultEnabled;
+  const paneName = 'paneVisualCoverage';
+
+  if (!map.getPane(paneName)) {
+    const pane = map.createPane(paneName);
+    pane.style.zIndex = '620';
+    pane.style.pointerEvents = 'auto';
+    pane.style.mixBlendMode = 'multiply';
+  }
   const listeners = { ready: [], status: [] };
   const emit = (evt, payload) => listeners[evt]?.forEach((fn) => fn(payload));
 
@@ -83,14 +117,15 @@ export function initVisualCoverage(options) {
         // BASE: site footprints. Lower stack, no hover binding —
         // operators interact with wedges instead.
         baseLayer = L.geoJSON(coverageResult.fc, {
+          pane: paneName,
           style: (f) => {
-            const color = KPI_COLOR[f.properties.kpi] || '#888';
+            const color = featureColor(f, false);
             return {
               color,
               weight: footprintBorderWidth,
-              opacity: 0.7,
+              opacity: 0.35,
               fillColor: color,
-              fillOpacity: footprintFillOpacity,
+              fillOpacity: Math.min(footprintFillOpacity, 0.16),
             };
           },
         });
@@ -98,12 +133,13 @@ export function initVisualCoverage(options) {
         // WEDGES: sector slices on top, more saturated. Tooltip + hover
         // emphasis live here so the operator gets cell-level info.
         wedgeLayer = L.geoJSON(coverageResult.wedgesFc, {
+          pane: paneName,
           style: (f) => {
-            const color = KPI_COLOR[f.properties.kpi] || '#888';
+            const color = featureColor(f);
             return {
               color,
               weight: wedgeBorderWidth,
-              opacity: 0.9,
+              opacity: 0.65,
               fillColor: color,
               fillOpacity: wedgeFillOpacity,
             };
@@ -142,7 +178,7 @@ export function initVisualCoverage(options) {
   function bindWedge(feature, layer) {
     const p = feature.properties;
     const rsrpStr = p.rsrp != null ? ` · ${p.rsrp} dBm` : '';
-    const kpiColor = KPI_COLOR[p.kpi] || '#888';
+    const kpiColor = p.color || KPI_COLOR[p.kpi] || '#888';
     const mergedRow = (p.cellCount > 1)
       ? `<div class="cov-tt-row"><span>cells merged</span><b>${p.cellCount}</b></div>`
       : '';

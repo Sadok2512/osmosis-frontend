@@ -8329,6 +8329,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     if ((settings as any).showVisualCoverage !== undefined) {
       setShowVisualCoverage(Boolean((settings as any).showVisualCoverage));
+      if (Boolean((settings as any).showVisualCoverage)) {
+        setActiveKpiOverlayView(null);
+        setKpiOverlayLocked(false);
+        setKpiOverlays([]);
+        setSectorColorMode('topo');
+        setShowBeamSectors(false);
+        setMapDisplayMode('sites');
+        if (paramMode || paramConfirmed) {
+          setParamMode(false);
+          setParamConfirmed(null);
+          setParamSelected(null);
+          setParamPoints([]);
+          setParamPanelOpen(false);
+        }
+      }
     }
     // KPI Overlay (Voronoï coloured by KPI value, drop-in module 2026-05-11).
     // The dashboard sidebar onApplyView path sets the SAME state via its
@@ -8623,6 +8638,51 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           // Standalone VC toggle (no KPI view) keeps its panel.
           panelMount={activeKpiOverlayView ? null : coveragePanelNode}
           bbox={coverageBbox}
+          techno={(() => {
+            const df = dashboardActive ? activeDashboardFilters : null;
+            const csv = (arr: string[] | undefined | null): string | undefined => {
+              const list = (arr || []).map(s => String(s).trim()).filter(Boolean);
+              return list.length ? list.join(',') : undefined;
+            };
+            return localTechno !== 'ALL' ? localTechno : csv(df?.techno);
+          })()}
+          vendor={(() => {
+            const df = dashboardActive ? activeDashboardFilters : null;
+            const csv = (arr: string[] | undefined | null): string | undefined => {
+              const list = (arr || []).map(s => String(s).trim()).filter(Boolean);
+              return list.length ? list.join(',') : undefined;
+            };
+            return localVendor !== 'ALL' ? localVendor : csv(df?.vendor);
+          })()}
+          plaque={(() => {
+            const df = dashboardActive ? activeDashboardFilters : null;
+            const csv = (arr: string[] | undefined | null): string | undefined => {
+              const list = (arr || []).map(s => String(s).trim()).filter(Boolean);
+              return list.length ? list.join(',') : undefined;
+            };
+            return localPlaque !== 'ALL' ? localPlaque : csv(df?.plaque);
+          })()}
+          dor={(() => {
+            const df = dashboardActive ? activeDashboardFilters : null;
+            const csv = (arr: string[] | undefined | null): string | undefined => {
+              const list = (arr || []).map(s => String(s).trim()).filter(Boolean);
+              return list.length ? list.join(',') : undefined;
+            };
+            return localDor !== 'ALL' ? localDor : csv(df?.dor);
+          })()}
+          cluster={(() => {
+            const df = dashboardActive ? activeDashboardFilters : null;
+            const list = (df?.cluster || []).map(s => String(s).trim()).filter(Boolean);
+            return list.length ? list.join(',') : undefined;
+          })()}
+          band={(() => {
+            const df = dashboardActive ? activeDashboardFilters : null;
+            const csv = (arr: string[] | undefined | null): string | undefined => {
+              const list = (arr || []).map(s => String(s).trim()).filter(Boolean);
+              return list.length ? list.join(',') : undefined;
+            };
+            return localBande !== 'ALL' ? localBande : csv(df?.bande);
+          })()}
           onEnabledChange={setShowVisualCoverage}
         />
         {/* PCI Overlay adapter removed per user request (panel + on-map
@@ -9311,12 +9371,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Heatmap layer */}
-        {!paramMode && !paramPanelOpen && sectorColorMode !== 'topo' && mapDisplayMode === 'heatmap' && (
+        {!showVisualCoverage && !paramMode && !paramPanelOpen && sectorColorMode !== 'topo' && mapDisplayMode === 'heatmap' && (
           <HeatmapLayer points={heatmapPoints} radius={35} blur={25} minOpacity={0.3} />
         )}
 
         {/* Points mode — individual cell markers (NEVER in KPI mode — KPI always uses sectors) */}
-        {!paramMode && !paramPanelOpen && sectorColorMode !== 'kpi' && mapDisplayMode === 'points' && renderSites.map(site => {
+        {!showVisualCoverage && !paramMode && !paramPanelOpen && sectorColorMode !== 'kpi' && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
           const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
@@ -9376,7 +9436,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
-        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
+        {!showVisualCoverage && !paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           // Skip site when KPI legend filter hides all its cells (cell-level logic, not site average)
           if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0) {
             if (!siteMatchesKpiLegend(site)) return null;
@@ -9627,7 +9687,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* ── Two-pass rendering: ALL 4G circles first (bottom), then ALL 5G circles (top) ── */}
-        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && (() => {
+        {!showVisualCoverage && !paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && (() => {
           // Collect renderable sites (non-indoor, non-miniSector)
           const circleSites = renderSites.filter(site => {
             const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
@@ -9827,7 +9887,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })()}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
-        {!paramMode && !paramPanelOpen && showSectors && renderSites.map(site => {
+        {!showVisualCoverage && !paramMode && !paramPanelOpen && showSectors && renderSites.map(site => {
           // LOD filtering: skip sites in very dense areas to reduce overdraw
           const densityInfo = siteDensityMap.get(site.site_id);
           const isHovered = hoveredSiteId === site.site_id;
@@ -14565,6 +14625,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       if (Object.keys(viewThresholds).length > 0) {
                         setKpiThresholds(prev => ({ ...prev, ...viewThresholds }));
                       }
+                    } else if (settings.viewType === 'coverage' || settings.showVisualCoverage) {
+                      // Cell footprint / Visual Coverage is an exclusive
+                      // polygon layer. Disable regular site/cell circles and
+                      // KPI overlays so operators see coloured footprints,
+                      // not the default green marker layer.
+                      setShowVisualCoverage(true);
+                      setActiveKpiOverlayView(null);
+                      setKpiOverlayLocked(false);
+                      setKpiOverlays([]);
+                      setSectorColorMode('topo');
+                      setShowBeamSectors(false);
+                      setMapDisplayMode('sites');
+                      if (paramMode || paramConfirmed) {
+                        setParamMode(false);
+                        setParamConfirmed(null);
+                        setParamSelected(null);
+                        setParamPoints([]);
+                        setParamPanelOpen(false);
+                      }
                     } else {
                       // Switching away from kpi_overlay (or dashboard-only) ⇒
                       // retire the Voronoï KPI overlay layer. Without this,
@@ -14572,6 +14651,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       // linger over the basemap until the next view loads.
                       if (settings.viewType !== 'kpi_overlay') {
                         setActiveKpiOverlayView(null);
+                        setShowVisualCoverage(false);
                       }
                     }
                     if (settings.viewType === 'parameter' && settings.paramFilters) {

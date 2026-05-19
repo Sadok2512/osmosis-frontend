@@ -45,6 +45,10 @@ interface Props {
   /** Optional pre-filter forwarded to the backend query. */
   techno?: string;
   vendor?: string;
+  plaque?: string;
+  dor?: string;
+  cluster?: string;
+  band?: string;
   /** Forwarded to `initVisualCoverage`. Defaults match the module's
    *  own DEFAULTS so callers don't have to think about them. */
   maxRadiusMeters?: number;
@@ -64,6 +68,10 @@ const VisualCoverageAdapter: React.FC<Props> = ({
   bbox,
   techno,
   vendor,
+  plaque,
+  dor,
+  cluster,
+  band,
   maxRadiusMeters = VC_MAX_RADIUS_METERS,
   onCellsLoaded,
   onError,
@@ -149,7 +157,15 @@ const VisualCoverageAdapter: React.FC<Props> = ({
   useEffect(() => {
     if (!enabled || !bbox || !ctlRef.current) return;
     const ctrl = new AbortController();
-    fetchCellsForCoverage(bbox, { techno, vendor, signal: ctrl.signal })
+    fetchCellsForCoverage(bbox, {
+      techno,
+      vendor,
+      plaque,
+      dor,
+      cluster,
+      band,
+      signal: ctrl.signal,
+    })
       .then(({ cells }) => {
         ctlRef.current?.rebuild?.(cells);
         onCellsLoaded?.(cells.length);
@@ -161,7 +177,7 @@ const VisualCoverageAdapter: React.FC<Props> = ({
         onError?.(msg);
       });
     return () => ctrl.abort();
-  }, [enabled, bbox?.minLng, bbox?.minLat, bbox?.maxLng, bbox?.maxLat, techno, vendor]);
+  }, [enabled, bbox?.minLng, bbox?.minLat, bbox?.maxLng, bbox?.maxLat, techno, vendor, plaque, dor, cluster, band]);
 
   return null; // imperative — nothing to render
 };

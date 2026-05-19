@@ -42,6 +42,81 @@ const DEFAULTS = {
 // unknown cells is shown green, not grey.
 const KPI_RANK = { unknown: -1, green: 0, orange: 1, red: 2 };
 
+const TECH_COLOR = {
+  '5G': '#27AE60',
+  '4G': '#F39C12',
+  '3G': '#3498DB',
+  '2G': '#8E44AD',
+  unknown: '#64748b',
+};
+
+const BAND_COLOR = {
+  GSM900: '#8E44AD',
+  GSM1800: '#dc2626',
+  UMTS900: '#3498DB',
+  UMTS2100: '#2E86C1',
+  NR3500: '#27AE60',
+  NR700: '#229954',
+  NR2100: '#1E8449',
+  L2600: '#F39C12',
+  L2100: '#E67E22',
+  L1800: '#D68910',
+  L800: '#F5B041',
+  L700: '#CA6F1E',
+  L900: '#B9770E',
+};
+
+function techGroup(value) {
+  const v = String(value || '').toUpperCase();
+  if (v.includes('NR') || v.includes('5G')) return '5G';
+  if (v.includes('LTE') || v.includes('4G')) return '4G';
+  if (v.includes('UMTS') || v.includes('WCDMA') || v.includes('3G')) return '3G';
+  if (v.includes('GSM') || v.includes('2G')) return '2G';
+  return 'unknown';
+}
+
+function colorForTech(value) {
+  return TECH_COLOR[techGroup(value)] || TECH_COLOR.unknown;
+}
+
+function normalizeBand(value, tech) {
+  const normalized = String(value || '').replace(/[\s_\-]+/g, '').replace(/MHZ/gi, '').toUpperCase();
+  const t = String(tech || '').toUpperCase();
+  const is5G = t.includes('5G') || t.includes('NR') || normalized.startsWith('NR') || /^N\d+$/i.test(normalized);
+  if (normalized.includes('GSM900') || (normalized.includes('900') && t.includes('2G'))) return 'GSM900';
+  if (normalized.includes('GSM1800') || normalized.includes('DCS1800') || (normalized.includes('1800') && t.includes('2G'))) return 'GSM1800';
+  if (normalized.includes('UMTS2100') || normalized.includes('WCDMA2100') || (normalized.includes('2100') && t.includes('3G'))) return 'UMTS2100';
+  if (normalized.includes('UMTS900') || normalized.includes('WCDMA900') || (normalized.includes('900') && t.includes('3G'))) return 'UMTS900';
+  if (normalized.includes('3500') || normalized.includes('NR3500') || normalized.includes('N78')) return 'NR3500';
+  if (normalized.includes('NR2100') || normalized === 'N1') return 'NR2100';
+  if (normalized.includes('NR700') || normalized === 'N28') return 'NR700';
+  if (is5G) {
+    if (normalized.includes('700')) return 'NR700';
+    if (normalized.includes('2100')) return 'NR2100';
+    if (normalized.includes('3500')) return 'NR3500';
+  }
+  if (normalized.includes('2600') || normalized.includes('L2600') || normalized.includes('B7')) return 'L2600';
+  if (normalized.includes('1800') || normalized.includes('L1800') || normalized.includes('B3')) return 'L1800';
+  if (normalized.includes('2100') || normalized.includes('L2100') || normalized === 'B1') return 'L2100';
+  if (normalized.includes('800') || normalized.includes('L800') || normalized.includes('B20')) return 'L800';
+  if (normalized.includes('700') || normalized.includes('L700') || normalized === 'B28') return 'L700';
+  if (normalized.includes('900') || normalized.includes('L900') || normalized.includes('B8')) return 'L900';
+  return null;
+}
+
+function colorForBandOrTech(band, tech) {
+  const bandKey = normalizeBand(band, tech);
+  return (bandKey && BAND_COLOR[bandKey]) || colorForTech(tech || band);
+}
+
+function dominantTech(values) {
+  const groups = new Set(Array.from(values || []).map(techGroup));
+  for (const g of ['5G', '4G', '3G', '2G']) {
+    if (groups.has(g)) return g;
+  }
+  return 'unknown';
+}
+
 //#region wedge-dedup
 // Multiple cells per site can share the same azimuth (different techs/bands
 // at the same physical antenna). Drawing all of them stacks identical
@@ -265,6 +340,8 @@ export function buildSiteCoverage(cells, opts = {}) {
         nCells: s.cells.length,
         nNeighbors,
         technologies: Array.from(technos),
+        primaryTech: dominantTech(technos),
+        color: TECH_COLOR[dominantTech(technos)] || TECH_COLOR.unknown,
       },
     });
 
@@ -307,6 +384,7 @@ export function buildSiteCoverage(cells, opts = {}) {
           beamwidth: bw,
           tech: c.tech,
           band: c.band,
+          color: colorForBandOrTech(c.band, c.tech),
           rsrp: c.rsrp,
           neighbors: nNeighbors,
           cellCount: c.cellCount ?? 1,
