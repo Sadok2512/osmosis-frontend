@@ -48,6 +48,13 @@ const BASEMAP_VISIBILITY = {
   light:     { fill: 0.26, baseFill: 0.08, edge: 0.66, halo: 0.26, lightness: 54, saturation: 58 },
 };
 
+const FOOTPRINT_OUTLINE = {
+  satellite: 'rgba(0,0,0,0.78)',
+  dark:      'rgba(0,0,0,0.72)',
+  street:    'rgba(0,0,0,0.68)',
+  light:     'rgba(0,0,0,0.62)',
+};
+
 function techGroup(value) {
   const v = String(value || '').toUpperCase();
   if (v.includes('NR') || v.includes('5G')) return '5G';
@@ -149,13 +156,13 @@ export function initVisualCoverage(options) {
     pane.style.pointerEvents = 'auto';
     pane.style.mixBlendMode = 'normal';
     pane.style.filter = basemapKind === 'satellite'
-      ? 'drop-shadow(0 0 2px rgba(255,255,255,0.38))'
+      ? 'drop-shadow(0 0 2px rgba(0,0,0,0.34))'
       : 'none';
   } else {
     const pane = map.getPane(paneName);
     pane.style.mixBlendMode = 'normal';
     pane.style.filter = basemapKind === 'satellite'
-      ? 'drop-shadow(0 0 2px rgba(255,255,255,0.38))'
+      ? 'drop-shadow(0 0 2px rgba(0,0,0,0.34))'
       : 'none';
   }
   const listeners = { ready: [], status: [] };
@@ -198,10 +205,11 @@ export function initVisualCoverage(options) {
           pane: paneName,
           style: (f) => {
             const color = normalizedOverlayColor(featureColor(f, false), basemapKind);
+            const outline = FOOTPRINT_OUTLINE[basemapKind] || FOOTPRINT_OUTLINE.light;
             return {
-              color,
-              weight: footprintBorderWidth,
-              opacity: 0.22,
+              color: outline,
+              weight: Math.max(0.55, footprintBorderWidth),
+              opacity: 0.26,
               fillColor: color,
               fillOpacity: Math.min(footprintFillOpacity, visibility.baseFill),
               lineCap: 'round',
@@ -211,20 +219,20 @@ export function initVisualCoverage(options) {
           },
         });
 
-        // HALO: lightweight luminous separator. It gives PCI wedges a
-        // clean RF-planning outline on textured satellite tiles without
-        // making the fill opaque.
+        // HALO: same visual language as KPI Overlay, but with a soft
+        // dark separator so every Voronoi cell reads as a polygon.
         haloLayer = L.geoJSON(coverageResult.wedgesFc, {
           pane: paneName,
           interactive: false,
           style: (f) => {
             const color = normalizedOverlayColor(featureColor(f), basemapKind);
+            const outline = FOOTPRINT_OUTLINE[basemapKind] || FOOTPRINT_OUTLINE.light;
             return {
-              color: basemapKind === 'satellite' ? 'rgba(255,255,255,0.88)' : color,
+              color: outline,
               weight: Math.max(2.4, wedgeBorderWidth + 2.1),
-              opacity: visibility.halo,
+              opacity: Math.min(visibility.halo, 0.46),
               fillColor: color,
-              fillOpacity: 0.035,
+              fillOpacity: 0.02,
               lineCap: 'round',
               lineJoin: 'round',
               smoothFactor: 1.15,
@@ -238,9 +246,10 @@ export function initVisualCoverage(options) {
           pane: paneName,
           style: (f) => {
             const color = normalizedOverlayColor(featureColor(f), basemapKind);
+            const outline = FOOTPRINT_OUTLINE[basemapKind] || FOOTPRINT_OUTLINE.light;
             return {
-              color: basemapKind === 'satellite' ? 'rgba(248,250,252,0.94)' : color,
-              weight: basemapKind === 'satellite' ? Math.max(0.95, wedgeBorderWidth) : wedgeBorderWidth,
+              color: outline,
+              weight: basemapKind === 'satellite' ? Math.max(1.05, wedgeBorderWidth) : Math.max(0.85, wedgeBorderWidth),
               opacity: visibility.edge,
               fillColor: color,
               fillOpacity: Math.min(wedgeFillOpacity, visibility.fill),
@@ -313,7 +322,7 @@ export function initVisualCoverage(options) {
     );
     layer.on('mouseout', (e) =>
       e.target.setStyle({
-        weight: basemapKind === 'satellite' ? Math.max(0.95, wedgeBorderWidth) : wedgeBorderWidth,
+        weight: basemapKind === 'satellite' ? Math.max(1.05, wedgeBorderWidth) : Math.max(0.85, wedgeBorderWidth),
         fillOpacity: Math.min(wedgeFillOpacity, visibility.fill),
       }),
     );
