@@ -1743,16 +1743,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               <p className="text-[11px] 2xl:text-xs text-muted-foreground font-medium tracking-wide">KPI Investigation & Root Cause Analysis</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={openStandaloneExport}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
-              title="Ouvrir uniquement l'Investigator en plein écran (sans sidebar) dans un nouvel onglet"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              EXPORT
-            </button>
-          </div>
         </div>
       </div>
 
