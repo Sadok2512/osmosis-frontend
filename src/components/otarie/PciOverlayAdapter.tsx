@@ -33,9 +33,15 @@ interface Props {
   /** Viewport bbox. */
   bbox: Bounds | null;
   /** Scope (plaque/dor/cluster) — forwardé au backend pour réduire
-   *  le payload AVANT le filtre band côté browser. */
+   *  le payload AVANT le filtre band côté browser. Sans ces filtres,
+   *  /cells-for-coverage ramène 5000 cellules de France entière et la
+   *  carte saute hors du périmètre dashboard quand le fitBounds calcule
+   *  une bbox monde. */
   techno?: string;
   vendor?: string;
+  plaque?: string;
+  dor?: string;
+  cluster?: string;
   /** Sync React state quand l'utilisateur interagit avec le panel JS. */
   onEnabledChange?: (enabled: boolean) => void;
   onBandChange?: (band: string) => void;
@@ -52,6 +58,9 @@ const PciOverlayAdapter: React.FC<Props> = ({
   bbox,
   techno,
   vendor,
+  plaque,
+  dor,
+  cluster,
   onEnabledChange,
   onBandChange,
   onColorModeChange,
@@ -120,6 +129,9 @@ const PciOverlayAdapter: React.FC<Props> = ({
     fetchCellsForCoverage(bbox, {
       techno,
       vendor,
+      ...(plaque ? { plaque } : {}),
+      ...(dor ? { dor } : {}),
+      ...(cluster ? { cluster } : {}),
       ...(band ? { band } : {}),
       signal: ctrl.signal,
     } as any)
@@ -135,7 +147,7 @@ const PciOverlayAdapter: React.FC<Props> = ({
         onError?.(msg);
       });
     return () => ctrl.abort();
-  }, [enabled, band, bbox?.minLng, bbox?.minLat, bbox?.maxLng, bbox?.maxLat, techno, vendor]);
+  }, [enabled, band, bbox?.minLng, bbox?.minLat, bbox?.maxLng, bbox?.maxLat, techno, vendor, plaque, dor, cluster]);
 
   return null;
 };

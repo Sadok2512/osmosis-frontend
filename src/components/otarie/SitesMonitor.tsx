@@ -8546,6 +8546,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           colorMode={pciOverlayMode}
           panelMount={pciOverlayPanelNode}
           bbox={coverageBbox}
+          // Forward dashboard scope (plaque/dor/cluster) au backend pour
+          // que /cells-for-coverage ne ramène que les cellules du périmètre
+          // NANTES (et non 5000 cellules de France entière, ce qui faisait
+          // sauter la carte ailleurs au moment du fitBounds).
+          plaque={(() => {
+            const df = dashboardActive ? activeDashboardFilters : null;
+            const csv = (arr: string[] | undefined | null): string | undefined => {
+              const list = (arr || []).map(s => String(s).trim()).filter(Boolean);
+              return list.length ? list.join(',') : undefined;
+            };
+            return localPlaque !== 'ALL' ? localPlaque : csv(df?.plaque);
+          })()}
+          dor={(() => {
+            const df = dashboardActive ? activeDashboardFilters : null;
+            const csv = (arr: string[] | undefined | null): string | undefined => {
+              const list = (arr || []).map(s => String(s).trim()).filter(Boolean);
+              return list.length ? list.join(',') : undefined;
+            };
+            return localDor !== 'ALL' ? localDor : csv(df?.dor);
+          })()}
           onEnabledChange={(flag) => {
             setPciOverlayEnabled(flag);
             // Mutex Sally : activer PCI Overlay éteint Visual Coverage
