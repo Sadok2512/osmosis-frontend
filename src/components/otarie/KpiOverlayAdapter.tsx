@@ -33,11 +33,16 @@ import { fetchCellsForCoverage, CoverageCell } from '@/services/topoService';
  *  truncation in the legend. */
 export const MAX_VORONOI_CELLS = 500;
 
-/** Hard cap on the visual reach of a Voronoï polygon. The effective
- *  radius is reduced later by neighboring-site density so dense urban
- *  sectors stay compact while isolated cells cannot dominate the map. */
-export const MAX_VISUAL_RADIUS_M = 5200;
-/** Number of vertices used to approximate the radial clip. 32 is the
+/** Per-sector hard cap on the visual reach of a Voronoï polygon. Each
+ *  polygon coming out of the half-plane clipper is intersected with a
+ *  32-vertex disk of this radius (≈ great-circle, projected in flat
+ *  metres) centred on the seed. Polygons that would extend past 10 km
+ *  from their seed are bounded; polygons whose seed has no neighbour
+ *  within 20 km collapse to a clean disk rather than the open
+ *  half-plane the bissector would otherwise produce. Tunable from the
+ *  UI later if needed. */
+export const MAX_VISUAL_RADIUS_M = 10000;
+/** Number of vertices used to approximate the 10 km disk. 32 is the
  *  default for `approximateDisk` here — visually round at typical
  *  zooms (>= 12) and cheap to clip (Sutherland–Hodgman is O(n·m)). */
 const VISUAL_RADIUS_SEGMENTS = 32;
@@ -48,10 +53,12 @@ const VISUAL_RADIUS_SEGMENTS = 32;
 // the work, polygons stay perfectly polygonal.
 import { voronoiCells } from '@/coverage/voronoi.js';
 // 2026-05-12 — re-use the convex primitives shipped in the drop-in
-// module. Voronoï cells are clipped by adaptive site-radius and azimuth
-// wedge so sparse edge cells cannot balloon while dense zones keep
-// readable sectors.
-import { approximateDisk, approximateWedge, polygonIntersection } from '@/coverage/geometry.js';
+// module to clip each Voronoï polygon to a per-sector 10 km disk.
+// This is the "max coverage visual" cap (option A): edges stay
+// polygonal (no curved radial clip), sectors >10 km away from their
+// seed become empty and disappear rather than ballooning across the
+// country when seeds are sparse.
+import { approximateDisk, polygonIntersection } from '@/coverage/geometry.js';
 
 /** 3-tier palette aligned with the legacy KPI legend used in SitesMonitor.
  *  `unknown` is the No-data tier (basemap visible through translucent grey). */
@@ -70,41 +77,6 @@ const KPI_BASEMAP_VISIBILITY: Record<BasemapKind, { fill: number; edge: number; 
   street:    { fill: 0.28, edge: 0.72, halo: 0.64 },
   light:     { fill: 0.26, edge: 0.64, halo: 0.56 },
 };
-
-const MIN_RF_RADIUS_M = 180;
-const MAX_RF_AREA_SQ_KM = 42;
-
-function clampNumber(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function seedSiteKey(seed: { siteId?: string; siteName?: string; siteX?: number; siteY?: number }): string {
-  return seed.siteId || seed.siteName || `${seed.siteX ?? ''},${seed.siteY ?? ''}`;
-}
-
-function computeAdaptiveRfRadii<T extends { x: number; y: number; siteX: number; siteY: number; siteId?: string; siteName?: string }>(seeds: T[]): number[] {
-  const maxByArea = Math.sqrt((MAX_RF_AREA_SQ_KM * 1_000_000) / Math.PI);
-  const hardMax = Math.min(MAX_VISUAL_RADIUS_M, maxByArea);
-  return seeds.map((seed, i) => {
-    const distances: number[] = [];
-    const key = seedSiteKey(seed);
-    for (let j = 0; j < seeds.length; j++) {
-      if (i === j) continue;
-      const other = seeds[j];
-      if (seedSiteKey(other) === key) continue;
-      const d = Math.hypot(other.siteX - seed.siteX, other.siteY - seed.siteY);
-      if (Number.isFinite(d) && d > 1) distances.push(d);
-    }
-    distances.sort((a, b) => a - b);
-    if (distances.length === 0) return Math.min(hardMax, 2600);
-    const d1 = distances[0];
-    const d2 = distances[1] ?? d1;
-    const d3 = distances[2] ?? d2;
-    const densityDistance = (d1 * 0.58) + (d2 * 0.27) + (d3 * 0.15);
-    const urbanFactor = d1 < 450 ? 0.34 : d1 < 900 ? 0.42 : d1 < 1600 ? 0.52 : 0.72;
-    return clampNumber(Math.min(d1 * urbanFactor, densityDistance * (d1 < 900 ? 0.30 : 0.42), hardMax), MIN_RF_RADIUS_M, hardMax);
-  });
-}
 
 export interface KpiThresholds {
   green: number;
@@ -406,7 +378,6 @@ const KpiOverlayAdapter: React.FC<Props> = ({
     const SECTOR_OFFSET_M = 100;
     type Seed = {
       x: number; y: number;
-      siteX: number; siteY: number;
       siteLat: number; siteLon: number;
       cellIds: string[];
       siteName: string;
@@ -414,7 +385,6 @@ const KpiOverlayAdapter: React.FC<Props> = ({
       tech: string;
       band: string;
       azimuth: number;
-      beamwidth: number;
       tier: 'green' | 'orange' | 'red' | 'unknown';
       rawValueForLegend: number | null;
     };
@@ -433,17 +403,14 @@ const KpiOverlayAdapter: React.FC<Props> = ({
       // azimuth direction. Bearing convention: 0° = north (+y),
       // 90° = east (+x). Unit vector = (sin θ, cos θ).
       const rad = (az * Math.PI) / 180;
-      const siteX = c.lon * M_PER_DEG_LNG;
-      const siteY = c.lat * M_PER_DEG_LAT;
-      const sx = siteX + Math.sin(rad) * SECTOR_OFFSET_M;
-      const sy = siteY + Math.cos(rad) * SECTOR_OFFSET_M;
+      const sx = c.lon * M_PER_DEG_LNG + Math.sin(rad) * SECTOR_OFFSET_M;
+      const sy = c.lat * M_PER_DEG_LAT + Math.cos(rad) * SECTOR_OFFSET_M;
       const v = kpiValueMap?.get(c.id);
       const cellTier = valueToTier(v, kpiThresholds);
       const acc = seedMap.get(key);
       if (!acc) {
         seedMap.set(key, {
           x: sx, y: sy,
-          siteX, siteY,
           siteLat: c.lat, siteLon: c.lon,
           cellIds: [c.id],
           siteName: c.siteName,
@@ -451,7 +418,6 @@ const KpiOverlayAdapter: React.FC<Props> = ({
           tech: c.tech,
           band: c.band,
           azimuth: az,
-          beamwidth: Number(c.beamwidth),
           tier: cellTier,
           rawValueForLegend: Number.isFinite(v as number) ? (v as number) : null,
         });
@@ -546,10 +512,17 @@ const KpiOverlayAdapter: React.FC<Props> = ({
     }
 
     // 4) Build GeoJSON FeatureCollection (project back to lon/lat).
-    //    Each Voronoï polygon is constrained by local site density and
-    //    sector azimuth so dense urban footprints stay compact while
-    //    sparse edge cells cannot dominate the map.
-    const adaptiveRadii = computeAdaptiveRfRadii(seeds);
+    //    4a) For each polygon, clip against a `MAX_VISUAL_RADIUS_M`
+    //        disk centred on its seed. The half-plane clipper at step
+    //        (3) only enforces bissector edges; without this radial
+    //        cap, sparse seeds at the periphery produce polygons that
+    //        stretch hundreds of km to the bbox wall (= the "huge red
+    //        polygons fanning out" + grey country-spanning artifact
+    //        reported 2026-05-12). With the cap, every sector occupies
+    //        at most a disk of 10 km radius. Both polygons are convex
+    //        (Voronoï cell is convex by construction in a convex bbox;
+    //        approximateDisk is regular 32-gon), so Sutherland-Hodgman
+    //        intersection is exact.
     const tierCounts: Record<string, number> = { green: 0, orange: 0, red: 0, unknown: 0 };
     const features: any[] = [];
     let clippedAwayCount = 0;
@@ -557,20 +530,9 @@ const KpiOverlayAdapter: React.FC<Props> = ({
       const s = seeds[i];
       const poly = polys[i];
       if (!poly || poly.length < 3) continue;
-      const radius = adaptiveRadii[i] || MAX_VISUAL_RADIUS_M;
-      const disk = approximateDisk({ x: s.siteX, y: s.siteY }, radius, VISUAL_RADIUS_SEGMENTS);
-      const bounded = polygonIntersection(poly, disk);
-      const beam = Number.isFinite(s.beamwidth) && s.beamwidth > 0
-        ? clampNumber(s.beamwidth * 1.75, 95, 155)
-        : 120;
-      const sector = approximateWedge(
-        { x: s.siteX, y: s.siteY },
-        radius,
-        s.azimuth - beam / 2,
-        s.azimuth + beam / 2,
-        12,
-      );
-      const clipped = polygonIntersection(bounded, sector);
+      // Radial clip: intersect with a 10 km disk around the seed.
+      const disk = approximateDisk({ x: s.x, y: s.y }, MAX_VISUAL_RADIUS_M, VISUAL_RADIUS_SEGMENTS);
+      const clipped = polygonIntersection(poly, disk);
       if (!clipped || clipped.length < 3) {
         clippedAwayCount++;
         continue;
@@ -595,7 +557,6 @@ const KpiOverlayAdapter: React.FC<Props> = ({
           tier: s.tier,
           tierColor: TIER_COLOR[s.tier],
           rawValue: s.rawValueForLegend,
-          rfRadiusMeters: Math.round(radius),
           kpiName,
         },
       });
@@ -607,7 +568,9 @@ const KpiOverlayAdapter: React.FC<Props> = ({
 
     //DIAG (2026-05-12) — final feature count actually attached to the
     //DIAG map. `clippedAwayCount` = polygons that collapsed to <3 vertices
-    //DIAG after adaptive radial + azimuth clipping.
+    //DIAG after the 10 km radial intersection (sectors so far from any
+    //DIAG neighbour that their entire region lay outside the disk —
+    //DIAG should be ~0 with a 10 km cap at meaningful densities).
     // eslint-disable-next-line no-console
     console.log('[diag] scope:result', {
       nFeatures: features.length,
