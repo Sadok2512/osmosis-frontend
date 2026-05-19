@@ -77,12 +77,28 @@ const VisualCoverageAdapter: React.FC<Props> = ({
   // `panelMount` at init time; if it changes we tear down and re-init.
   const initialPanelMountRef = useRef<HTMLElement | null>(null);
 
+  // Polygon fill opacity — driven by the "Visibilité des polygones" slider
+  // in View Configuration (Cell Footprint). Persisted in localStorage and
+  // updated via a window event so the slider can live anywhere in the tree.
+  const [polygonOpacity, setPolygonOpacity] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem('osmosis_coverage_polygon_opacity');
+      const n = raw ? parseFloat(raw) : NaN;
+      return Number.isFinite(n) && n >= 0.05 && n <= 1 ? n : 0.45;
+    } catch { return 0.45; }
+  });
+  useEffect(() => {
+    const onChange = (e: Event) => {
+      const v = (e as CustomEvent<number>).detail;
+      if (typeof v === 'number' && v >= 0.05 && v <= 1) setPolygonOpacity(v);
+    };
+    window.addEventListener('osmosis:coverage-opacity-change', onChange);
+    return () => window.removeEventListener('osmosis:coverage-opacity-change', onChange);
+  }, []);
+
   // ── init / teardown ──
   useEffect(() => {
     if (!map) return;
-    // Start with an empty cells array — the fetch effect feeds real
-    // data on the next tick. Passing `[]` is fine: `buildVoronoiCoverage`
-    // returns an empty FeatureCollection and the panel reports 0 cells.
     initialPanelMountRef.current = panelMount;
     const ctl = initVisualCoverage({
       map,
@@ -90,17 +106,19 @@ const VisualCoverageAdapter: React.FC<Props> = ({
       panelMount: panelMount ?? undefined,
       defaultEnabled: enabled,
       maxRadiusMeters,
+      // Footprint slightly lighter than wedges to keep visual hierarchy.
+      footprintFillOpacity: Math.max(0.05, polygonOpacity * 0.78),
+      wedgeFillOpacity: polygonOpacity,
     });
     ctlRef.current = ctl;
     return () => {
       try { ctl.destroy(); } catch { /* swallow — destroy is best-effort */ }
       ctlRef.current = null;
     };
-    // Re-init only when the underlying map or panel mount node actually
-    // changes — not when enabled flips (that's `setEnabled`) and not on
-    // every bbox tick. `enabled` is read once on init via defaultEnabled.
+    // Re-init when opacity changes so the new fillOpacity options take effect
+    // (the JS module reads opacity at init time, not per-rebuild).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, panelMount]);
+  }, [map, panelMount, polygonOpacity]);
 
   // ── enabled toggle (React → module) ──
   useEffect(() => {
