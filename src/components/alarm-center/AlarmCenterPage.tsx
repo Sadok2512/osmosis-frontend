@@ -806,10 +806,8 @@ const AlarmCenterPage: React.FC = () => {
         {/* FLOATING LEFT DRAWER — Details + AI */}
         {detailsOpen && (
           <div className="fixed inset-0 z-[60] pointer-events-none">
-            <div
-              className="absolute inset-0 bg-slate-900/20 backdrop-blur-[2px] pointer-events-auto animate-in fade-in duration-200"
-              onClick={() => setDetailsOpen(false)}
-            />
+            {/* No backdrop — map stays visible in background, sidebar floats on top */}
+
             <aside className="pointer-events-auto absolute right-0 top-0 h-full w-[440px] max-w-[92vw] bg-[#f6f8fb] shadow-[-8px_0_28px_rgba(15,23,42,0.12)] border-l border-[#e7edf5] overflow-y-auto p-4 space-y-4 animate-in slide-in-from-right duration-300">
           {selected && (
             <div className={`${CARD} px-5 py-4`}>
