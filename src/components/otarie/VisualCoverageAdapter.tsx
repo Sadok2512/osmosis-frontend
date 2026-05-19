@@ -49,11 +49,15 @@ interface Props {
   dor?: string;
   cluster?: string;
   band?: string;
+  /** Optional PCI allow-list. Undefined/null means all PCI values; empty
+   *  array intentionally renders no PCI footprint polygons. */
+  selectedPciKeys?: string[] | null;
   /** Forwarded to `initVisualCoverage`. Defaults match the module's
    *  own DEFAULTS so callers don't have to think about them. */
   maxRadiusMeters?: number;
   /** Optional callbacks so the parent can drive a custom status UI. */
   onCellsLoaded?: (count: number) => void;
+  onCellsChanged?: (cells: CoverageCell[]) => void;
   onError?: (message: string) => void;
   /** Fired when the user clicks the module's panel toggle — lets the
    *  parent mirror the on/off state in React (needed so save-view
@@ -72,8 +76,10 @@ const VisualCoverageAdapter: React.FC<Props> = ({
   dor,
   cluster,
   band,
+  selectedPciKeys,
   maxRadiusMeters = VC_MAX_RADIUS_METERS,
   onCellsLoaded,
+  onCellsChanged,
   onError,
   onEnabledChange,
 }) => {
@@ -89,6 +95,17 @@ const VisualCoverageAdapter: React.FC<Props> = ({
   // waiting for the next bbox change (otherwise polygons disappear until
   // the user pans the map).
   const lastCellsRef = useRef<CoverageCell[]>([]);
+  const selectedPciKey = selectedPciKeys == null ? '__all__' : selectedPciKeys.slice().sort().join('|');
+
+  const filterCellsByPci = React.useCallback((cells: CoverageCell[]): CoverageCell[] => {
+    if (selectedPciKeys == null) return cells;
+    const allowed = new Set(selectedPciKeys);
+    if (allowed.size === 0) return [];
+    return cells.filter((cell) => {
+      const key = cell.pci == null ? 'none' : `pci:${cell.pci}`;
+      return allowed.has(key);
+    });
+  }, [selectedPciKey]);
 
   // Polygon fill opacity — driven by the "Visibilité des polygones" slider
   // in View Configuration (Cell Footprint). Persisted in localStorage and
@@ -143,6 +160,15 @@ const VisualCoverageAdapter: React.FC<Props> = ({
     ctlRef.current?.setEnabled?.(enabled);
   }, [enabled]);
 
+  // PCI filtering is local-only: reuse the last fetched cells and rebuild
+  // the polygons without touching the topology/site caches or refetching.
+  useEffect(() => {
+    if (!ctlRef.current) return;
+    const filtered = filterCellsByPci(lastCellsRef.current);
+    ctlRef.current.rebuild?.(filtered);
+    onCellsLoaded?.(filtered.length);
+  }, [filterCellsByPci, onCellsLoaded]);
+
   // ── enabled toggle (module → React) ──
   // The module's panel switch flips its own state on click but doesn't
   // expose an event. We listen for native clicks on the `.cov-switch`
@@ -178,8 +204,10 @@ const VisualCoverageAdapter: React.FC<Props> = ({
     })
       .then(({ cells }) => {
         lastCellsRef.current = cells;
-        ctlRef.current?.rebuild?.(cells);
-        onCellsLoaded?.(cells.length);
+        const filtered = filterCellsByPci(cells);
+        ctlRef.current?.rebuild?.(filtered);
+        onCellsLoaded?.(filtered.length);
+        onCellsChanged?.(cells);
       })
       .catch((err) => {
         if (err?.name === 'AbortError') return;

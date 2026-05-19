@@ -53,7 +53,7 @@ import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue,
 import { TaggedLink, TaggedLinkSector, loadTaggedLinks, persistTaggedLinks, createTaggedLink, pickClosestSector, listSiteBands } from './map/taggedLinks';
 import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS, NEIGHBOR_LABELS, fetchCellNeighbors, generateMockNeighbors } from './map/neighborTypes';
 import { invalidateSitesCache } from '../../services/mockData';
-import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache } from '../../services/topoService';
+import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache, type CoverageCell } from '../../services/topoService';
 import VisualCoverageAdapter from './VisualCoverageAdapter';
 import PciOverlayAdapter from './PciOverlayAdapter';
 import KpiOverlayAdapter, { type KpiOverlayView, type KpiOverlayStats } from './KpiOverlayAdapter';
@@ -85,6 +85,22 @@ const getSidebarSectorSortValue = (sectorKey: string): number => {
 const getSidebarEquipmentLabel = (cells: CellProperties[]): string => {
   const equipment = Array.from(new Set(cells.map(c => getEquipmentPrefix(c.cell_id)).filter(Boolean)));
   return equipment.join(' / ');
+};
+
+const coveragePciKey = (pci: number | string | null | undefined): string => (
+  pci == null || pci === '' ? 'none' : `pci:${pci}`
+);
+
+const coveragePciLabel = (key: string): string => (
+  key === 'none' ? 'Sans PCI' : key.replace(/^pci:/, '')
+);
+
+const coveragePciColor = (key: string): string => {
+  if (key === 'none') return '#94a3b8';
+  const n = Number(key.replace(/^pci:/, ''));
+  if (!Number.isFinite(n)) return '#94a3b8';
+  const hue = (n * 137.508) % 360;
+  return `hsl(${hue.toFixed(1)} 72% 54%)`;
 };
 
 interface SitesMonitorProps {
@@ -4371,6 +4387,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // and threaded down to DashboardInventoryTab.
   const [showVisualCoverage, setShowVisualCoverage] = useState(false);
   const [coveragePanelNode, setCoveragePanelNode] = useState<HTMLDivElement | null>(null);
+  const [coverageCells, setCoverageCells] = useState<CoverageCell[]>([]);
+  // null = all PCI values active. A Set means explicit selection; empty
+  // Set intentionally hides every footprint polygon.
+  const [activeCoveragePciKeys, setActiveCoveragePciKeys] = useState<Set<string> | null>(null);
   // PCI Overlay (party 2026-05-18) — toggle ON/OFF + band picker + colorMode
   // sont gérés par le module JS lui-même (sous le panel Visual Coverage).
   // React n'a besoin de garder l'état que pour persister entre re-render.
@@ -5018,7 +5038,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     return { prb, mimoLabel, rsPower, bwMhz: bwMhz ? `${bwMhz} MHz` : null };
   };
-  const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard' | 'tagged' | 'kpi'>('dashboard');
+  const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard' | 'tagged' | 'kpi' | 'pci'>('dashboard');
 
   // Listen for forced tab switches (e.g. after dashboard deletion to stay on Dashboard tab)
   useEffect(() => {
@@ -5423,6 +5443,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setInventoryTab('sites');
     }
   }, [noDashboardMode, dashboardActive, inventoryTab]);
+  useEffect(() => {
+    if (!showVisualCoverage && inventoryTab === 'pci') {
+      setInventoryTab('dashboard');
+    }
+  }, [showVisualCoverage, inventoryTab]);
 
   // When a dashboard becomes active, automatically turn OFF "Mode sans dashboard".
   useEffect(() => {
@@ -8150,6 +8175,48 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     || (taggedDisplayMode === 'tagged-only' && mapDisplayMode === 'sites')
   );
 
+  const coveragePciOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const cell of coverageCells) {
+      const key = coveragePciKey(cell.pci);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([key, count]) => ({ key, label: coveragePciLabel(key), count, color: coveragePciColor(key) }))
+      .sort((a, b) => {
+        if (a.key === 'none') return 1;
+        if (b.key === 'none') return -1;
+        return Number(a.label) - Number(b.label);
+      });
+  }, [coverageCells]);
+
+  const coveragePciTotal = coveragePciOptions.length;
+  const activeCoveragePciCount = activeCoveragePciKeys == null
+    ? coveragePciTotal
+    : coveragePciOptions.filter(opt => activeCoveragePciKeys.has(opt.key)).length;
+  const selectedCoveragePciKeys = useMemo(
+    () => activeCoveragePciKeys == null ? null : Array.from(activeCoveragePciKeys),
+    [activeCoveragePciKeys],
+  );
+  const handleCoverageCellsChanged = useCallback((cells: CoverageCell[]) => {
+    setCoverageCells(cells);
+    setActiveCoveragePciKeys(prev => {
+      if (prev == null) return null;
+      const valid = new Set(cells.map(cell => coveragePciKey(cell.pci)));
+      const next = new Set(Array.from(prev).filter(key => valid.has(key)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, []);
+  const setAllCoveragePcis = useCallback(() => setActiveCoveragePciKeys(null), []);
+  const clearAllCoveragePcis = useCallback(() => setActiveCoveragePciKeys(new Set()), []);
+  const toggleCoveragePci = useCallback((key: string) => {
+    setActiveCoveragePciKeys(prev => {
+      const base = prev == null ? new Set(coveragePciOptions.map(opt => opt.key)) : new Set(prev);
+      if (base.has(key)) base.delete(key); else base.add(key);
+      return base;
+    });
+  }, [coveragePciOptions]);
+
   // When entering KPI mode, ensure display settings are correct
   useEffect(() => {
     if (sectorColorMode !== 'kpi' || paramMode) return;
@@ -8692,6 +8759,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             };
             return localBande !== 'ALL' ? localBande : csv(df?.bande);
           })()}
+          selectedPciKeys={selectedCoveragePciKeys}
+          onCellsChanged={handleCoverageCellsChanged}
           onEnabledChange={setShowVisualCoverage}
         />
         {/* PCI Overlay adapter removed per user request (panel + on-map
@@ -12958,6 +13027,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   { id: 'dashboard' as const, label: 'Dashboard', icon: <LayoutGrid size={12} /> },
                   { id: 'sites' as const, label: 'Sites', icon: <MapPin size={12} /> },
                   { id: 'tagged' as const, label: `Tagged (${taggedSites.length + taggedPolygons.length + taggedLinks.length + customPoints.length})`, icon: <Star size={12} /> },
+                  ...(showVisualCoverage ? [{ id: 'pci' as const, label: `PCI ${activeCoveragePciCount}/${coveragePciTotal}`, icon: <CircleDot size={12} /> }] : []),
                   ...(sectorColorMode === 'kpi' && !paramMode && mapKpi ? [{ id: 'kpi' as const, label: 'KPI List', icon: <List size={12} /> }] : []),
                 ]).map(tab => (
                   <button
@@ -13184,6 +13254,81 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 );
               })()}
+
+              {/* ── PCI tab content: local Cell Footprint polygon selector ── */}
+              {inventoryTab === 'pci' && showVisualCoverage && (
+                <div className="flex-1 flex flex-col overflow-hidden min-h-0 animate-fade-in">
+                  <div className="px-4 py-3 border-b border-border/40 shrink-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <CircleDot size={13} className="text-primary shrink-0" />
+                          <span className="text-[10px] font-black uppercase tracking-wider text-foreground">PCI List</span>
+                          <span className="text-[9px] font-bold text-muted-foreground">{activeCoveragePciCount}/{coveragePciTotal}</span>
+                        </div>
+                        <p className="mt-1 text-[9px] font-medium text-muted-foreground">
+                          Cell Footprint polygons
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={setAllCoveragePcis}
+                          className="px-2 py-1 rounded-md bg-primary/10 text-primary text-[8px] font-black uppercase tracking-wider hover:bg-primary/20 transition-colors"
+                          title="Afficher tous les PCI"
+                        >
+                          All
+                        </button>
+                        <button
+                          onClick={clearAllCoveragePcis}
+                          className="px-2 py-1 rounded-md bg-muted text-muted-foreground text-[8px] font-black uppercase tracking-wider hover:text-foreground transition-colors"
+                          title="Masquer tous les PCI"
+                        >
+                          Off
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto min-h-0 px-3 py-2">
+                    {coveragePciOptions.length === 0 ? (
+                      <div className="px-3 py-8 text-center text-[10px] text-muted-foreground">
+                        Aucun PCI chargé pour la zone courante.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {coveragePciOptions.map(opt => {
+                          const active = activeCoveragePciKeys == null || activeCoveragePciKeys.has(opt.key);
+                          return (
+                            <button
+                              key={opt.key}
+                              onClick={() => toggleCoveragePci(opt.key)}
+                              className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition-all ${
+                                active
+                                  ? 'bg-card border-border/70 shadow-sm'
+                                  : 'bg-muted/30 border-border/20 opacity-45 hover:opacity-75'
+                              }`}
+                              title={`PCI ${opt.label} · ${opt.count} cells`}
+                            >
+                              <span
+                                className="w-3 h-3 rounded-sm shrink-0 border border-white/40"
+                                style={{ background: active ? opt.color : 'transparent' }}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className={`text-[10px] font-black leading-tight truncate ${active ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
+                                  {opt.label}
+                                </div>
+                                <div className="text-[8px] font-semibold text-muted-foreground leading-tight">
+                                  {opt.count} cells
+                                </div>
+                              </div>
+                              {active && <Check size={10} className="text-primary shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* ── Filters row (sites tab only) ── */}
               {inventoryTab === 'sites' && panelMinimized && (
