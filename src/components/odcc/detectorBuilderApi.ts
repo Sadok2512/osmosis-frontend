@@ -214,9 +214,11 @@ export async function fetchDetectorHolidays(): Promise<string[]> {
   }
 }
 
-// Backend ml-engine exposes detectors under /profiles (legacy ML naming).
-// /detectors returns 404; /profiles is the live route.
-const DETECTORS_PATH = 'profiles';
+// Backend ml-engine — renamed /profiles → /detectors on 2026-05-19
+// (single owner: ml-engine/api/detectors.py). Response envelope is
+// { detectors: [...], total, page, limit } with ne_count + last_fired_at
+// + scope_level surfaced in each row.
+const DETECTORS_PATH = 'detectors';
 
 export async function createDetectorPayload(payload: DetectorPayload): Promise<unknown> {
   return sendJson<unknown>(DETECTORS_PATH, 'POST', payload);
@@ -229,23 +231,39 @@ export async function updateDetectorPayload(detectorId: string, payload: Detecto
 export interface MlDetectorRow {
   id: number;
   name: string;
-  kpi_table_id: number;
-  kpi_codes: string[];
-  dimensions: string[];
-  delta_7_enabled: boolean;
-  delta_14_enabled: boolean;
-  trend_threshold: number;
-  z_threshold: number;
-  run_time: string;
-  retention_days: number;
   is_active: boolean;
+  /** Renamed contract (2026-05-19): added on the LIST payload. */
+  scope_level: string | null;
+  kpi_table_id?: number;
+  kpi_table?: { table_id: number; table_name: string; level: string; period: string } | null;
+  kpi_codes?: string[];
+  dimensions?: string[];
+  /** LIST payload returns the counts directly so the table doesn't
+   *  need to render-and-count from the full arrays. */
+  kpi_count?: number;
+  dimension_count?: number;
+  /** Materialized column refreshed on detector create/update — # cells
+   *  matched by the scope filter (NULL if topo unavailable, render "—"). */
+  ne_count: number | null;
+  /** MAX(detected_at) from kpi.ml_anomalies for this detector. NULL when
+   *  the detector has never fired — render "—" in the UI. */
+  last_fired_at: string | null;
   last_run_at: string | null;
+  /** "running" while a Celery task holds the running-key in Redis, else "idle". */
+  running_status?: 'running' | 'idle';
   created_at: string | null;
   updated_at: string | null;
-  dimension_values: Record<string, string[]>;
-  holidays_excluded: boolean;
-  notes: string | null;
-  extra_config: Record<string, unknown>;
+  /** DETAIL-only fields — present on GET /detectors/{id}, absent on LIST. */
+  delta_7_enabled?: boolean;
+  delta_14_enabled?: boolean;
+  trend_threshold?: number;
+  z_threshold?: number;
+  run_time?: string;
+  retention_days?: number;
+  dimension_values?: Record<string, string[]>;
+  holidays_excluded?: boolean;
+  notes?: string | null;
+  extra_config?: Record<string, unknown>;
 }
 
 export interface MlAnomalyRow {
@@ -381,13 +399,15 @@ export function toMlDetectorPayload(payload: DetectorPayload, meta: DetectorSave
 
 export async function listDetectorPayloads(): Promise<{ items: MlDetectorRow[]; total: number; error?: string }> {
   try {
-    const raw = await getJson<{ items?: MlDetectorRow[]; total?: number; profiles?: MlDetectorRow[]; count?: number }>(DETECTORS_PATH);
+    // Post-rename envelope: { detectors, total, page, limit }. Tolerate
+    // the legacy { profiles | items } shapes during transition deploys.
+    const raw = await getJson<{ detectors?: MlDetectorRow[]; profiles?: MlDetectorRow[]; items?: MlDetectorRow[]; total?: number; count?: number }>(DETECTORS_PATH);
     return {
-      items: raw.items ?? raw.profiles ?? [],
+      items: raw.detectors ?? raw.profiles ?? raw.items ?? [],
       total: raw.total ?? raw.count ?? 0,
     };
   } catch (err) {
-    // ml-engine /profiles can return 500 (DB not migrated) or HTML (route missing).
+    // ml-engine /detectors can return 500 (DB not migrated) or HTML (route missing).
     // Degrade gracefully so the ODCC console still renders.
     const message = err instanceof Error ? err.message : String(err);
     if (/non-JSON|malformed JSON|failed \(404\)|failed \(500\)|failed \(502\)|failed \(503\)/.test(message)) {
