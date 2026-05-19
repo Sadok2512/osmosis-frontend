@@ -587,13 +587,10 @@ All colors MUST be HSL.
   100% { transform: translateX(100%); }
 }
 
-/* Alarm Center — keep floating sidebar above Leaflet map */
+/* Alarm Center — floating sidebar must sit above Leaflet map without
+   breaking Leaflet's internal pane stacking (tiles 200, overlay 400,
+   markers 600, popup 700). Only cap the map's own controls, not its panes. */
 .floating-sidebar { z-index: 9999 !important; }
-.floating-sidebar .leaflet-pane,
-.floating-sidebar .leaflet-top,
-.floating-sidebar .leaflet-bottom { z-index: auto; }
-.alarm-center-map .leaflet-pane,
+.alarm-center-map.leaflet-container { z-index: 1; }
 .alarm-center-map .leaflet-top,
-.alarm-center-map .leaflet-bottom,
-.alarm-center-map .leaflet-control { z-index: 10 !important; }
-.alarm-center-map.leaflet-container { z-index: 1; position: relative; }
+.alarm-center-map .leaflet-bottom { z-index: 400; }
