@@ -103,6 +103,7 @@ const SITES_TO_CELLS_ZOOM = 15;
 // fetch are gated by the same threshold — at zoom 13 the user sees only
 // site dots + labels, no sectors.
 const FULL_BEAM_DETAIL_ZOOM = 15;
+const FOOTPRINT_CELL_DETAIL_ZOOM = 13;
 const CELLS_TO_SITES_ZOOM = 12;
 // Below this zoom: nothing is rendered. Above it, sites render only if visible count ≤ MAX_VISIBLE_SITES.
 // MAX_VISIBLE_SITES raised 1000 → 10000 so dense urban viewports at zoom 12-14
@@ -7559,7 +7560,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // bbox cell fetch + per-site fallback take over.
     // Exceptions (tagged sites, KPI mode, band filter, cell-level conditions)
     // need cells regardless of zoom because the user explicitly chose them.
-    const cellsAllowedAtZoom = viewport.zoom >= SITES_TO_CELLS_ZOOM;
+    const cellsAllowedAtZoom = viewport.zoom >= SITES_TO_CELLS_ZOOM
+      || (showVisualCoverage && viewport.zoom >= FOOTPRINT_CELL_DETAIL_ZOOM);
     const needsCellData = sectorColorMode === 'kpi'
       || displayMode === 'cells'
       || mapDisplayMode === 'points'
@@ -7838,7 +7840,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // bbox cell fetch + per-site fallback take over.
     // Exceptions (tagged sites, KPI mode, band filter, cell-level conditions)
     // need cells regardless of zoom because the user explicitly chose them.
-    const cellsAllowedAtZoom = viewport.zoom >= SITES_TO_CELLS_ZOOM;
+    const cellsAllowedAtZoom = viewport.zoom >= SITES_TO_CELLS_ZOOM
+      || (showVisualCoverage && viewport.zoom >= FOOTPRINT_CELL_DETAIL_ZOOM);
     const needsCellData = sectorColorMode === 'kpi'
       || displayMode === 'cells'
       || mapDisplayMode === 'points'
@@ -8136,8 +8139,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // In Topo mode: sectors only if user enabled beams AND zoom >= full-detail threshold.
   const KPI_BEAM_MIN_ZOOM = 13;
   const kpiForcesSectors = sectorColorMode === 'kpi' && !paramMode && viewport.zoom >= KPI_BEAM_MIN_ZOOM;
+  const footprintForcesSectors = showVisualCoverage
+    && mapDisplayMode === 'sites'
+    && showBeamSectors
+    && viewport.zoom >= FOOTPRINT_CELL_DETAIL_ZOOM;
   const showSectors = !paramMode && (
     kpiForcesSectors
+    || footprintForcesSectors
     || (viewport.zoom >= FULL_BEAM_DETAIL_ZOOM && mapDisplayMode === 'sites' && showBeamSectors)
     || (taggedDisplayMode === 'tagged-only' && mapDisplayMode === 'sites')
   );
@@ -9887,7 +9895,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })()}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
-        {!showVisualCoverage && !paramMode && !paramPanelOpen && showSectors && renderSites.map(site => {
+        {!paramMode && !paramPanelOpen && showSectors && renderSites.map(site => {
           // LOD filtering: skip sites in very dense areas to reduce overdraw
           const densityInfo = siteDensityMap.get(site.site_id);
           const isHovered = hoveredSiteId === site.site_id;
