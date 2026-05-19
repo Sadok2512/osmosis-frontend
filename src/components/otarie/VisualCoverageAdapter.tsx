@@ -124,6 +124,11 @@ const VisualCoverageAdapter: React.FC<Props> = ({
       wedgeFillOpacity: polygonOpacity,
     });
     ctlRef.current = ctl;
+    // If we already have cells in cache (re-init after slider change),
+    // rebuild immediately so polygons stay on screen.
+    if (lastCellsRef.current.length > 0) {
+      try { ctl.rebuild(lastCellsRef.current); } catch { /* best-effort */ }
+    }
     return () => {
       try { ctl.destroy(); } catch { /* swallow — destroy is best-effort */ }
       ctlRef.current = null;
