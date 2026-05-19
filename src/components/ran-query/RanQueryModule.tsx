@@ -181,6 +181,13 @@ function canonicalAggKey(raw: string | undefined | null): string {
   return '';
 }
 
+function normalizeAggregationList(values?: string[] | null, legacy?: string | null): string[] {
+  const source = values && values.length > 0 ? values : legacy ? [legacy] : ['site'];
+  const normalized = Array.from(new Set(source.map(v => canonicalAggKey(v) || String(v || '').trim()).filter(Boolean)));
+  const withoutCell = normalized.filter(v => v !== 'cell');
+  return withoutCell.length > 0 ? withoutCell : (normalized.includes('cell') ? ['cell'] : ['site']);
+}
+
 const FALLBACK_AGGREGATION_OPTIONS: { value: string; label: string }[] = [
   { value: 'cell', label: 'Cell' },
   { value: 'site', label: 'Site' },
@@ -418,8 +425,7 @@ function buildFilterPayload(report: RanReport) {
   if (report.zoneArcep && report.zoneArcep.length > 0) base.zone_arcep = report.zoneArcep;
   if (report.technologies && report.technologies.length > 0) base.technology = report.technologies;
   // Multi-aggregation: use first non-cell aggregation as split_by
-  const aggList = (report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']))
-    .map(a => canonicalAggKey(a) || a);
+  const aggList = normalizeAggregationList(report.aggregations, report.aggregation);
   const primaryAgg = aggList.find(a => a !== 'cell') || null;
   if (primaryAgg) {
     const aggMap: Record<string, string> = { site: 'site_name', band: 'band', cluster: 'cluster', dor: 'dor', dr: 'dor', region: 'region', arcep: 'zone_arcep' };
@@ -449,8 +455,7 @@ export function resolvePivotKpiColumns(
 
 export function buildMonitorQueryPayload(report: RanReport, vendor: string, kpiKeys: string[]) {
   const { date_from, date_to } = resolveTimeRange(report.timeConfig);
-  const aggList = (report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']))
-    .map(a => canonicalAggKey(a) || a);
+  const aggList = normalizeAggregationList(report.aggregations, report.aggregation);
   const splitMap: Record<string, string> = {
     cell: 'CELL',
     site: 'SITE',
@@ -615,7 +620,7 @@ async function executeReportApi(
 
   const validation = validateReportSelection(report.kpis, kpiKeySet, counterKeySet, {
     vendors,
-    aggregations: report.aggregations || (report.aggregation ? [report.aggregation] : ['site']),
+    aggregations: normalizeAggregationList(report.aggregations, report.aggregation),
     sites: report.sites,
   });
   if (!validation.isValid) {
@@ -653,8 +658,7 @@ async function executeReportApi(
       }
       const batchResults: ReportResultRow[] = [];
       const rows = Array.isArray(data?.rows) ? data.rows : [];
-      const aggList = (report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']))
-    .map(a => canonicalAggKey(a) || a);
+      const aggList = normalizeAggregationList(report.aggregations, report.aggregation);
       const primaryAgg = aggList.find(a => a !== 'cell') || null;
       // Multi-dim backend now returns named columns (site_name, cell_name, plaque, …)
       // directly. Fallback chain (split_value-based) only kicks in for the legacy
@@ -765,8 +769,7 @@ function downloadCsv(report: RanReport) {
     return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
   // Build pivot CSV: dimension columns + KPI columns
-  const aggLevels = (report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']))
-    .map(a => canonicalAggKey(a) || a);
+  const aggLevels = normalizeAggregationList(report.aggregations, report.aggregation);
   const dimHeaders: string[] = ['Timestamp', 'Vendor', 'Technology'];
   if (aggLevels.includes('cluster')) dimHeaders.push('Cluster');
   if (aggLevels.includes('plaque')) dimHeaders.push('Plaque');
@@ -1102,7 +1105,7 @@ const RanQueryModule: React.FC = () => {
   const selectedCounterKeys = useMemo(() => form.selectedKpis.filter(k => counterKeySet.has(k)), [form.selectedKpis, counterKeySet]);
   const reportSelectionValidation = useMemo(() => validateReportSelection(form.selectedKpis, kpiKeySet, counterKeySet, {
     vendors: form.vendors,
-    aggregations: form.aggregations,
+    aggregations: normalizeAggregationList(form.aggregations),
     sites: form.sites,
   }), [counterKeySet, form.aggregations, form.selectedKpis, form.sites, form.vendors, kpiKeySet]);
   const canCreateReport = Boolean(form.name.trim()) && form.selectedKpis.length > 0 && form.technologies.length > 0 && reportSelectionValidation.isValid;
@@ -1164,7 +1167,7 @@ const RanQueryModule: React.FC = () => {
     if (!selectedReport) return null;
     return validateReportSelection(selectedReport.kpis, kpiKeySet, counterKeySet, {
       vendors: selectedReport.vendor ? selectedReport.vendor.split(',').map(s => s.trim()).filter(Boolean) : [],
-      aggregations: selectedReport.aggregations || (selectedReport.aggregation ? [selectedReport.aggregation] : ['site']),
+      aggregations: normalizeAggregationList(selectedReport.aggregations, selectedReport.aggregation),
       sites: selectedReport.sites,
     });
   }, [counterKeySet, kpiKeySet, selectedReport]);
@@ -1218,8 +1221,7 @@ const RanQueryModule: React.FC = () => {
   // shows the table the user expected, with empty cells.
   const pivotData = useMemo(() => {
     if (!selectedReport) return { rows: [], kpis: [], dimCols: [] };
-    const aggLevels = (selectedReport.aggregations || (selectedReport.aggregation ? [selectedReport.aggregation] : ['cell']))
-      .map(a => canonicalAggKey(a) || a);
+    const aggLevels = normalizeAggregationList(selectedReport.aggregations, selectedReport.aggregation);
     // Determine which dimension columns to show
     const dimCols: { key: string; label: string }[] = [];
     dimCols.push({ key: '_timestamp', label: 'Timestamp' });
@@ -1363,7 +1365,7 @@ const RanQueryModule: React.FC = () => {
         dors: form.dors,
         sites: form.sites,
         zoneArcep: form.zoneArcep,
-        aggregations: form.aggregations,
+        aggregations: normalizeAggregationList(form.aggregations),
         dimensions: form.dimensions,
         cluster_id: selectedCluster ? Number(selectedCluster.cluster.id) : undefined,
         cluster_name: selectedCluster?.cluster.name,
@@ -1396,7 +1398,7 @@ const RanQueryModule: React.FC = () => {
       dors: form.dors,
       sites: form.sites,
       zoneArcep: form.zoneArcep,
-      aggregations: form.aggregations,
+      aggregations: normalizeAggregationList(form.aggregations),
       dimensions: form.dimensions,
       cluster_id: selectedCluster ? Number(selectedCluster.cluster.id) : undefined,
       cluster_name: selectedCluster?.cluster.name,
@@ -1427,7 +1429,7 @@ const RanQueryModule: React.FC = () => {
       dors: r.dors ?? [],
       sites: r.sites ?? [],
       zoneArcep: r.zoneArcep ?? [],
-      aggregations: r.aggregations ?? (r.aggregation ? [r.aggregation] : ['site']),
+      aggregations: normalizeAggregationList(r.aggregations, r.aggregation),
       dimensions: r.dimensions ?? [],
       granularity: r.timeConfig.granularity ?? '1h',
     });
@@ -1445,7 +1447,7 @@ const RanQueryModule: React.FC = () => {
       if (!report) throw new Error('Report not found');
       const validation = validateReportSelection(report.kpis, kpiKeySet, counterKeySet, {
         vendors: report.vendor ? report.vendor.split(',').map(s => s.trim()).filter(Boolean) : [],
-        aggregations: report.aggregations || (report.aggregation ? [report.aggregation] : ['site']),
+        aggregations: normalizeAggregationList(report.aggregations, report.aggregation),
         sites: report.sites,
       });
       if (!validation.isValid) {
@@ -2238,8 +2240,10 @@ const RanQueryModule: React.FC = () => {
                         onClick={() => {
                           const next = active
                             ? form.aggregations.filter(a => a !== opt.value)
-                            : [...form.aggregations, opt.value];
-                          updateForm('aggregations', next.length > 0 ? next : ['cell']);
+                            : opt.value === 'cell'
+                              ? ['cell']
+                              : [...form.aggregations.filter(a => a !== 'cell'), opt.value];
+                          updateForm('aggregations', normalizeAggregationList(next.length > 0 ? next : ['site']));
                         }}
                         className={cn(
                           'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all',
@@ -2252,9 +2256,9 @@ const RanQueryModule: React.FC = () => {
                     );
                   })}
                 </div>
-                {form.aggregations.length > 1 && (
+                {normalizeAggregationList(form.aggregations).length > 1 && (
                   <p className="mt-2 text-[11px] text-muted-foreground">
-                    Primary split: <strong>{aggregationOptions.find(a => a.value === (form.aggregations.find(a => a !== 'cell') || form.aggregations[0]))?.label}</strong>
+                    Primary split: <strong>{aggregationOptions.find(a => a.value === normalizeAggregationList(form.aggregations)[0])?.label}</strong>
                   </p>
                 )}
               </SectionCard>
@@ -2345,7 +2349,7 @@ const RanQueryModule: React.FC = () => {
                 <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Aggregation</p>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {(selectedReport.aggregations || (selectedReport.aggregation ? [selectedReport.aggregation] : ['cell'])).map(a => (
+                    {normalizeAggregationList(selectedReport.aggregations, selectedReport.aggregation).map(a => (
                       <span key={a} className="inline-flex items-center rounded-full border border-primary/20 bg-primary/8 px-2 py-0.5 text-[10px] font-semibold text-primary">{a}</span>
                     ))}
                   </div>
