@@ -808,7 +808,7 @@ const AlarmCenterPage: React.FC = () => {
         {/* DOCKED RIGHT DRAWER — Details + AI. Doesn't overlap content because
             root container reserves paddingRight when detailsOpen. */}
         {detailsOpen && (
-          <div className="fixed right-0 top-0 h-full w-[440px] max-w-[92vw] z-[60]">
+          <div className="floating-sidebar fixed right-0 top-0 h-full w-[440px] max-w-[92vw]" style={{ zIndex: 9999 }}>
 
 
 
@@ -1287,7 +1287,7 @@ const SitesMiniMap: React.FC<{
       className={`relative rounded-xl overflow-hidden border border-[#e7edf5] ${fullscreen ? "h-full" : ""}`}
       style={fullscreen ? undefined : { height: mapHeight }}
     >
-      <div ref={containerRef} className="absolute inset-0" />
+      <div ref={containerRef} className="alarm-center-map absolute inset-0" style={{ zIndex: 1 }} />
 
       {/* Search box */}
       <div className="absolute top-2 left-12 z-[500] w-[260px]">
