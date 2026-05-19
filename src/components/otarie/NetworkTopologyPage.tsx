@@ -1195,10 +1195,9 @@ const NetworkTopologyPage: React.FC = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="network" className="gap-1.5"><Globe className="w-4 h-4" /> Global Network</TabsTrigger>
             <TabsTrigger value="sites" className="gap-1.5"><Building2 className="w-4 h-4" /> Sites & Data</TabsTrigger>
-            <TabsTrigger value="livemap" className="gap-1.5"><Map className="w-4 h-4" /> Live Map</TabsTrigger>
           </TabsList>
 
           {/* ═══════ TAB: Live Map ═══════ */}
