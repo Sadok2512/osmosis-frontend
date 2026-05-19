@@ -1398,7 +1398,7 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
             </div>
           )}
 
-          {/* ── STEP 2: Visual Coverage ── (replaces the old RSRP form) */}
+          {/* ── STEP 2: Cell Footprint ── (renamed from Visual Coverage) */}
           {step === 2 && viewType === 'coverage' && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
@@ -1407,9 +1407,9 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                 </button>
                 <div>
                   <h2 className="text-base font-black tracking-tight flex items-center gap-2">
-                    <MapIcon size={16} className="text-primary" /> Visual Coverage
+                    <MapIcon size={16} className="text-primary" /> Cell Footprint
                   </h2>
-                  <p className="text-[10px] text-muted-foreground">Dominance visuelle des cellules par tessellation Voronoï</p>
+                  <p className="text-[10px] text-muted-foreground">Empreinte des cellules par tessellation Voronoï</p>
                 </div>
               </div>
 
@@ -1419,9 +1419,57 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                 <Input
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="Ex: Visual Coverage Reims Centre"
+                  placeholder="Ex: Cell Footprint Reims Centre"
                   className="text-sm"
                 />
+              </div>
+
+              {/* Bandes — multi-select chips. Empty = toutes les bandes. */}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                  Bandes
+                  <span className="ml-2 text-muted-foreground/70 font-normal normal-case tracking-normal">
+                    {coverageBands.length === 0 ? 'toutes' : `${coverageBands.length} sélectionnée${coverageBands.length > 1 ? 's' : ''}`}
+                  </span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { group: '2G', bands: ['GSM900', 'GSM1800'] },
+                    { group: '3G', bands: ['UMTS900', 'UMTS2100'] },
+                    { group: '4G', bands: ['L700', 'L800', 'L1800', 'L2100', 'L2600'] },
+                    { group: '5G', bands: ['NR700', 'NR2100', 'NR3500'] },
+                  ].map(({ group, bands }) => (
+                    <div key={group} className="flex items-center gap-1 px-1.5 py-1 rounded-md border border-border/40 bg-muted/20">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mr-1">{group}</span>
+                      {bands.map(b => {
+                        const active = coverageBands.includes(b);
+                        return (
+                          <button
+                            key={b}
+                            type="button"
+                            onClick={() => setCoverageBands(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b])}
+                            className={`px-2 py-1 rounded text-[10px] font-bold transition-colors border ${
+                              active
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
+                            }`}
+                          >
+                            {b}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+                {coverageBands.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setCoverageBands([])}
+                    className="mt-1.5 text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  >
+                    Réinitialiser (toutes les bandes)
+                  </button>
+                )}
               </div>
 
               {/* Max radius cap */}
@@ -1449,8 +1497,8 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
               {/* Explanation card — matches the in-map one so the operator
                   reads the same disclaimer at creation time. */}
               <div className="text-[10px] text-muted-foreground bg-muted/30 rounded-lg p-3 border border-border/50 leading-relaxed">
-                <div className="font-bold text-foreground mb-1">À propos de Visual Coverage</div>
-                Couche de dominance approchée générée à partir des positions
+                <div className="font-bold text-foreground mb-1">À propos de Cell Footprint</div>
+                Couche d'empreinte approchée générée à partir des positions
                 cellulaires et de leurs voisines (clipping Voronoï + secteur
                 azimutal). Utilisée pour la visualisation KPI uniquement —
                 ne représente <b>pas</b> la propagation RF réelle (pas de
