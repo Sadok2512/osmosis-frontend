@@ -3410,7 +3410,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                   ) : (
                                     isViewActive && <span className="text-[7px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold uppercase">actif</span>
                                   )}
-                                  {hasOwnSettings && <span className="text-[7px] px-1 py-0.5 rounded bg-accent/10 text-accent-foreground font-bold uppercase">custom</span>}
+                                  {hasOwnSettings && vs.viewType !== 'coverage' && <span className="text-[7px] px-1 py-0.5 rounded bg-accent/10 text-accent-foreground font-bold uppercase" title="Cette vue surcharge le style de carte / KPI / couleur du dashboard">custom</span>}
                                   {condCount > 0 && <span className="text-[7px] px-1 py-0.5 rounded bg-primary/10 text-primary font-bold">{condCount} filtre{condCount > 1 ? 's' : ''}</span>}
                                   {vs.viewType === 'kpi_overlay' && <span className="text-[7px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold uppercase">KPI</span>}
                                   {vs.viewType === 'topology_search' && <span className="text-[7px] px-1 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold uppercase">Topo</span>}
@@ -14655,15 +14655,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setKpiOverlayLocked(false);
                     }
 
-                    if (settings.mapLayer) setMapLayer(settings.mapLayer);
-                    if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
+                    // Cell Footprint views must auto-enable the Visual Coverage
+                    // layer (otherwise activating the view does nothing visible)
+                    // AND must NOT mutate the dashboard's map style / KPI / camera
+                    // (the user just wants polygons drawn on top of what's there).
+                    const isCoverageView = settings.viewType === 'coverage';
+                    if (isCoverageView || (settings as any).showVisualCoverage) {
+                      setShowVisualCoverage(true);
+                    } else if (settings._isDashboardOnly) {
+                      // Deactivating a view → turn coverage layer back off so
+                      // the dashboard reverts to its plain state.
+                      setShowVisualCoverage(false);
+                    }
+                    if (!isCoverageView) {
+                      if (settings.mapLayer) setMapLayer(settings.mapLayer);
+                      if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
+                    }
                     if (settings.center && Array.isArray(settings.center)) {
-                      // Skip flyTarget when:
-                      //  - a dashboard is active (its sites refit handles centering)
-                      //  - the view is a Cell Footprint toggle (camera must stay put;
-                      //    otherwise we briefly fly to a stale saved center like
-                      //    Marseille before refitting to Nantes).
-                      const isCoverageView = settings.viewType === 'coverage';
+                      // Skip flyTarget when a dashboard is active (its sites refit
+                      // handles centering) or on a Cell Footprint toggle (camera
+                      // must stay put — otherwise we briefly fly to a stale saved
+                      // center like Marseille before refitting to Nantes).
                       const c = settings.center as [number, number];
                       if (!dashboardActive && !isCoverageView && c[0] > 41 && c[0] < 52) setFlyTarget(c);
                     }
