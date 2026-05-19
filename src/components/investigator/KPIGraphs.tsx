@@ -318,6 +318,7 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
   { value: 'line_straight', label: 'Straight', icon: TrendingUp },
   { value: 'line_points', label: 'Points', icon: CircleDot },
   { value: 'area', label: 'Area', icon: AreaChart },
+  { value: 'stacked_area', label: 'Stacked Area', icon: AreaChart },
   { value: 'bar', label: 'Bar', icon: BarChart },
   { value: 'stacked_bar', label: 'Stacked', icon: Layers },
   { value: 'scatter', label: 'Scatter', icon: CircleDot },
