@@ -5288,9 +5288,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [neighborData, setNeighborData] = useState<CellNeighbor[]>([]);
   const [showNeighborPanel, setShowNeighborPanel] = useState(false);
   const [neighborLoading, setNeighborLoading] = useState(false);
-  const [activeDashboardId, _setActiveDashboardId] = useState<string | null>(() => {
-    try { return localStorage.getItem('osmosis_active_dashboard_id') || null; } catch { return null; }
-  });
+  // Dashboards always start inactive on open. User must explicitly click "Activer"
+  // to activate a dashboard and display its sites on the map.
+  const [activeDashboardId, _setActiveDashboardId] = useState<string | null>(null);
   // Per-dashboard scope-counts cache. Keyed by dashboardId, holds backend-
   // authoritative sites + cells counts. Refreshed on filter change. Async
   // fetch is triggered from getDashboardStats below — sync read here.
