@@ -47,11 +47,26 @@ function hashStableColor(pci) {
   return `hsl(${hue.toFixed(1)}, 70%, 72%)`;
 }
 
-function colorForPci(pci, mode) {
-  if (pci == null || !Number.isFinite(pci)) return 'rgb(203, 213, 225)';
+function stableHash(value) {
+  const s = String(value == null ? '' : value);
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function fallbackColor(seed) {
+  const hue = stableHash(seed) % 360;
+  return `hsl(${hue}, 68%, 76%)`;
+}
+
+function colorForPci(pci, mode, fallbackSeed = '') {
+  if (pci == null || !Number.isFinite(pci)) return fallbackColor(fallbackSeed);
   if (mode === 'hash') return hashStableColor(pci);
   // default mod3
-  return MOD3_COLORS[pci % 3] || 'rgb(140,140,140)';
+  return MOD3_COLORS[pci % 3] || fallbackColor(fallbackSeed);
 }
 
 export function buildPciOverlay({ cells, view, options = {} }) {
@@ -78,16 +93,41 @@ export function buildPciOverlay({ cells, view, options = {} }) {
     return { fc: { type: 'FeatureCollection', features: [] }, nCells: 0, elapsedMs: 0, band: view.band };
   }
 
-  // 2) Voronoï on filtered set (every band gets its own tessellation)
-  const seeds = filtered.map((c) => ({ x: c.lon, y: c.lat }));
-  const lats = filtered.map((c) => c.lat);
-  const lons = filtered.map((c) => c.lon);
-  const pad = cfg.bboxPaddingDegrees;
+  // 2) Voronoï on SECTOR seeds, not raw site coordinates. Cells on the same
+  //    physical site share lat/lon, so a raw Voronoï collapses visually to
+  //    one site polygon. Offset each sector a few metres along its azimuth;
+  //    bissectors then create one RF polygon per serving sector.
+  const AZ_BUCKET_DEG = 5;
+  const SECTOR_OFFSET_M = 120;
+  const latRef = filtered.reduce((sum, c) => sum + Number(c.lat || 0), 0) / filtered.length;
+  const M_PER_DEG_LAT = 111000;
+  const M_PER_DEG_LNG = 111000 * Math.cos((latRef * Math.PI) / 180);
+  const seedMap = new Map();
+  for (const c of filtered) {
+    const azRaw = Number(c.azimuth);
+    const az = Number.isFinite(azRaw) ? ((azRaw % 360) + 360) % 360 : 0;
+    const azBucket = Math.round(az / AZ_BUCKET_DEG) * AZ_BUCKET_DEG;
+    const siteKey = c.siteId || c.siteName || c.id;
+    const key = `${siteKey}|${bandUpper}|${azBucket}`;
+    const rad = (az * Math.PI) / 180;
+    const x = c.lon * M_PER_DEG_LNG + Math.sin(rad) * SECTOR_OFFSET_M;
+    const y = c.lat * M_PER_DEG_LAT + Math.cos(rad) * SECTOR_OFFSET_M;
+    const pci = typeof c.pci === 'number' ? c.pci : (c.pci != null ? Number(c.pci) : null);
+    const acc = seedMap.get(key);
+    if (!acc) {
+      seedMap.set(key, { ...c, x, y, azimuth: az, cellIds: [c.id], pci });
+    } else {
+      acc.cellIds.push(c.id);
+      if (!Number.isFinite(acc.pci) && Number.isFinite(pci)) acc.pci = pci;
+    }
+  }
+  const seeds = [...seedMap.values()];
+  const padM = Math.max(cfg.maxRadiusMeters * 2, 50000);
   const bbox = [
-    Math.min(...lons) - pad,
-    Math.min(...lats) - pad,
-    Math.max(...lons) + pad,
-    Math.max(...lats) + pad,
+    Math.min(...seeds.map((s) => s.x)) - padM,
+    Math.min(...seeds.map((s) => s.y)) - padM,
+    Math.max(...seeds.map((s) => s.x)) + padM,
+    Math.max(...seeds.map((s) => s.y)) + padM,
   ];
   const { polys } = voronoiCells(seeds, bbox);
 
@@ -95,26 +135,25 @@ export function buildPciOverlay({ cells, view, options = {} }) {
 
   // 3) Build features — same shape as KPI overlay (close ring + radial clip)
   const features = [];
-  filtered.forEach((cell, i) => {
+  seeds.forEach((cell, i) => {
     const poly = polys[i];
     if (!poly || poly.length === 0) return;
 
-    const pci = typeof cell.pci === 'number' ? cell.pci : (cell.pci != null ? Number(cell.pci) : null);
-    const validPci = Number.isFinite(pci) ? pci : null;
+    const validPci = Number.isFinite(cell.pci) ? cell.pci : null;
     const pilotGroup = validPci != null ? validPci % 3 : null;
 
     // Radial clip — bound the Voronoï cell to a max radius around its
     // seed (default 5km via maxRadiusMeters). Same logic as kpi-overlay.js
     // to keep coverage bubbles physically plausible. Without it, isolated
     // cells get giant wedges that reach the bbox edges.
-    const Rdeg = (cell.maxRadius ?? cfg.maxRadiusMeters) / 1000 / 111;
+    const Rm = cell.maxRadius ?? cfg.maxRadiusMeters;
     const clipped = poly.map((p) => {
-      const dLat = p.y - cell.lat;
-      const dLon = p.x - cell.lon;
-      const d = Math.sqrt(dLat * dLat + dLon * dLon);
-      if (d <= Rdeg) return [p.x, p.y];
-      const f = Rdeg / d;
-      return [cell.lon + dLon * f, cell.lat + dLat * f];
+      const dx = p.x - cell.x;
+      const dy = p.y - cell.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d <= Rm) return [p.x / M_PER_DEG_LNG, p.y / M_PER_DEG_LAT];
+      const f = Rm / d;
+      return [(cell.x + dx * f) / M_PER_DEG_LNG, (cell.y + dy * f) / M_PER_DEG_LAT];
     });
     if (clipped.length === 0) return;
     clipped.push(clipped[0]); // close ring — REQUIRED by GeoJSON Polygon spec
@@ -124,6 +163,7 @@ export function buildPciOverlay({ cells, view, options = {} }) {
       geometry: { type: 'Polygon', coordinates: [clipped] },
       properties: {
         id:        cell.id,
+        cellIds:   cell.cellIds || [cell.id],
         siteId:    cell.siteId,
         siteName:  cell.siteName,
         lat:       cell.lat,
@@ -134,7 +174,8 @@ export function buildPciOverlay({ cells, view, options = {} }) {
         beamwidth: cell.beamwidth,
         pci:       validPci,
         pilotGroup,
-        color:     colorForPci(validPci, mode),
+        color:     colorForPci(validPci, mode, `${cell.id}|${cell.siteId}|${cell.azimuth}|${cell.band}`),
+        colorSource: validPci == null ? 'fallback' : 'pci',
       },
     });
   });
@@ -150,4 +191,4 @@ export function buildPciOverlay({ cells, view, options = {} }) {
 
 // Expose helpers so the legend/tooltip can stay in sync with the color logic.
 export const PCI_PALETTE = MOD3_COLORS;
-export { colorForPci, hashStableColor };
+export { colorForPci, hashStableColor, fallbackColor };
